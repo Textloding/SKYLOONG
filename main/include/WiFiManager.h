@@ -1,0 +1,35 @@
+#pragma once
+
+class WiFiManager
+{
+private:
+    /* data */
+public:
+    void init();
+    void save();
+    void add(const String ssid, const String pass);
+    void remove(const String ssid);
+    bool has(const String ssid);
+    String getPassword(const String ssid);
+    void clearall();
+    bool requireWiFi(bool forceChoose = false);
+    lv_obj_t *_status_obj = NULL;
+    bool requireWiFiForce(bool forceChoose = false)
+    {
+        for (uint8_t i = 0; i < 3; i++)
+        {
+            if (requireWiFi(forceChoose) == true)
+            {
+                return true;
+            }
+        }
+        GUI::toast("已取消");
+        return false;
+    };
+    void disconnect()
+    {
+        WiFi.disconnect(true);
+        WiFi.mode(WIFI_OFF);
+    };
+};
+extern WiFiManager WiFiMgr;

@@ -1,0 +1,18 @@
+{
+    "C_Cpp.intelliSenseEngine": "default",
+    "idf.adapterTargetName": "esp32s3",
+    "idf.port": "/dev/ttyACM0",
+    "idf.flashType": "UART",
+    "files.associations": {
+        "new": "cpp",
+        "mutex": "cpp",
+        "power_on.c": "cpp",
+        "array": "cpp",
+        "string": "cpp",
+        "string_view": "cpp",
+        "out.mpeg.c": "cpp",
+        "esp32-hal.h": "c",
+        "*.ipp": "cpp",
+        "regex": "c"
+    },
+}
