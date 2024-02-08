@@ -11,7 +11,7 @@ void my_disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *c
     if (first_refresh > 0)
     {
         first_refresh--;
-        if(first_refresh == 0)
+        if (first_refresh == 0)
         {
             hal.setBrightness(hal._brightness);
             ESP_LOGW("HAL", "首次刷新完成");
@@ -199,28 +199,31 @@ void update_status_bar()
             status_bar_charging = NULL;
         }
     }
-    if (status_bar_battery == NULL)
-        status_bar_battery = GUI::status_bar_add(SYMBOL_BATTERY_100, (delay_total += 60));
-    if (hal.config_show_battery_value)
+    if (hal.battery_pct != 0)
     {
-        lv_obj_set_style_text_font(status_bar_battery, &lv_font_chinese_16, 0);
-        char buf[8];
-        sprintf(buf, "%d", hal.battery_pct);
-        lv_label_set_text(lv_obj_get_child(status_bar_battery, 0), buf);
-    }
-    else
-    {
-        lv_obj_set_style_text_font(status_bar_battery, &symbol_16, 0);
-        if (hal.battery_pct < 20)
-            lv_label_set_text(lv_obj_get_child(status_bar_battery, 0), SYMBOL_BATTERY_0);
-        else if (hal.battery_pct < 40)
-            lv_label_set_text(lv_obj_get_child(status_bar_battery, 0), SYMBOL_BATTERY_25);
-        else if (hal.battery_pct < 60)
-            lv_label_set_text(lv_obj_get_child(status_bar_battery, 0), SYMBOL_BATTERY_50);
-        else if (hal.battery_pct < 80)
-            lv_label_set_text(lv_obj_get_child(status_bar_battery, 0), SYMBOL_BATTERY_75);
+        if (status_bar_battery == NULL)
+            status_bar_battery = GUI::status_bar_add(SYMBOL_BATTERY_100, (delay_total += 60));
+        if (hal.config_show_battery_value)
+        {
+            lv_obj_set_style_text_font(status_bar_battery, &lv_font_chinese_16, 0);
+            char buf[8];
+            sprintf(buf, "%d", hal.battery_pct);
+            lv_label_set_text(lv_obj_get_child(status_bar_battery, 0), buf);
+        }
         else
-            lv_label_set_text(lv_obj_get_child(status_bar_battery, 0), SYMBOL_BATTERY_100);
+        {
+            lv_obj_set_style_text_font(status_bar_battery, &symbol_16, 0);
+            if (hal.battery_pct < 20)
+                lv_label_set_text(lv_obj_get_child(status_bar_battery, 0), SYMBOL_BATTERY_0);
+            else if (hal.battery_pct < 40)
+                lv_label_set_text(lv_obj_get_child(status_bar_battery, 0), SYMBOL_BATTERY_25);
+            else if (hal.battery_pct < 60)
+                lv_label_set_text(lv_obj_get_child(status_bar_battery, 0), SYMBOL_BATTERY_50);
+            else if (hal.battery_pct < 80)
+                lv_label_set_text(lv_obj_get_child(status_bar_battery, 0), SYMBOL_BATTERY_75);
+            else
+                lv_label_set_text(lv_obj_get_child(status_bar_battery, 0), SYMBOL_BATTERY_100);
+        }
     }
     hal.UNLOCKLV();
 }
@@ -282,6 +285,7 @@ static void task_systemctl(void *p)
             }
             break;
         case EVENT_APM_CHANGED:
+            hal.APM = event.data;
             break;
         case EVENT_KB_STATUS_CHANGED:
             if (xSemaphoreTake(hal._mutex, 2000) == pdTRUE)
@@ -335,7 +339,7 @@ void demo()
         .sclk_io_num = PIN_DISPLAY_SCLK,
         .quadwp_io_num = -1, // Quad SPI LCD driver is not yet supported
         .quadhd_io_num = -1, // Quad SPI LCD driver is not yet supported
-        .max_transfer_sz = 320*240*2,
+        .max_transfer_sz = 320 * 240 * 2,
     };
     ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO)); // Enable the DMA feature
     esp_lcd_panel_io_spi_config_t io_config = {
@@ -373,7 +377,7 @@ void HAL::init()
     ledcWrite(7, 0);
     demo();
     DS1302_begin(&rtc, PIN_RTC_SCLK, PIN_RTC_SDIO, PIN_RTC_RST);
-    DS1302_writeClockRegister(&rtc, DS1302_REG_TC, 0x56);
+    DS1302_writeClockRegister(&rtc, DS1302_REG_TC, 0xA6);
     if (LittleFS.begin(false) == false)
     {
         LittleFS.format();
