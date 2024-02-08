@@ -45,6 +45,7 @@ void lv_obj_move_anim(lv_obj_t *obj, int16_t x, int16_t y,
 namespace GUI
 {
     void toast(const char *str, bool lock = true);
+    void status_bar_refresh(bool force = false);
     lv_obj_t *status_bar_add(const char *symbol, int delay_ms);
     void status_bar_remove(lv_obj_t *obj);
     void status_bar_status_set(lv_obj_t *obj, lv_state_t status);

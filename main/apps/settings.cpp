@@ -1,6 +1,6 @@
 #include "A_Config.h"
 
-void create_settings_switch(lv_obj_t *parent, const char *title, const char *str, lv_event_cb_t cb)
+lv_obj_t *create_settings_switch(lv_obj_t *parent, const char *title, const char *str, lv_event_cb_t cb)
 {
     lv_obj_t *box = lv_obj_create(parent);
     lv_obj_set_width(box, lv_pct(95));
@@ -20,6 +20,7 @@ void create_settings_switch(lv_obj_t *parent, const char *title, const char *str
     lv_obj_t *sw_btn = lv_switch_create(box);
     lv_obj_align(sw_btn, LV_ALIGN_RIGHT_MID, 0, 0);
     lv_obj_add_event_cb(sw_btn, cb, LV_EVENT_ALL, NULL);
+    return sw_btn;
 }
 lv_obj_t *create_settings_list(lv_obj_t *parent, const char *title, const char *str, const char *dropdown, lv_event_cb_t cb)
 {
@@ -100,15 +101,35 @@ void AppSettings::setup()
     lv_obj_set_flex_align(_appScreen, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_text_font(_appScreen, &lv_font_chinese_16, 0);
     ////////////////////////////////////////////////
-    create_settings_switch(_appScreen, "12小时制", "以12小时制显示时间", [](lv_event_t *e)
-                           {
+    o = create_settings_switch(_appScreen, "12小时制", "以12小时制显示时间", [](lv_event_t *e)
+                               {
             if (e->code == LV_EVENT_VALUE_CHANGED)
                 hal.config_time_12hr = lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED); });
+    if (hal.config_time_12hr)
+        lv_obj_add_state(o, LV_STATE_CHECKED);
+    else
+        lv_obj_clear_state(o, LV_STATE_CHECKED);
 
-    create_settings_switch(_appScreen, "显示电量", "显示具体电量而不是电池图标", [](lv_event_t *e)
-                           {
+    o = create_settings_switch(_appScreen, "显示电量", "显示具体电量而不是电池图标", [](lv_event_t *e)
+                               {
             if (e->code == LV_EVENT_VALUE_CHANGED)
                 hal.config_show_battery_value = lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED); });
+    if (hal.config_show_battery_value)
+        lv_obj_add_state(o, LV_STATE_CHECKED);
+    else
+        lv_obj_clear_state(o, LV_STATE_CHECKED);
+
+    o = create_settings_switch(_appScreen, "状态栏居中", "使状态栏图标居中显示", [](lv_event_t *e)
+                               {
+            if (e->code == LV_EVENT_VALUE_CHANGED)
+            {
+                hal.config_statusbar_center = lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED); 
+                GUI::status_bar_refresh(true);
+            } });
+    if (hal.config_statusbar_center)
+        lv_obj_add_state(o, LV_STATE_CHECKED);
+    else
+        lv_obj_clear_state(o, LV_STATE_CHECKED);
 
     o = create_settings_button(_appScreen, "网页服务器", "启动网页服务器，如需离线设置时间请点这里", "启动", [](lv_event_t *e)
                                {
@@ -232,7 +253,9 @@ void AppSettings::destroy()
 {
     WiFiMgr.disconnect();
     hal.pref.putUInt("bright", hal._brightness);
+    hal.pref.putBool("12hr", hal.config_time_12hr);
     hal.pref.putBool("s_b_v", hal.config_show_battery_value);
+    hal.pref.putBool("s_c", hal.config_statusbar_center);
     hal.pref.putUInt("lang", i18n::getLanguage());
     hal.pref.putInt("ntp", i18n::getNTPOffset());
 }

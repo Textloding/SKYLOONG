@@ -100,6 +100,13 @@ static lv_style_t style_status_obj_red;
 lv_obj_t *arr_status_obj[10];
 int status_obj_count = 0;
 lv_obj_t* status_obj_parent = NULL;
+static uint16_t get_status_obj_pos(uint16_t idx, uint16_t total)
+{
+    int offset = total * 30;
+    offset = screenWidth - offset;
+    offset /= 2;
+    return hal.config_statusbar_center? idx * 30 + offset: idx * 30;
+}
 static lv_obj_t* status_bar_create(const char* symbol)
 {
     lv_obj_t* obj_status = lv_obj_create(status_obj_parent);
@@ -114,10 +121,10 @@ static lv_obj_t* status_bar_create(const char* symbol)
     lv_obj_add_style(obj_status, &style_status_obj_loading, LV_STATE_USER_1);
     lv_obj_add_style(obj_status, &style_status_obj_green, LV_STATE_USER_2);
     lv_obj_add_style(obj_status, &style_status_obj_red, LV_STATE_USER_3);
-    lv_obj_set_x(obj_status, status_obj_count * 30);
+    lv_obj_set_x(obj_status, get_status_obj_pos(status_obj_count, status_obj_count + 1));
     return obj_status;
 }
-static void status_bar_refresh()
+void GUI::status_bar_refresh(bool force)
 {
     int first_move = -1;
     int current_delay = 0;
@@ -141,11 +148,14 @@ static void status_bar_refresh()
     {
         arr_status_obj[i] = NULL;
     }
-    for (int i = first_move; i < 10; i++)
+    if(hal.config_statusbar_center)first_move = 0;
+    if(first_move == -1)first_move = 0;
+    if(force)first_move = 0;
+    for (int i = first_move; i < status_obj_count; i++)
     {
         if (arr_status_obj[i] != NULL)
         {
-            lv_obj_move_anim(arr_status_obj[i], i * 30, 0x7fff, 500, current_delay);
+            lv_obj_move_anim(arr_status_obj[i], get_status_obj_pos(i, status_obj_count), 0x7fff, 500, current_delay);
             current_delay += 60;
         }
     }
@@ -157,13 +167,14 @@ lv_obj_t* GUI::status_bar_add(const char* symbol, int delay_ms = 0)
     lv_obj_t *obj_status = status_bar_create(symbol);
     arr_status_obj[status_obj_count++] = obj_status;
     lv_obj_push_down(obj_status, 40, 500, delay_ms);
+    status_bar_refresh();
     return obj_status;
 }
 void GUI::status_bar_remove(lv_obj_t* obj)
 {
     if(obj == NULL)
         return;
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < status_obj_count; i++)
     {
         if (arr_status_obj[i] == obj)
         {
@@ -196,11 +207,11 @@ lv_obj_t *GUI::status_bar_insert(const char *symbol, int index)
     for (int i = status_obj_count; i > index; i--)
     {
         arr_status_obj[i] = arr_status_obj[i - 1];
-        lv_obj_move_anim(arr_status_obj[i], i * 30, 0x7fff, 500, current_delay);
+        lv_obj_move_anim(arr_status_obj[i], get_status_obj_pos(i, status_obj_count + 1), 0x7fff, 500, current_delay);
         current_delay -= 60;
     }
     arr_status_obj[index] = obj;
-    lv_obj_set_x(obj, index * 30);
+    lv_obj_set_x(obj, get_status_obj_pos(index, status_obj_count + 1));
     lv_obj_push_down(obj, 40, 500, 0);
     ++status_obj_count;
     return obj;
@@ -212,7 +223,7 @@ lv_obj_t *GUI::status_bar_replace(const char *symbol, lv_obj_t *&last)
         last = status_bar_add(symbol);
         return last;
     }
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < status_obj_count; i++)
     {
         if (arr_status_obj[i] == last)
         {
@@ -257,7 +268,7 @@ void GUI::status_bar_init()
     status_obj_parent = box_status;
 
     lv_timer_t *tm = lv_timer_create([](lv_timer_t* timer) {
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < status_obj_count; i++)
         {
             if (arr_status_obj[i] != NULL)
             {
