@@ -170,37 +170,37 @@ void update_status_bar()
     }
     // 判断WINLK
     // 判断充电状态
-    if (hal.battery_status != last_charging_state)
-    {
-        last_charging_state = hal.battery_status;
-        if (hal.battery_status == BATTERY_STATUS_CHARGING)
-        {
-            if (status_bar_charging == NULL)
-                status_bar_charging = GUI::status_bar_add(SYMBOL_CHARGING, (delay_total += 60));
-            GUI::status_bar_status_set(status_bar_charging, LV_STATE_USER_1);
-        }
-        else if (hal.battery_status == BATTERY_STATUS_CHARGED)
-        {
-            if (status_bar_charging == NULL)
-                status_bar_charging = GUI::status_bar_add(SYMBOL_CHARGING, (delay_total += 60));
-            GUI::status_bar_status_set(status_bar_charging, LV_STATE_USER_2);
-        }
-        else if (status_bar_charging != NULL)
-        {
-            GUI::status_bar_status_set(status_bar_charging, 0);
-            status_bar_charging->user_data = (void *)millis();
-        }
-    }
-    if (status_bar_charging != NULL && (last_charging_state == 0 || last_charging_state == 3))
-    {
-        if (millis() - (uint32_t)status_bar_charging->user_data > 2000)
-        {
-            GUI::status_bar_remove(status_bar_charging);
-            status_bar_charging = NULL;
-        }
-    }
     if (hal.battery_pct != 0)
     {
+        if (hal.battery_status != last_charging_state)
+        {
+            last_charging_state = hal.battery_status;
+            if (hal.battery_status == BATTERY_STATUS_CHARGING)
+            {
+                if (status_bar_charging == NULL)
+                    status_bar_charging = GUI::status_bar_add(SYMBOL_CHARGING, (delay_total += 60));
+                GUI::status_bar_status_set(status_bar_charging, LV_STATE_USER_1);
+            }
+            else if (hal.battery_status == BATTERY_STATUS_CHARGED)
+            {
+                if (status_bar_charging == NULL)
+                    status_bar_charging = GUI::status_bar_add(SYMBOL_CHARGING, (delay_total += 60));
+                GUI::status_bar_status_set(status_bar_charging, LV_STATE_USER_2);
+            }
+            else if (status_bar_charging != NULL)
+            {
+                GUI::status_bar_status_set(status_bar_charging, 0);
+                status_bar_charging->user_data = (void *)millis();
+            }
+        }
+        if (status_bar_charging != NULL && (last_charging_state == 0 || last_charging_state == 3))
+        {
+            if (millis() - (uint32_t)status_bar_charging->user_data > 2000)
+            {
+                GUI::status_bar_remove(status_bar_charging);
+                status_bar_charging = NULL;
+            }
+        }
         if (status_bar_battery == NULL)
             status_bar_battery = GUI::status_bar_add(SYMBOL_BATTERY_100, (delay_total += 60));
         if (hal.config_show_battery_value)
