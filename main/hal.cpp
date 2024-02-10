@@ -237,14 +237,8 @@ void update_status_bar()
 }
 static void task_systemctl(void *p)
 {
-    static bool sleep_status = false;
     while (1)
     {
-        if (sleep_status == true)
-        {
-            hal.setBrightness(hal._brightness);
-            sleep_status = false;
-        }
         sysctl_event_t event;
         xQueueReceive(hal._queue, &event, portMAX_DELAY);
         switch (event.type)
@@ -282,8 +276,6 @@ static void task_systemctl(void *p)
                 if (xSemaphoreTake(hal._mutex, 2000) == pdTRUE)
                 {
                     xSemaphoreGive(hal._mutex);
-                    GUI::toast("键盘叫我睡，但他不停给我发消息，我睡不着，只好先把屏幕背光关掉了");
-                    delay(1000);
                     ledcWrite(7, 0);
                 }
             }
@@ -321,10 +313,6 @@ static void task_systemctl(void *p)
                 else
                 {
                     xSemaphoreGive(hal._mutex);
-                    GUI::toast("键盘叫我睡，但我开着热点，不能睡，只好先把屏幕背光关掉了");
-                    delay(1000);
-                    ledcWrite(7, 0);
-                    sleep_status = true;
                 }
             }
             else

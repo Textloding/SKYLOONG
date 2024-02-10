@@ -48,21 +48,8 @@ void ConvertYUV420SPToBGR(unsigned char *yData, unsigned char *vData, unsigned c
 
 uint8_t *rgb_buffer;
 static uint32_t last_millis = 0;
-// This function gets called for each decoded video frame
-// debug
-// uint32_t last_frame100_millis = 0;
-// uint32_t frame100_count = 0;
 void my_video_callback(plm_t *plm, plm_frame_t *frame, void *user)
 {
-    // ++frame100_count;
-    // if (frame100_count  == 100)
-    // {
-    //     ESP_LOGI("Decoder","Frames: %d\n", frame100_count);
-    //     ESP_LOGI("Decoder","FPS: %.2f\n", (float)frame100_count / (float)(millis() - last_frame100_millis) * 1000.0f);
-    //     last_frame100_millis = millis();
-    //     frame100_count = 0;
-    // }
-    // return;
     ConvertYUV420SPToBGR(frame->y.data, frame->cr.data, frame->cb.data, rgb_buffer, frame->width, frame->height);
     esp_lcd_panel_draw_bitmap(panel_handle, (screenWidth - frame->width) / 2, (screenHeight - frame->height) / 2, (screenWidth + frame->width) / 2, (screenHeight + frame->height) / 2, rgb_buffer);
 }
@@ -93,11 +80,9 @@ void VideoPlayer::play(FILE *f)
             break;
     } while (!plm_has_ended(plm));
 
-    // All done
     plm_destroy(plm);
     free(rgb_buffer);
     rgb_buffer = NULL;
-    // lv_obj_invalidate(lv_scr_act());
     hal.UNLOCKLV();
 }
 

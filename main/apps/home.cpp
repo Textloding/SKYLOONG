@@ -135,8 +135,8 @@ lv_obj_t *build_moon_widget(lv_obj_t *parent)
     timenow.tm_hour = hal.datetime.hour;
     timenow.tm_min = hal.datetime.minute;
     timenow.tm_sec = hal.datetime.second;
-    time_t utcnow = mktime(&timenow);    \
-    moon = mp.getPhase(utcnow - i18n::getNTPOffset() + (86400*7));
+    time_t utcnow = mktime(&timenow);
+    moon = mp.getPhase(utcnow - i18n::getNTPOffset());
 
     uint16_t angle = moon.angle / 10;
     if(angle >= 36)angle = 0;
@@ -321,14 +321,6 @@ void MyChart::destroy()
 MyChart chart1;
 MyChart chart2;
 #include <esp_websocket_client.h>
-/**
- *
-    const esp_websocket_client_config_t websocket_cfg = {
-            // no connection takes place, but the uri has to be valid for init() to succeed
-            .uri = "ws://echo.websocket.org",
-    };
-    client = esp_websocket_client_init(&websocket_cfg);
-*/
 struct tcp_client_data
 {
     float cpu_pct;

@@ -65,7 +65,7 @@ extern "C" const lv_font_t lv_font_chinese_16;
 extern "C" const lv_font_t lv_font_big_32;
 extern "C" const lv_font_t symbol_16;
 #define SYMBOL_GLOBAL "\xEF\x82\xAC"
-#define SYMBOL_24G "\xEF\x87\xAB"
+#define SYMBOL_24G "\xEF\x9A\x90"
 #define SYMBOL_WIFI "\xEF\x87\xAB"
 #define SYMBOL_BLUETOOTH "\xEF\x8A\x93"
 #define SYMBOL_WINDOWS "\xEF\x85\xBA"

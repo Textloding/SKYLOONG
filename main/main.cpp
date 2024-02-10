@@ -107,8 +107,8 @@ extern "C" void app_main()
     hal.LOCKLV();
     GUI::status_bar_init();
     hal.UNLOCKLV();
-    xTaskCreate(task_lvgl_update, "lvgl_update", 1024 * 6, NULL, 10, NULL);
-    xTaskCreate(debug_USB_UART, "debug_USB_UART", 1024 * 4, NULL, 6, NULL);
+    xTaskCreatePinnedToCore(task_lvgl_update, "lvgl_update", 1024 * 6, NULL, 1, NULL, 1);
+    xTaskCreatePinnedToCore(debug_USB_UART, "debug_USB_UART", 1024 * 4, NULL, 6, NULL, 1);
     protocol_init();
     appManagerLite.init(last_appid);
     vTaskDelay(portMAX_DELAY);
