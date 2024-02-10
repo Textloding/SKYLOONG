@@ -78,7 +78,10 @@ public:
     void send_sysctl(system_event_type_t type, uint8_t data = 0);
     void copy(File &newFile, File &file);
     void rm_rf(const char *path);
+    void saveAppSettings();
+    void loadAppSettings();
     void start_webserver();
+    TaskHandle_t webserver_task;
     void stop_webserver();
     QueueHandle_t _queue;
     QueueHandle_t _queue_kb;

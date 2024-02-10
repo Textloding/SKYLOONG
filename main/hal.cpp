@@ -370,6 +370,7 @@ void demo()
 
 void HAL::init()
 {
+    WiFi.setHostname("GKScreen");
     pinMode(PIN_DISPLAY_PWR, OUTPUT);
     digitalWrite(PIN_DISPLAY_PWR, HIGH);
     ledcSetup(7, 16000, 8);
@@ -388,6 +389,7 @@ void HAL::init()
                 vTaskDelay(1000);
         }
     }
+    loadAppSettings();
     pref.begin("settings", false);
     hal._brightness = pref.getUInt("bright", 6);
     hal.config_time_12hr = pref.getBool("12hr", false);
@@ -689,54 +691,30 @@ void HAL::rm_rf(const char *path)
     }
 }
 //////////////////////////////////网页服务器部分
-#include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
-#include <AsyncWebSocket.h>
-#include <SPIFFSEditor.h>
+// static void sendreq(AsyncWebServerRequest *request, const char *mime, const uint8_t *name, unsigned int len)
+// {
+//     const char *buildTime = __DATE__ " " __TIME__ " GMT";
+//     if (request->header("If-Modified-Since").equals(buildTime))
+//     {
+//         request->send(304);
+//     }
+//     else
+//     {
+//         AsyncWebServerResponse *response = request->beginResponse_P(200, mime, name, len);
+//         response->addHeader("Content-Encoding", "gzip");
+//         response->addHeader("Last-Modified", buildTime);
+//         request->send(response);
+//     }
+// }
+#include <WebServer.h>
+#include <ESPmDNS.h>
+
+#define FILESYSTEM LittleFS
+WebServer server(80);
+// holds the current upload
+File fsUploadFile;
 #include <list>
-AsyncWebServer server(80);
-void rmrfHandler(AsyncWebServerRequest *request)
-{
-    if (request->hasArg("path"))
-    {
-        String path = request->arg("path");
-        if (path == "")
-        {
-            request->send(500, "text/plain", "EER");
-        }
-        hal.rm_rf((String("/littlefs/") + path).c_str());
-        request->send(200, "text/plain", "OK");
-        return;
-    }
-    request->send(500, "text/plain", "EER");
-}
-void renameHandler(AsyncWebServerRequest *request)
-{
-    if (request->hasArg("path") && request->hasArg("new"))
-    {
-        String path = request->arg("path");
-        String newpath = request->arg("new");
-        if (LittleFS.rename(path, newpath))
-        {
-            request->send(200, "text/plain", "OK");
-            return;
-        }
-    }
-    request->send(500, "text/plain", "EER");
-}
-void mkdirHandler(AsyncWebServerRequest *request)
-{
-    if (request->hasArg("path"))
-    {
-        String path = request->arg("path");
-        if (LittleFS.mkdir(path))
-        {
-            request->send(200, "text/plain", "OK");
-            return;
-        }
-    }
-    request->send(500, "text/plain", "EER");
-}
+// format bytes
 bool myxcopy(const String path, const String newpath)
 {
     std::list<String> filenames;
@@ -751,7 +729,7 @@ bool myxcopy(const String path, const String newpath)
         filenames.pop_back();
         if (!root)
         {
-            Serial.println("[文件] 无法打开目录");
+            ESP_LOGE("SERVER", "[文件] 无法打开目录");
             continue;
         }
         LittleFS.mkdir(tmp);
@@ -775,7 +753,7 @@ bool myxcopy(const String path, const String newpath)
                 if (!newFile)
                 {
                     // 打开失败
-                    Serial.println("无法写入文件");
+                    ESP_LOGE("SERVER", "无法写入文件");
                     file.close();
                     root.close();
                     return false;
@@ -791,72 +769,503 @@ bool myxcopy(const String path, const String newpath)
     root.close();
     return true;
 }
-void createAppHandler(AsyncWebServerRequest *request)
+String formatBytes(size_t bytes)
 {
-    if (request->hasArg("name"))
+    if (bytes < 1024)
     {
-        String name = request->arg("name");
-        if (name == "")
-        {
-            request->send(500, "text/plain", "EER");
-        }
-        if (name.endsWith(".app") == false)
-            name += ".app";
-        hal.rm_rf((String("/littlefs/") + name).c_str());
-        String currentPath = "/" + name;
-        if (myxcopy("/webtmp", currentPath))
-        {
-            request->send(200, "text/plain", "OK");
-            return;
-        }
+        return String(bytes) + "B";
     }
-    request->send(500, "text/plain", "EER");
-}
-static void sendreq(AsyncWebServerRequest *request, const char *mime, const uint8_t *name, unsigned int len)
-{
-    const char *buildTime = __DATE__ " " __TIME__ " GMT";
-    if (request->header("If-Modified-Since").equals(buildTime))
+    else if (bytes < (1024 * 1024))
     {
-        request->send(304);
+        return String(bytes / 1024.0) + "KB";
+    }
+    else if (bytes < (1024 * 1024 * 1024))
+    {
+        return String(bytes / 1024.0 / 1024.0) + "MB";
     }
     else
     {
-        AsyncWebServerResponse *response = request->beginResponse_P(200, mime, name, len);
-        response->addHeader("Content-Encoding", "gzip");
-        response->addHeader("Last-Modified", buildTime);
-        request->send(response);
+        return String(bytes / 1024.0 / 1024.0 / 1024.0) + "GB";
     }
 }
+
+String getContentType(String filename)
+{
+    if (server.hasArg("download"))
+    {
+        return "application/octet-stream";
+    }
+    else if (filename.endsWith(".htm"))
+    {
+        return "text/html";
+    }
+    else if (filename.endsWith(".html"))
+    {
+        return "text/html";
+    }
+    else if (filename.endsWith(".css"))
+    {
+        return "text/css";
+    }
+    else if (filename.endsWith(".js"))
+    {
+        return "application/javascript";
+    }
+    else if (filename.endsWith(".png"))
+    {
+        return "image/png";
+    }
+    else if (filename.endsWith(".gif"))
+    {
+        return "image/gif";
+    }
+    else if (filename.endsWith(".jpg"))
+    {
+        return "image/jpeg";
+    }
+    else if (filename.endsWith(".ico"))
+    {
+        return "image/x-icon";
+    }
+    else if (filename.endsWith(".xml"))
+    {
+        return "text/xml";
+    }
+    else if (filename.endsWith(".pdf"))
+    {
+        return "application/x-pdf";
+    }
+    else if (filename.endsWith(".zip"))
+    {
+        return "application/x-zip";
+    }
+    else if (filename.endsWith(".gz"))
+    {
+        return "application/x-gzip";
+    }
+    return "text/plain";
+}
+
+bool exists(String path)
+{
+    bool yes = false;
+    File file = FILESYSTEM.open(path, "r", false);
+    if (!file.isDirectory())
+    {
+        yes = true;
+    }
+    file.close();
+    return yes;
+}
+
+bool handleFileRead(String path)
+{
+    ESP_LOGI("SERVER", "handleFileRead: %s", path.c_str());
+    String contentType = getContentType(path);
+    if (exists(path))
+    {
+        File file = FILESYSTEM.open(path, "r");
+        server.streamFile(file, contentType);
+        file.close();
+        return true;
+    }
+    return false;
+}
+
+void handleFileUpload()
+{
+    if (server.uri() != "/edit")
+    {
+        return;
+    }
+    HTTPUpload &upload = server.upload();
+    if (upload.status == UPLOAD_FILE_START)
+    {
+        String filename = upload.filename;
+        if (!filename.startsWith("/"))
+        {
+            filename = "/" + filename;
+        }
+        ESP_LOGI("SERVER", "handleFileUpload Name: %s", filename.c_str());
+        ESP_LOGI("SERVER", "handleFileUpload Size? %d", upload.totalSize);
+        fsUploadFile = FILESYSTEM.open(filename, "w");
+        filename = String();
+    }
+    else if (upload.status == UPLOAD_FILE_WRITE)
+    {
+        // ESP_LOGI("SERVER", "handleFileUpload Data: "); ESP_LOGI("SERVER", upload.currentSize);
+        if (fsUploadFile)
+        {
+            fsUploadFile.write(upload.buf, upload.currentSize);
+        }
+    }
+    else if (upload.status == UPLOAD_FILE_END)
+    {
+        if (fsUploadFile)
+        {
+            fsUploadFile.close();
+        }
+        ESP_LOGI("SERVER", "handleFileUpload Size: %d", upload.totalSize);
+    }
+}
+
+void handleFileDelete()
+{
+    if (server.args() == 0)
+    {
+        return server.send(500, "text/plain", "BAD ARGS");
+    }
+    String path = server.arg(0);
+    ESP_LOGI("SERVER", "handleFileDelete: %s", path.c_str());
+    if (path == "/")
+    {
+        return server.send(500, "text/plain", "BAD PATH");
+    }
+    if (!exists(path))
+    {
+        return server.send(404, "text/plain", "FileNotFound");
+    }
+    FILESYSTEM.remove(path);
+    server.send(200, "text/plain", "");
+    path = String();
+}
+
+void handleFileCreate()
+{
+    if (server.args() == 0)
+    {
+        return server.send(500, "text/plain", "BAD ARGS");
+    }
+    String path = server.arg(0);
+    ESP_LOGI("SERVER", "handleFileCreate: %s", path.c_str());
+    if (path == "/")
+    {
+        return server.send(500, "text/plain", "BAD PATH");
+    }
+    if (exists(path))
+    {
+        return server.send(500, "text/plain", "FILE EXISTS");
+    }
+    File file = FILESYSTEM.open(path, "w");
+    if (file)
+    {
+        file.close();
+    }
+    else
+    {
+        return server.send(500, "text/plain", "CREATE FAILED");
+    }
+    server.send(200, "text/plain", "");
+    path = String();
+}
+
+void handleFileList()
+{
+    if (!server.hasArg("dir"))
+    {
+        server.send(500, "text/plain", "BAD ARGS");
+        return;
+    }
+
+    String path = server.arg("dir");
+    ESP_LOGI("SERVER", "handleFileList: %s", path.c_str());
+
+    File root = FILESYSTEM.open(path);
+    path = String();
+
+    String output = "[";
+    if (root.isDirectory())
+    {
+        File file = root.openNextFile();
+        while (file)
+        {
+            if (file.name()[0] == '.')
+            {
+                file = root.openNextFile();
+                continue;
+            }
+            if (output != "[")
+            {
+                output += ',';
+            }
+            output += "{\"type\":\"";
+            output += (file.isDirectory()) ? "dir" : "file";
+            output += "\",\"name\":\"";
+            output += String(file.name());
+            output += "\",\"size\":\"";
+            output += String(file.size());
+            output += "\"}";
+            file = root.openNextFile();
+        }
+    }
+    output += "]";
+    server.send(200, "text/json", output);
+}
+
+void handleRMRF()
+{
+    if (server.hasArg("path"))
+    {
+        String path = server.arg("path");
+        if (path == "")
+        {
+            server.send(500, "text/plain", "ERR 500");
+        }
+        hal.rm_rf((String("/littlefs/") + path).c_str());
+        server.send(200, "text/plain", "OK");
+        return;
+    }
+    server.send(500, "text/plain", "ERR 500");
+}
+void handleRename()
+{
+    if (server.hasArg("path") && server.hasArg("new"))
+    {
+        String path = server.arg("path");
+        String newpath = server.arg("new");
+        if (LittleFS.rename(path, newpath))
+        {
+            server.send(200, "text/plain", "OK");
+            return;
+        }
+    }
+    server.send(500, "text/plain", "ERR 500");
+}
+void handleMkdir()
+{
+    if (server.hasArg("path"))
+    {
+        String path = server.arg("path");
+        if (LittleFS.mkdir(path))
+        {
+            server.send(200, "text/plain", "OK");
+            return;
+        }
+    }
+    server.send(500, "text/plain", "ERR 500");
+}
+void handleRoot()
+{
+    server.send(200, "text/html", "Hello from ESP32!");
+}
+//////////////////////////////////主页APP JSON处理
+#include <cJSON.h>
+
+static char jsonbuffer[2048];
+const char default_app_setting[] = "[{\"widget\":1,\"time12\":false,\"bg\":false},{\"widget\":0,\"data\":1,\"ext_url\":\"ws://192.168.1.2:8080/ws\",\"ext_interval\":200,\"ext_interpolation\":20,\"ext_zoom\":0.69,\"showlbl\":true,\"lbl\":\"标题1\",\"showindicator\":true},{\"widget\":0,\"data\":3,\"ext_url\":\"ws://192.168.1.2:8080/ws\",\"ext_interval\":500,\"ext_interpolation\":40,\"ext_zoom\":0.05,\"showlbl\":false,\"lbl\":\"标题2\",\"showindicator\":false},{\"ip\":\"192.168.1.2\",\"port\":51648}]";
+
+struct app_setting
+{
+    uint8_t widget;
+    bool time12;
+    bool bg;
+    uint8_t data;
+    char ext_url[129];
+    uint16_t ext_interval;
+    uint8_t ext_interpolation;
+    float ext_zoom;
+    bool showlbl;
+    char lbl[129];
+    bool showindicator;
+};
+char app_settings_remote_ip[16];
+uint16_t app_settings_remote_port;
+struct app_setting app_settings_save[3];
+
+void parseAppSettings(const char *input)
+{
+    cJSON *root = cJSON_Parse(input);
+    if (root == NULL)
+    {
+        ESP_LOGE("APP", "JSON解析失败");
+        cJSON_Delete(root);
+        root = cJSON_Parse(default_app_setting);
+    }
+    cJSON *item = cJSON_GetArrayItem(root, 0);
+    app_settings_save[0].widget = cJSON_GetObjectItem(item, "widget")->valueint;
+    app_settings_save[0].time12 = cJSON_GetObjectItem(item, "time12")->valueint;
+    app_settings_save[0].bg = cJSON_GetObjectItem(item, "bg")->valueint;
+    item = cJSON_GetArrayItem(root, 1);
+    app_settings_save[1].widget = cJSON_GetObjectItem(item, "widget")->valueint;
+    app_settings_save[1].data = cJSON_GetObjectItem(item, "data")->valueint;
+    strncpy(app_settings_save[1].ext_url, cJSON_GetObjectItem(item, "ext_url")->valuestring, 128);
+    app_settings_save[1].ext_interval = cJSON_GetObjectItem(item, "ext_interval")->valueint;
+    app_settings_save[1].ext_interpolation = cJSON_GetObjectItem(item, "ext_interpolation")->valueint;
+    app_settings_save[1].ext_zoom = cJSON_GetObjectItem(item, "ext_zoom")->valuedouble;
+    app_settings_save[1].showlbl = cJSON_GetObjectItem(item, "showlbl")->valueint;
+    strncpy(app_settings_save[1].lbl, cJSON_GetObjectItem(item, "lbl")->valuestring, 128);
+    app_settings_save[1].showindicator = cJSON_GetObjectItem(item, "showindicator")->valueint;
+    item = cJSON_GetArrayItem(root, 2);
+    app_settings_save[2].widget = cJSON_GetObjectItem(item, "widget")->valueint;
+    app_settings_save[2].data = cJSON_GetObjectItem(item, "data")->valueint;
+    strncpy(app_settings_save[2].ext_url, cJSON_GetObjectItem(item, "ext_url")->valuestring, 128);
+    app_settings_save[2].ext_interval = cJSON_GetObjectItem(item, "ext_interval")->valueint;
+    app_settings_save[2].ext_interpolation = cJSON_GetObjectItem(item, "ext_interpolation")->valueint;
+    app_settings_save[2].ext_zoom = cJSON_GetObjectItem(item, "ext_zoom")->valuedouble;
+    app_settings_save[2].showlbl = cJSON_GetObjectItem(item, "showlbl")->valueint;
+    strncpy(app_settings_save[2].lbl, cJSON_GetObjectItem(item, "lbl")->valuestring, 128);
+    item = cJSON_GetArrayItem(root, 3);
+    strncpy(app_settings_remote_ip, cJSON_GetObjectItem(item, "ip")->valuestring, 16);
+    app_settings_remote_port = cJSON_GetObjectItem(item, "port")->valueint;
+}
+
+void appSettingsToJson(char *result)
+{
+    cJSON *root = cJSON_CreateArray();
+    cJSON *item = cJSON_CreateObject();
+    cJSON_AddNumberToObject(item, "widget", app_settings_save[0].widget);
+    cJSON_AddBoolToObject(item, "time12", app_settings_save[0].time12);
+    cJSON_AddBoolToObject(item, "bg", app_settings_save[0].bg);
+    cJSON_AddItemToArray(root, item);
+    item = cJSON_CreateObject();
+    cJSON_AddNumberToObject(item, "widget", app_settings_save[1].widget);
+    cJSON_AddNumberToObject(item, "data", app_settings_save[1].data);
+    cJSON_AddStringToObject(item, "ext_url", app_settings_save[1].ext_url);
+    cJSON_AddNumberToObject(item, "ext_interval", app_settings_save[1].ext_interval);
+    cJSON_AddNumberToObject(item, "ext_interpolation", app_settings_save[1].ext_interpolation);
+    cJSON_AddNumberToObject(item, "ext_zoom", app_settings_save[1].ext_zoom);
+    cJSON_AddBoolToObject(item, "showlbl", app_settings_save[1].showlbl);
+    cJSON_AddStringToObject(item, "lbl", app_settings_save[1].lbl);
+    cJSON_AddBoolToObject(item, "showindicator", app_settings_save[1].showindicator);
+    cJSON_AddItemToArray(root, item);
+    item = cJSON_CreateObject();
+    cJSON_AddNumberToObject(item, "widget", app_settings_save[2].widget);
+    cJSON_AddNumberToObject(item, "data", app_settings_save[2].data);
+    cJSON_AddStringToObject(item, "ext_url", app_settings_save[2].ext_url);
+    cJSON_AddNumberToObject(item, "ext_interval", app_settings_save[2].ext_interval);
+    cJSON_AddNumberToObject(item, "ext_interpolation", app_settings_save[2].ext_interpolation);
+    cJSON_AddNumberToObject(item, "ext_zoom", app_settings_save[2].ext_zoom);
+    cJSON_AddBoolToObject(item, "showlbl", app_settings_save[2].showlbl);
+    cJSON_AddStringToObject(item, "lbl", app_settings_save[2].lbl);
+    cJSON_AddItemToArray(root, item);
+    item = cJSON_CreateObject();
+    cJSON_AddStringToObject(item, "ip", app_settings_remote_ip);
+    cJSON_AddNumberToObject(item, "port", app_settings_remote_port);
+    cJSON_AddItemToArray(root, item);
+    strncpy(result, cJSON_PrintUnformatted(root), 2048);
+    cJSON_Delete(root);
+}
+
+void HAL::saveAppSettings()
+{
+    File file = LittleFS.open("/.cfg.bin", "w");
+    file.write((uint8_t *)&app_settings_save, sizeof(app_settings_save));
+    file.write((uint8_t *)app_settings_remote_ip, 16);
+    file.write((uint8_t *)&app_settings_remote_port, 2);
+    file.close();
+}
+
+void HAL::loadAppSettings()
+{
+    File file = LittleFS.open("/.cfg.bin", "r");
+    if (file)
+    {
+        file.read((uint8_t *)&app_settings_save, sizeof(app_settings_save));
+        file.read((uint8_t *)app_settings_remote_ip, 16);
+        file.read((uint8_t *)&app_settings_remote_port, 2);
+        file.close();
+    }
+    else
+    {
+        parseAppSettings(default_app_setting);
+        file = LittleFS.open("/.cfg.bin", "w");
+        file.write((uint8_t *)&app_settings_save, sizeof(app_settings_save));
+        file.write((uint8_t *)app_settings_remote_ip, 16);
+        file.write((uint8_t *)&app_settings_remote_port, 2);
+        file.close();
+    }
+}
+void handleJson()
+{
+    if (server.method() == HTTP_POST && server.hasArg("plain"))
+    {
+        parseAppSettings(server.arg("plain").c_str());
+        hal.saveAppSettings();
+        server.send(200, "text/plain", "OK");
+    }
+    else if (server.method() == HTTP_GET)
+    {
+        appSettingsToJson(jsonbuffer);
+        server.send(200, "application/json", jsonbuffer);
+    }
+    {
+        server.send(500, "text/plain", "ERR 500");
+    }
+}
+#include "webserver/index.h"
+#include "webserver/favicon.h"
+#include "webserver/csss.h"
+#include "webserver/jq.h"
+#include "webserver/mdb.h"
+
 void HAL::start_webserver()
 {
-    WiFi.disconnect(true);
-    WiFi.softAP("GKScreen");
-    server.onNotFound([](AsyncWebServerRequest *request)
+    if (WiFi.getMode() == WIFI_OFF)
+    {
+        WiFi.mode(WIFI_AP);
+        WiFi.softAP("GKScreen", "12345678");
+    }
+    MDNS.begin("gkscreen");
+    if (LittleFS.exists("/.data") == false)
+    {
+        LittleFS.mkdir("/.data");
+    }
+    server.on("/list", HTTP_GET, handleFileList);
+    server.on("/edit", HTTP_PUT, handleFileCreate);    // create file
+    server.on("/edit", HTTP_DELETE, handleFileDelete);    // delete file
+    // first callback is called after the request has ended with all parsed arguments
+    // second callback handles file uploads at that location
+    server.on(
+        "/edit", HTTP_POST, []()
+        { server.send(200, "text/plain", ""); },
+        handleFileUpload);
+
+    server.on("/rmrf", HTTP_POST, handleRMRF);
+    server.on("/mkdir", HTTP_POST, handleMkdir);
+    server.on("/rename", HTTP_POST, handleRename);
+    server.on("/reboot", HTTP_POST, []()
+              {
+        server.send(200, "text/plain", "OK");
+        delay(100);
+        ESP.restart(); });
+    server.on("/config.json", handleJson);
+    server.on("/", HTTP_GET, []()
+              { server.sendHeader("Content-Encoding", "gzip", true);server.send_P(200, "text/html", (const char *)__web_index_htm_gz, sizeof(__web_index_htm_gz)); });
+    server.on("/favicon.ico", HTTP_GET, []()
+              { server.sendHeader("Content-Encoding", "gzip", true);server.send_P(200, "image/x-icon", (const char *)__web_favicon_ico_gz, sizeof(__web_favicon_ico_gz)); });
+    server.on("/css/csss.css", HTTP_GET, []()
+              { server.sendHeader("Content-Encoding", "gzip", true);server.send_P(200, "text/css", (const char *)__web_css_csss_css_gz, sizeof(__web_css_csss_css_gz)); });
+    server.on("/js/jq.js", HTTP_GET, []()
+              { server.sendHeader("Content-Encoding", "gzip", true);server.send_P(200, "application/javascript", (const char *)__web_js_jq_js_gz, sizeof(__web_js_jq_js_gz)); });
+    server.on("/js/mdb.js", HTTP_GET, []()
+              { server.sendHeader("Content-Encoding", "gzip", true);server.send_P(200, "application/javascript", (const char *)__web_js_mdb_js_gz, sizeof(__web_js_mdb_js_gz)); });
+    server.onNotFound([]()
                       {
-        if(WiFi.softAPgetStationNum() != 0)
-        {
-            request->redirect("http://192.168.4.1");
-        }
-        else
-        {
-            request->send(404);
-        } });
-    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
-              { request->send(404, "text/plain", "Not found"); }); //  sendreq(request, "text/html", __web_index_html_gz, __web_index_html_gz_len);
-    server.addHandler(new SPIFFSEditor(LittleFS));
-    server.on("/rmrf", HTTP_POST, rmrfHandler);
-    server.on("/mkdir", HTTP_POST, mkdirHandler);
-    server.on("/rename", HTTP_POST, renameHandler);
+    if (!handleFileRead(server.uri())) {
+      server.send(404, "text/plain", "FileNotFound");
+    } });
+
     server.begin();
-    Serial.println("HTTP server started");
+    ESP_LOGI("SERVER", "HTTP server started");
     hal.server_started = true;
     GUI::toast("服务器已启动");
+    xTaskCreatePinnedToCore([](void *p)
+                            {
+        while (1)
+        {if(hal.server_started) {server.handleClient();}vTaskDelay(5);} },
+                            "webserver", 4096, NULL, 3, &webserver_task, 1);
 }
 
 void HAL::stop_webserver()
 {
-    server.end();
-    WiFi.mode(WIFI_OFF);
+    server.stop();
+    if (WiFi.getMode() == WIFI_AP)
+    {
+        WiFi.mode(WIFI_OFF);
+    }
     hal.server_started = false;
+    delay(50);
+    vTaskDelete(webserver_task);
+    webserver_task = NULL;
     GUI::toast("服务器已关闭");
 }

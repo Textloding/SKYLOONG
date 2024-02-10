@@ -13,6 +13,8 @@
         "out.mpeg.c": "cpp",
         "esp32-hal.h": "c",
         "*.ipp": "cpp",
-        "regex": "c"
+        "regex": "c",
+        "list": "cpp",
+        "*.tcc": "cpp"
     },
 }
