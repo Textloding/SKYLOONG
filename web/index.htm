@@ -297,7 +297,7 @@
                                     <div class="form-outline" data-mdb-input-init>
                                         <input type="text" id="W3G3TEXT1" class="form-control"
                                             data-mdb-showcounter="true" maxlength="64" />
-                                        <label class="form-label" for="W3G3TEXT1">外部数据源URL</label>
+                                        <label class="form-label" for="W3G3TEXT1">外部数据源URI</label>
                                         <div class="form-helper"></div>
                                     </div>
                                     <label class="label" for="W3G3RANGE1">数据更新间隔（毫秒）</label>
@@ -350,7 +350,8 @@
                                 </div>
                                 <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget3Group7">
                                     <h5>重新上传图片(可选)</h5>
-                                    <input type="file" class="form-control" id="W3G7FILE1" />
+                                    <input type="file" class="form-control" id="W3G7FILE1" accept=".jpg,.jpeg" />
+                                    <h7>仅支持JPEG Baseline，建议分辨率192*206</h7>
                                 </div>
                             </div>
                         </div>
@@ -402,7 +403,8 @@
                                 </div>
                                 <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget1Group4">
                                     <h5>重新上传图片(可选)</h5>
-                                    <input type="file" class="form-control" id="W1G3FILE1" />
+                                    <input type="file" class="form-control" id="W1G3FILE1" accept=".jpg,.jpeg" />
+                                    <h7>仅支持JPEG Baseline，建议分辨率119*78</h7>
                                 </div>
                             </div>
                             <div class="row-2  globalContainer alert-primary shadow-4">
@@ -462,7 +464,7 @@
                                     <div class="form-outline" data-mdb-input-init>
                                         <input type="text" id="W2G3TEXT1" class="form-control"
                                             data-mdb-showcounter="true" maxlength="64" />
-                                        <label class="form-label" for="W2G3TEXT1">外部数据源URL</label>
+                                        <label class="form-label" for="W2G3TEXT1">外部数据源URI</label>
                                         <div class="form-helper"></div>
                                     </div>
                                     <label class="label" for="W2G3RANGE1">数据更新间隔（毫秒）</label>
@@ -515,7 +517,8 @@
                                 </div>
                                 <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget2Group7">
                                     <h5>重新上传图片(可选)</h5>
-                                    <input type="file" class="form-control" id="W2G7FILE1" />
+                                    <input type="file" class="form-control" id="W2G7FILE1" accept=".jpg,.jpeg" />
+                                    <h7>仅支持JPEG Baseline，建议分辨率119*127</h7>
                                 </div>
                             </div>
                         </div>
@@ -955,7 +958,7 @@
                 var selectedFile = event.target.files[0];  // 获取用户选择的文件
                 console.log("用户选择的文件：", selectedFile);
                 let formData = new FormData();
-                var tmp = "/.data/img1.img";
+                var tmp = "/.data/1.jpg";
                 formData.append("data", event.target.files[0], tmp);
                 console.log(tmp);
                 const xhr = new XMLHttpRequest();
@@ -989,7 +992,7 @@
                 var selectedFile = event.target.files[0];  // 获取用户选择的文件
                 console.log("用户选择的文件：", selectedFile);
                 let formData = new FormData();
-                var tmp = "/.data/img2.img";
+                var tmp = "/.data/2.jpg";
                 formData.append("data", event.target.files[0], tmp);
                 console.log(tmp);
                 const xhr = new XMLHttpRequest();
@@ -1023,7 +1026,7 @@
                 var selectedFile = event.target.files[0];  // 获取用户选择的文件
                 console.log("用户选择的文件：", selectedFile);
                 let formData = new FormData();
-                var tmp = "/.data/img3.img";
+                var tmp = "/.data/3.jpg";
                 formData.append("data", event.target.files[0], tmp);
                 console.log(tmp);
                 const xhr = new XMLHttpRequest();

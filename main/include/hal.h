@@ -48,6 +48,22 @@ typedef struct kb_battery_t
     battery_status_t status : 2;
 } kb_battery_t;
 
+struct app_setting
+{
+    uint8_t widget;
+    bool bg;
+    uint8_t data;
+    char ext_url[129];
+    uint16_t ext_interval;
+    uint8_t ext_interpolation;
+    float ext_zoom;
+    bool showlbl;
+    char lbl[129];
+    bool showindicator;
+};
+extern struct app_setting app_settings_save[3];
+extern char app_settings_remote_ip[16];
+extern uint16_t app_settings_remote_port;
 class HAL
 {
 public:

@@ -333,31 +333,31 @@ static void task_systemctl(void *p)
 }
 void demo()
 {
-    spi_bus_config_t buscfg = {
-        .mosi_io_num = PIN_DISPLAY_MOSI,
-        .miso_io_num = -1,
-        .sclk_io_num = PIN_DISPLAY_SCLK,
-        .quadwp_io_num = -1, // Quad SPI LCD driver is not yet supported
-        .quadhd_io_num = -1, // Quad SPI LCD driver is not yet supported
-        .max_transfer_sz = 320 * 240 * 2,
-    };
+    spi_bus_config_t buscfg;
+    memset(&buscfg, 0, sizeof(spi_bus_config_t));
+    buscfg.mosi_io_num = PIN_DISPLAY_MOSI;
+    buscfg.miso_io_num = -1;
+    buscfg.sclk_io_num = PIN_DISPLAY_SCLK;
+    buscfg.quadwp_io_num = -1; // Quad SPI LCD driver is not yet supported
+    buscfg.quadhd_io_num = -1; // Quad SPI LCD driver is not yet supported
+    buscfg.max_transfer_sz = 320 * 240 * 2;
     ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO)); // Enable the DMA feature
-    esp_lcd_panel_io_spi_config_t io_config = {
-        .cs_gpio_num = PIN_DISPLAY_CS,
-        .dc_gpio_num = PIN_DISPLAY_DC,
-        .spi_mode = 0,
-        .pclk_hz = 80000000,
-        .trans_queue_depth = 2,
-        .lcd_cmd_bits = 8,
-        .lcd_param_bits = 8,
-    };
+    esp_lcd_panel_io_spi_config_t io_config;
+    memset(&io_config, 0, sizeof(esp_lcd_panel_io_spi_config_t));
+    io_config.cs_gpio_num = PIN_DISPLAY_CS;
+    io_config.dc_gpio_num = PIN_DISPLAY_DC;
+    io_config.spi_mode = 0;
+    io_config.pclk_hz = 80000000;
+    io_config.trans_queue_depth = 2;
+    io_config.lcd_cmd_bits = 8;
+    io_config.lcd_param_bits = 8;
     // Attach the LCD to the SPI bus
     ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI2_HOST, &io_config, &io_handle));
-    esp_lcd_panel_dev_config_t panel_config = {
-        .reset_gpio_num = PIN_DISPLAY_RST,
-        .color_space = ESP_LCD_COLOR_SPACE_RGB,
-        .bits_per_pixel = 16,
-    };
+    esp_lcd_panel_dev_config_t panel_config;
+    memset(&panel_config, 0, sizeof(esp_lcd_panel_dev_config_t));
+    panel_config.reset_gpio_num = PIN_DISPLAY_RST;
+    panel_config.color_space = ESP_LCD_COLOR_SPACE_RGB;
+    panel_config.bits_per_pixel = 16;
     // Create LCD panel handle for ST7789, with the SPI IO device handle
     ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(io_handle, &panel_config, &panel_handle));
 
@@ -1054,20 +1054,6 @@ void handleRoot()
 static char jsonbuffer[2048];
 const char default_app_setting[] = "[{\"widget\":1,\"time12\":false,\"bg\":false},{\"widget\":0,\"data\":1,\"ext_url\":\"ws://192.168.1.2:8080/ws\",\"ext_interval\":200,\"ext_interpolation\":20,\"ext_zoom\":0.69,\"showlbl\":true,\"lbl\":\"标题1\",\"showindicator\":true},{\"widget\":0,\"data\":3,\"ext_url\":\"ws://192.168.1.2:8080/ws\",\"ext_interval\":500,\"ext_interpolation\":40,\"ext_zoom\":0.05,\"showlbl\":false,\"lbl\":\"标题2\",\"showindicator\":false},{\"ip\":\"192.168.1.2\",\"port\":51648}]";
 
-struct app_setting
-{
-    uint8_t widget;
-    bool time12;
-    bool bg;
-    uint8_t data;
-    char ext_url[129];
-    uint16_t ext_interval;
-    uint8_t ext_interpolation;
-    float ext_zoom;
-    bool showlbl;
-    char lbl[129];
-    bool showindicator;
-};
 char app_settings_remote_ip[16];
 uint16_t app_settings_remote_port;
 struct app_setting app_settings_save[3];
@@ -1083,7 +1069,7 @@ void parseAppSettings(const char *input)
     }
     cJSON *item = cJSON_GetArrayItem(root, 0);
     app_settings_save[0].widget = cJSON_GetObjectItem(item, "widget")->valueint;
-    app_settings_save[0].time12 = cJSON_GetObjectItem(item, "time12")->valueint;
+    hal.config_time_12hr = cJSON_GetObjectItem(item, "time12")->valueint;
     app_settings_save[0].bg = cJSON_GetObjectItem(item, "bg")->valueint;
     item = cJSON_GetArrayItem(root, 1);
     app_settings_save[1].widget = cJSON_GetObjectItem(item, "widget")->valueint;
@@ -1105,7 +1091,7 @@ void parseAppSettings(const char *input)
     app_settings_save[2].showlbl = cJSON_GetObjectItem(item, "showlbl")->valueint;
     strncpy(app_settings_save[2].lbl, cJSON_GetObjectItem(item, "lbl")->valuestring, 128);
     item = cJSON_GetArrayItem(root, 3);
-    strncpy(app_settings_remote_ip, cJSON_GetObjectItem(item, "ip")->valuestring, 16);
+    strncpy(app_settings_remote_ip, cJSON_GetObjectItem(item, "ip")->valuestring, 15);
     app_settings_remote_port = cJSON_GetObjectItem(item, "port")->valueint;
 }
 
@@ -1114,7 +1100,7 @@ void appSettingsToJson(char *result)
     cJSON *root = cJSON_CreateArray();
     cJSON *item = cJSON_CreateObject();
     cJSON_AddNumberToObject(item, "widget", app_settings_save[0].widget);
-    cJSON_AddBoolToObject(item, "time12", app_settings_save[0].time12);
+    cJSON_AddBoolToObject(item, "time12", hal.config_time_12hr);
     cJSON_AddBoolToObject(item, "bg", app_settings_save[0].bg);
     cJSON_AddItemToArray(root, item);
     item = cJSON_CreateObject();
@@ -1152,6 +1138,7 @@ void HAL::saveAppSettings()
     file.write((uint8_t *)&app_settings_save, sizeof(app_settings_save));
     file.write((uint8_t *)app_settings_remote_ip, 16);
     file.write((uint8_t *)&app_settings_remote_port, 2);
+    hal.pref.putBool("12hr", hal.config_time_12hr);
     file.close();
 }
 
@@ -1212,7 +1199,7 @@ void HAL::start_webserver()
     }
     server.on("/list", HTTP_GET, handleFileList);
     server.on("/edit", HTTP_PUT, handleFileCreate);    // create file
-    server.on("/edit", HTTP_DELETE, handleFileDelete);    // delete file
+    server.on("/edit", HTTP_DELETE, handleFileDelete); // delete file
     // first callback is called after the request has ended with all parsed arguments
     // second callback handles file uploads at that location
     server.on(
