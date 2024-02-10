@@ -101,7 +101,7 @@ void AppSettings::setup()
     lv_obj_set_flex_align(_appScreen, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_text_font(_appScreen, &lv_font_chinese_16, 0);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    o = create_settings_switch(_appScreen, "12小时制", "以12小时制显示时间", [](lv_event_t *e)
+    o = create_settings_switch(_appScreen, _tr(I18N_ID_12HR), _tr(I18N_ID_12HR_DESC), [](lv_event_t *e)
                                {
             if (e->code == LV_EVENT_VALUE_CHANGED)
                 hal.config_time_12hr = lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED); });
@@ -110,7 +110,7 @@ void AppSettings::setup()
     else
         lv_obj_clear_state(o, LV_STATE_CHECKED);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    o = create_settings_switch(_appScreen, "显示电量", "显示具体电量而不是电池图标", [](lv_event_t *e)
+    o = create_settings_switch(_appScreen, _tr(I18N_ID_SHOW_BATTERY), _tr(I18N_ID_SHOW_BATTERY_DESC), [](lv_event_t *e)
                                {
             if (e->code == LV_EVENT_VALUE_CHANGED)
                 hal.config_show_battery_value = lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED); });
@@ -119,32 +119,32 @@ void AppSettings::setup()
     else
         lv_obj_clear_state(o, LV_STATE_CHECKED);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    o = create_settings_switch(_appScreen, "状态栏居中", "使状态栏图标居中显示", [](lv_event_t *e)
+    o = create_settings_switch(_appScreen, _tr(I18N_ID_STATUS_BAR_CENTER), _tr(I18N_ID_STATUS_BAR_CENTER_DESC), [](lv_event_t *e)
                                {if (e->code == LV_EVENT_VALUE_CHANGED){hal.config_statusbar_center = lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED); GUI::status_bar_refresh(true);} });
     if (hal.config_statusbar_center)
         lv_obj_add_state(o, LV_STATE_CHECKED);
     else
         lv_obj_clear_state(o, LV_STATE_CHECKED);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    o = create_settings_switch(_appScreen, "开机动画", "开机时显示动画", [](lv_event_t *e)
+    o = create_settings_switch(_appScreen, _tr(I18N_ID_BOOT_ANIMATION), _tr(I18N_ID_BOOT_ANIMATION_DESC), [](lv_event_t *e)
                                {if (e->code == LV_EVENT_VALUE_CHANGED) hal.config_show_boot_animation = lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED); });
     if (hal.config_show_boot_animation)
         lv_obj_add_state(o, LV_STATE_CHECKED);
     else
         lv_obj_clear_state(o, LV_STATE_CHECKED);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    o = create_settings_button(_appScreen, "网页服务器", "启动网页服务器，如需离线设置时间请点这里", "启动", [](lv_event_t *e)
+    o = create_settings_button(_appScreen, _tr(I18N_ID_START_WEBSERVER), _tr(I18N_ID_START_WEBSERVER_DESC), _tr(I18N_ID_START), [](lv_event_t *e)
                                {
         if (e->code == LV_EVENT_VALUE_CHANGED)
         {
             if(lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED))
             {
-                lv_label_set_text(lv_obj_get_child(lv_event_get_target(e), 0), "停止");
+                lv_label_set_text(lv_obj_get_child(lv_event_get_target(e), 0), _tr(I18N_ID_STOP));
                 hal.send_sysctl(EVENT_SERVERCTL, 1);
             }
             else
             {
-                lv_label_set_text(lv_obj_get_child(lv_event_get_target(e), 0), "启动");
+                lv_label_set_text(lv_obj_get_child(lv_event_get_target(e), 0), _tr(I18N_ID_START));
                 hal.send_sysctl(EVENT_SERVERCTL, 0);
             }
         } });
@@ -152,15 +152,15 @@ void AppSettings::setup()
     if (hal.server_started)
     {
         lv_obj_add_state(o, LV_STATE_CHECKED);
-        lv_label_set_text(lv_obj_get_child(o, 0), "停止");
+        lv_label_set_text(lv_obj_get_child(o, 0), _tr(I18N_ID_STOP));
     }
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    create_settings_button(_appScreen, "同步时间", "从NTP服务器同步时间", "同步", [](lv_event_t *e)
+    create_settings_button(_appScreen, _tr(I18N_ID_SYNC_TIME), _tr(I18N_ID_SYNC_TIME_DESC), _tr(I18N_ID_SYNC), [](lv_event_t *e)
                            {
             if (e->code == LV_EVENT_CLICKED)
                 ntp_req = true; });
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    create_settings_slider(_appScreen, "亮度调节", [](lv_event_t *e)
+    create_settings_slider(_appScreen, _tr(I18N_ID_BRIGHTNESS), [](lv_event_t *e)
                            {
             if (e->code == LV_EVENT_VALUE_CHANGED)
                 hal.setBrightness(lv_slider_get_value((lv_obj_t*)lv_event_get_target(e))); 
@@ -175,7 +175,7 @@ void AppSettings::setup()
                 i18n::setLanguage(lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e))); });
     lv_dropdown_set_selected(o, i18n::getLanguage());
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    o = create_settings_list(_appScreen, "时区", "设置时区", "UTC-12\nUTC-11\nUTC-10\nUTC-9\nUTC-8\nUTC-7\nUTC-6\nUTC-5\nUTC-4\nUTC-3\nUTC-2\nUTC-1\nUTC+0\nUTC+1\nUTC+2\nUTC+3\nUTC+4\nUTC+5\nUTC+6\nUTC+7\nUTC+8\nUTC+9\nUTC+10\nUTC+11\nUTC+12", [](lv_event_t *e)
+    o = create_settings_list(_appScreen, _tr(I18N_ID_TIMEZONE), _tr(I18N_ID_TIMEZONE_DESC), "UTC-12\nUTC-11\nUTC-10\nUTC-9\nUTC-8\nUTC-7\nUTC-6\nUTC-5\nUTC-4\nUTC-3\nUTC-2\nUTC-1\nUTC+0\nUTC+1\nUTC+2\nUTC+3\nUTC+4\nUTC+5\nUTC+6\nUTC+7\nUTC+8\nUTC+9\nUTC+10\nUTC+11\nUTC+12", [](lv_event_t *e)
                              {
 
             if (e->code == LV_EVENT_VALUE_CHANGED)
@@ -192,7 +192,7 @@ void AppSettings::setup()
         lv_dropdown_set_selected(o, t);
     }
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    factory_reset_btn = create_settings_button(_appScreen, "恢复出厂设置", "将设备恢复至出厂状态", "恢复出厂", [](lv_event_t *e)
+    factory_reset_btn = create_settings_button(_appScreen, _tr(I18N_ID_FACTORY_RESET), _tr(I18N_ID_FACTORY_RESET_DESC), _tr(I18N_ID_FACTORY_RESET_BTN), [](lv_event_t *e)
                                                {
             if (e->code == LV_EVENT_CLICKED)
             {
@@ -200,11 +200,11 @@ void AppSettings::setup()
                 factory_reset_count--;
                 if(factory_reset_count == 0)
                 {
-                    lv_label_set_text(lv_obj_get_child(factory_reset_btn, 0), "正在重置");
+                    lv_label_set_text(lv_obj_get_child(factory_reset_btn, 0), _tr(I18N_ID_FACTORY_RESETTING));
                 }
                 else if(factory_reset_count > 0)
                 {
-                    lv_label_set_text_fmt(lv_obj_get_child(factory_reset_btn, 0), "再按%d次后重置", factory_reset_count);
+                    lv_label_set_text_fmt(lv_obj_get_child(factory_reset_btn, 0), _tr(I18N_ID_FACTORY_RESETTING_COUNT), factory_reset_count);
                 }
             } });
     lv_obj_add_state(factory_reset_btn, LV_STATE_CHECKED);
@@ -227,9 +227,9 @@ void AppSettings::loop()
         if (WiFiMgr.requireWiFi())
         {
             if (hal.NTPSync())
-                GUI::toast("同步成功");
+                GUI::toast(_tr(I18N_ID_SYNC_SUCCESS));
             else
-                GUI::toast("同步失败");
+                GUI::toast(_tr(I18N_ID_SYNC_FAILED));
         }
         ntp_req = false;
     }
@@ -239,7 +239,7 @@ void AppSettings::loop()
         {
             factory_reset_millis_last = 0;
             factory_reset_count = 20;
-            lv_label_set_text(lv_obj_get_child(factory_reset_btn, 0), "恢复出厂");
+            lv_label_set_text(lv_obj_get_child(factory_reset_btn, 0), _tr(I18N_ID_FACTORY_RESET_BTN));
         }
     }
     if (factory_reset_count <= 0)

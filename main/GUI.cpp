@@ -309,3 +309,7 @@ void GUI::status_bar_show(bool show)
     }
     hal.UNLOCKLV();
 }
+bool GUI::status_bar_show_get()
+{
+    return status_bar_showing;
+}

@@ -490,7 +490,7 @@ void AppHome::setup()
                     else
                     {
                         tcpClient.stop();
-                        GUI::toast("无法连接TCP");
+                        GUI::toast(_tr(I18N_ID_TCP_FAILED));
                         tcp_connected = false;
                         tcp_started = false;
                     }
@@ -507,7 +507,7 @@ void AppHome::setup()
             else
             {
                 page_has_remote = false;
-                GUI::toast("进入离线模式");
+                GUI::toast(_tr(I18N_ID_OFFLINE_MODE));
             }
         }
     }
@@ -541,7 +541,7 @@ void AppHome::loop()
                 client1 = NULL;
                 client2 = NULL;
                 page_has_remote = false;
-                GUI::toast("进入离线模式");
+                GUI::toast(_tr(I18N_ID_OFFLINE_MODE));
             }
         }
         else
@@ -555,7 +555,7 @@ void AppHome::loop()
                 if (tcpClient.connected() == false)
                 {
                     tcp_connected = false;
-                    GUI::toast("TCP连接断开");
+                    GUI::toast(_tr(I18N_ID_TCP_DISCONNECTED));
                 }
             }
             else if (tcp_started)
@@ -567,7 +567,7 @@ void AppHome::loop()
                 else
                 {
                     tcpClient.stop();
-                    GUI::toast("无法连接TCP");
+                    GUI::toast(_tr(I18N_ID_TCP_FAILED));
                     tcp_connected = false;
                     tcp_started = false;
                 }

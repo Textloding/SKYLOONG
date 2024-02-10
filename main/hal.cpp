@@ -59,7 +59,7 @@ static void create_box_enter_settings()
     lv_obj_align(box_enter_settings, LV_ALIGN_CENTER, 0, 0);
     lv_obj_t *lbl_title = lv_label_create(box_enter_settings);
     lv_obj_set_style_text_font(lbl_title, &lv_font_big_32, 0);
-    lv_label_set_text(lbl_title, "需要进行操作");
+    lv_label_set_text(lbl_title, _tr(I18N_ID_NEED_ACTION));
     lv_obj_align(lbl_title, LV_ALIGN_TOP_MID, 0, 10);
     lv_obj_t *line1;
     static lv_point_t line_points[] = {{0, 0}, {150, 0}};
@@ -69,7 +69,7 @@ static void create_box_enter_settings()
 
     lv_obj_t *label = lv_label_create(box_enter_settings);
     lv_obj_set_style_text_font(label, &lv_font_chinese_16, 0);
-    lv_label_set_text(label, "  此功能要求进入“设置模式”，但键盘侧未提供相关API，请通过组合键手动进入此模式。");
+    lv_label_set_text(label, _tr(I18N_ID_NEED_ACTION_DESC));
     lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 60);
     lv_obj_set_width(label, 260);
     lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
@@ -612,7 +612,7 @@ void HAL::copy(File &newFile, File &file)
     size_t currentsize = 0;
     if (!buf)
     {
-        Serial.println("内存已满");
+        ESP_LOGE("FileCopy", "no memory");
         ESP.restart();
     }
     while (1)
@@ -1222,7 +1222,7 @@ void HAL::start_webserver()
     server.begin();
     ESP_LOGI("SERVER", "HTTP server started");
     hal.server_started = true;
-    GUI::toast("服务器已启动");
+    GUI::toast(_tr(I18N_ID_SERVER_STARTED));
     xTaskCreatePinnedToCore([](void *p)
                             {
         while (1)
@@ -1241,5 +1241,5 @@ void HAL::stop_webserver()
     delay(50);
     vTaskDelete(webserver_task);
     webserver_task = NULL;
-    GUI::toast("服务器已关闭");
+    GUI::toast(_tr(I18N_ID_SERVER_STOPPED));
 }

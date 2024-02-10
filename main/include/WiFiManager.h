@@ -23,7 +23,7 @@ public:
                 return true;
             }
         }
-        GUI::toast("已取消");
+        GUI::toast(_tr(I18N_ID_CANCELLED));
         return false;
     };
     void disconnect()

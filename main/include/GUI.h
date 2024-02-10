@@ -53,6 +53,7 @@ namespace GUI
     lv_obj_t *status_bar_replace(const char *symbol, lv_obj_t *&last);
     void status_bar_init();
     void status_bar_show(bool show);
+    bool status_bar_show_get();
 }
 
 class VideoPlayer

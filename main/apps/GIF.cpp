@@ -33,7 +33,7 @@ void add_btn_file(lv_obj_t *parent, const char *name)
             ESP_LOGI("GIF", "current_path: %s", current_path);
             if (strchr(current_path, '.') == NULL)
             {
-                GUI::toast("打开文件夹", false);
+                GUI::toast(_tr(I18N_ID_OPEN_FOLDER), false);
                 strcpy(current_path, "/littlefs/");
                 strcat(current_path, lv_label_get_text(lv_obj_get_child((lv_obj_t *)lv_event_get_target(e), 0)));
                 is_folder = true;
@@ -70,7 +70,7 @@ void AppGIF::listFilesRecursively(char *basePath)
     lv_obj_set_size(obj_box, 280, 200);
     lv_obj_align(obj_box, LV_ALIGN_TOP_MID, 0, 300);
     lv_obj_t *label = lv_label_create(obj_box);
-    lv_label_set_text(label, "请选择文件");
+    lv_label_set_text(label, _tr(I18N_ID_SELECT_FILE));
 
     while ((dp = readdir(dir)) != NULL)
     {
@@ -236,7 +236,7 @@ void AppGIF::loop()
                 FILE *f = fopen(current_path, "rb");
                 if (f == NULL)
                 {
-                    GUI::toast("文件打开失败");
+                    GUI::toast(_tr(I18N_ID_FILE_OPEN_FAILED));
                     hal.pref.remove("last_gif");
                     return;
                 }

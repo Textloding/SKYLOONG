@@ -50,7 +50,7 @@ void WiFiManager::remove(const String ssid)
     {
         if (WiFiTable[i][0] == ssid)
         {
-            for(uint16_t j = i; j < WiFiCount - 1; j++)
+            for (uint16_t j = i; j < WiFiCount - 1; j++)
             {
                 WiFiTable[j][0] = WiFiTable[j + 1][0];
                 WiFiTable[j][1] = WiFiTable[j + 1][1];
@@ -134,7 +134,7 @@ void WiFiManager::init()
         }
         else
         {
-            Serial.println("Error: 无法写入文件.wifi.csv");
+            ESP_LOGE("WiFiMgr", "无法写入文件.wifi.csv");
         }
     }
 }
@@ -185,8 +185,7 @@ bool WiFiManager::requireWiFi(bool forceChoose)
             if(lv_obj_has_state(_status_obj, LV_STATE_USER_3))
             {
                 has_connected = true;
-            }
-             },
+            } },
                         1000, NULL);
     }
     GUI::status_bar_status_set(_status_obj, LV_STATE_USER_1);
@@ -195,18 +194,20 @@ bool WiFiManager::requireWiFi(bool forceChoose)
     {
         if (forceChoose)
             goto choose;
-        GUI::toast("正在连接WiFi");
+        GUI::toast(_tr(I18N_ID_CONNECTING));
         WiFi.begin();
         if (WiFi.waitForConnectResult(5000) == WL_CONNECTED)
         {
-            GUI::toast("已连接");
+            GUI::toast(_tr(I18N_ID_CONNECTED));
             return true;
         }
         else
         {
         choose:
             bool last_req = hal.getLastRequireSettings();
+            bool last_status_bar = GUI::status_bar_show_get();
             hal.requireSettings(true);
+            GUI::status_bar_show(false);
             char ssid[64];
             char passwd[64];
             hal.LOCKLV();
@@ -222,12 +223,13 @@ bool WiFiManager::requireWiFi(bool forceChoose)
             lv_group_set_default(last_group);
             lv_group_del(group);
             hal.UNLOCKLV();
+            GUI::status_bar_show(last_status_bar);
             hal.requireSettings(last_req);
             vTaskDelay(320);
             if (res == 0)
             {
                 if (WiFiCount == WIFI_SAVE_MAX)
-                    GUI::toast("WiFi列表已满");
+                    GUI::toast(_tr(I18N_ID_WIFI_LIST_FULL));
                 add(ssid, passwd);
                 return true;
             }
