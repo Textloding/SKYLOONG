@@ -75,11 +75,7 @@ lv_obj_t *build_time_widget(lv_obj_t *parent)
 }
 
 #include <moonPhase.h>
-
-static lv_obj_t *obj_weather_moon;
-static lv_obj_t *img_moon;
 moonPhase mp;
-
 lv_img_dsc_t const *moon_imgs[] = {
     &moon_000,
     &moon_010,
@@ -124,7 +120,7 @@ lv_obj_t *build_moon_widget(lv_obj_t *parent)
     lv_obj_clear_flag(moon_widget, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_size(moon_widget, (320 - 8) * (1 - 0.618), (240 - 34) * (0.618));
     lv_obj_align(moon_widget, LV_ALIGN_BOTTOM_RIGHT, -4, -4);
-    img_moon = lv_img_create(moon_widget);
+    lv_obj_t *img_moon = lv_img_create(moon_widget);
     lv_obj_align(img_moon, LV_ALIGN_CENTER, 0, 0);
     moonData_t moon;
     tm timenow;
@@ -138,9 +134,10 @@ lv_obj_t *build_moon_widget(lv_obj_t *parent)
     time_t utcnow = mktime(&timenow);
     moon = mp.getPhase(utcnow - i18n::getNTPOffset());
 
+    ESP_LOGI("moon", "moon angle: %d", moon.angle);
     uint16_t angle = moon.angle / 10;
-    if(angle >= 36)angle = 0;
-    ESP_LOGI("moon", "moon angle: %d", angle);
+    if (angle >= 36)
+        angle = 0;
     lv_img_set_src(img_moon, moon_imgs[angle]);
     return moon_widget;
 }
@@ -490,6 +487,13 @@ void AppHome::setup()
                     {
                         tcp_connected = true;
                     }
+                    else
+                    {
+                        tcpClient.stop();
+                        GUI::toast("无法连接TCP");
+                        tcp_connected = false;
+                        tcp_started = false;
+                    }
                 }
                 if (client1)
                 {
@@ -513,7 +517,7 @@ void AppHome::loop()
 {
     if (page_has_remote)
     {
-        if (WiFi.getMode() != WIFI_STA)
+        if (WiFi.isConnected() == false)
         {
             if (client1)
                 esp_websocket_client_stop(client1);
@@ -533,32 +537,39 @@ void AppHome::loop()
                     esp_websocket_client_destroy(client1);
                 if (client2)
                     esp_websocket_client_destroy(client2);
-                if (tcp_connected)
-                {
-                    tcp_connected = false;
-                }
+                tcp_connected = tcp_started = false;
                 client1 = NULL;
                 client2 = NULL;
                 page_has_remote = false;
                 GUI::toast("进入离线模式");
             }
         }
-        if (tcp_started)
+        else
         {
-            if (tcpClient.available() >= sizeof(s_tcp_client_data))
+            if (tcp_connected)
             {
-                tcpClient.readBytes((char *)&s_tcp_client_data, sizeof(s_tcp_client_data));
-            }
-            else
-            {
-                if (tcp_connected)
+                if (tcpClient.available() >= sizeof(s_tcp_client_data))
+                {
+                    tcpClient.readBytes((char *)&s_tcp_client_data, sizeof(s_tcp_client_data));
+                }
+                if (tcpClient.connected() == false)
                 {
                     tcp_connected = false;
-                    tcpClient.stop();
+                    GUI::toast("TCP连接断开");
                 }
+            }
+            else if (tcp_started)
+            {
                 if (tcpClient.connect(app_settings_remote_ip, app_settings_remote_port))
                 {
                     tcp_connected = true;
+                }
+                else
+                {
+                    tcpClient.stop();
+                    GUI::toast("无法连接TCP");
+                    tcp_connected = false;
+                    tcp_started = false;
                 }
             }
         }
@@ -582,5 +593,11 @@ void AppHome::destroy()
         esp_websocket_client_stop(client2);
         esp_websocket_client_destroy(client2);
         client2 = NULL;
+    }
+    tcpClient.stop();
+    if (i_started_wifi)
+    {
+        WiFiMgr.disconnect();
+        i_started_wifi = false;
     }
 }

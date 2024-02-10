@@ -218,8 +218,8 @@
                         <button type="button" class="btn btn-warning" id="btnUpload"
                             style="margin-left: 5px;">上传</button>
                         <input type="file" id="fileInput" style="visibility: hidden; width: 0px;height: 0px;">
-                        <button type="button" class="btn btn-warning" id="btnOpenData"
-                            style="margin-left: 5px;">打开自定义图片文件夹</button>
+                        <button type="button" class="btn btn-danger" id="btnOpenData"
+                            style="margin-left: 5px;">打开系统文件夹</button>
                         <button type="button" class="btn btn-danger" id="btnDeleteFolder"
                             style="margin-left: 5px;">删除文件夹</button>
                         <button type="button" class="btn btn-danger" id="btnReboot"
@@ -582,7 +582,7 @@
                         document.getElementById('W2G3TEXT1').setAttribute('value', data[1]["ext_url"]);
                         document.getElementById('W2G3RANGE1').setAttribute('value', data[1]["ext_interval"]);
                         document.getElementById('W2G3RANGE2').setAttribute('value', data[1]["ext_interpolation"]);
-                        document.getElementById('W2G3NUMBER1').setAttribute('value', data[1]["ext_zoom"]);
+                        document.getElementById('W2G3NUMBER1').setAttribute('value', data[1]["ext_zoom"].toFixed(5));
                         if (data[1]["lbl"] != '')
                             document.getElementById('W2G5TEXT1').classList.add('active');
                         if (data[1]["ext_url"] != '')
@@ -620,7 +620,7 @@
                         document.getElementById('W3G3TEXT1').setAttribute('value', data[2]["ext_url"]);
                         document.getElementById('W3G3RANGE1').setAttribute('value', data[2]["ext_interval"]);
                         document.getElementById('W3G3RANGE2').setAttribute('value', data[2]["ext_interpolation"]);
-                        document.getElementById('W3G3NUMBER1').setAttribute('value', data[2]["ext_zoom"]);
+                        document.getElementById('W3G3NUMBER1').setAttribute('value', data[2]["ext_zoom"].toFixed(5));
                         if (data[2]["lbl"] != '')
                             document.getElementById('W3G5TEXT1').classList.add('active');
                         if (data[2]["ext_url"] != '')

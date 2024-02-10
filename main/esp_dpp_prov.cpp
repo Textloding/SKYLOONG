@@ -454,7 +454,7 @@ int esp_dpp_start(char *ssid, char *password)
         {
             GUI::toast("连接失败");
             WiFiMgr.remove(manual_config_ssid);
-            WiFi.disconnect(true);
+            WiFi.disconnect(true, true);
             result = -1;
         }
     }

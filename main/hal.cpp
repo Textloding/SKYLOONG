@@ -271,18 +271,18 @@ static void task_systemctl(void *p)
             break;
         }
         case EVENT_TOGGLE_SCREEN_ON:
-            if (event.data == 0)
-            {
-                if (xSemaphoreTake(hal._mutex, 2000) == pdTRUE)
-                {
-                    xSemaphoreGive(hal._mutex);
-                    ledcWrite(7, 0);
-                }
-            }
-            else
-            {
-                hal.setBrightness(hal._brightness);
-            }
+            // if (event.data == 0)
+            // {
+            //     if (xSemaphoreTake(hal._mutex, 2000) == pdTRUE)
+            //     {
+            //         xSemaphoreGive(hal._mutex);
+            //         ledcWrite(7, 0);
+            //     }
+            // }
+            // else
+            // {
+            //     hal.setBrightness(hal._brightness);
+            // }
             break;
         case EVENT_APM_CHANGED:
             hal.APM = event.data;
@@ -391,6 +391,7 @@ void HAL::init()
     hal.config_time_12hr = pref.getBool("12hr", false);
     hal.config_show_battery_value = pref.getBool("s_b_v", false);
     hal.config_statusbar_center = pref.getBool("s_c", false);
+    hal.config_show_boot_animation = hal.pref.getBool("b_a", false);
     i18n::setLanguage(pref.getUInt("lang", 0));
     i18n::setNTPOffset(pref.getInt("ntp", 3600 * 8));
     static lv_disp_draw_buf_t draw_buf;
@@ -687,21 +688,7 @@ void HAL::rm_rf(const char *path)
     }
 }
 //////////////////////////////////网页服务器部分
-// static void sendreq(AsyncWebServerRequest *request, const char *mime, const uint8_t *name, unsigned int len)
-// {
-//     const char *buildTime = __DATE__ " " __TIME__ " GMT";
-//     if (request->header("If-Modified-Since").equals(buildTime))
-//     {
-//         request->send(304);
-//     }
-//     else
-//     {
-//         AsyncWebServerResponse *response = request->beginResponse_P(200, mime, name, len);
-//         response->addHeader("Content-Encoding", "gzip");
-//         response->addHeader("Last-Modified", buildTime);
-//         request->send(response);
-//     }
-// }
+
 #include <WebServer.h>
 #include <ESPmDNS.h>
 
@@ -857,6 +844,8 @@ bool exists(String path)
 bool handleFileRead(String path)
 {
     ESP_LOGI("SERVER", "handleFileRead: %s", path.c_str());
+    if (path.endsWith(".wifi.csv"))
+        return false;
     String contentType = getContentType(path);
     if (exists(path))
     {
@@ -1048,7 +1037,7 @@ void handleRoot()
 #include <cJSON.h>
 
 static char jsonbuffer[2048];
-const char default_app_setting[] = "[{\"widget\":1,\"time12\":false,\"bg\":false},{\"widget\":0,\"data\":1,\"ext_url\":\"ws://192.168.1.2:8080/ws\",\"ext_interval\":200,\"ext_interpolation\":20,\"ext_zoom\":0.69,\"showlbl\":true,\"lbl\":\"标题1\",\"showindicator\":true},{\"widget\":0,\"data\":3,\"ext_url\":\"ws://192.168.1.2:8080/ws\",\"ext_interval\":500,\"ext_interpolation\":40,\"ext_zoom\":0.05,\"showlbl\":false,\"lbl\":\"标题2\",\"showindicator\":false},{\"ip\":\"192.168.1.2\",\"port\":51648}]";
+const char default_app_setting[] = "[{\"widget\":1,\"time12\":false,\"bg\":false},{\"widget\":1,\"data\":0,\"showlbl\":true,\"lbl\":\"标题\",\"showindicator\":true,\"ext_url\":\"ws://192.168.1.2:8080/ws\",\"ext_interval\":200,\"ext_interpolation\":20,\"ext_zoom\":0.69},{\"widget\":0,\"data\":2,\"showlbl\":true,\"lbl\":\"APS\",\"showindicator\":true,\"ext_url\":\"ws://192.168.1.2:8080/ws\",\"ext_interval\":500,\"ext_interpolation\":40,\"ext_zoom\":0.05},{\"ip\":\"192.168.1.2\",\"port\":51648}]";
 
 char app_settings_remote_ip[16];
 uint16_t app_settings_remote_port;

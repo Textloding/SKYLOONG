@@ -78,6 +78,7 @@ public:
     bool server_started = false;            // 是否已经启动了网页服务器
     bool config_show_battery_value = false; // 显示电池图标或数值
     bool config_statusbar_center = false;   // 状态栏图标是否居中
+    bool config_show_boot_animation = true; // 是否显示开机动画
     bool config_time_12hr = false;
     SemaphoreHandle_t _mutex;
     void init();

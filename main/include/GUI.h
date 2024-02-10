@@ -60,7 +60,9 @@ class VideoPlayer
 private:
     /* data */
 public:
+    bool video_loop = true;
     void play(FILE *f);
+    void playBuffer(const uint8_t *video_buffer, uint32_t buffer_size);
 };
 
 extern VideoPlayer videoPlayer;

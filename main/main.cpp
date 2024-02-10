@@ -67,7 +67,7 @@ void debug_USB_UART(void *p)
             ESP_LOGW("debug_USB_UART", "Switch App");
             xSemaphoreGive(appManagerLite._binary_switchApp);
             break;
-        case 'o': 
+        case 'o':
             ESP_LOGW("WiFiManager", "HEAP: %d", esp_get_free_internal_heap_size());
             ESP_LOGW("WiFiManager", "HEAP_SPI: %d", esp_get_free_heap_size());
             break;
@@ -85,17 +85,13 @@ AppGIF appGIF;
 AppSettings appSettings;
 extern void add_to_app_list(BaseApp *app);
 uint32_t RTC_DATA_ATTR last_appid = 0;
-
+#include "boot_animation.h"
 extern "C" void app_main()
 {
     initArduino();
     psramInit();
     hal.init();
     WiFiMgr.init();
-    if(last_appid == 0)
-    {
-        last_appid = hal.pref.getInt("last_appid", 1);
-    }
     //////////////////////
     appHome.init();
     appGIF.init();
@@ -104,12 +100,25 @@ extern "C" void app_main()
     add_to_app_list(&appGIF);
     add_to_app_list(&appSettings);
     //////////////////////
-    hal.LOCKLV();
     GUI::status_bar_init();
-    hal.UNLOCKLV();
-    xTaskCreatePinnedToCore(task_lvgl_update, "lvgl_update", 1024 * 6, NULL, 1, NULL, 1);
-    xTaskCreatePinnedToCore(debug_USB_UART, "debug_USB_UART", 1024 * 4, NULL, 6, NULL, 1);
+    if (last_appid == 0)
+    {
+        last_appid = hal.pref.getInt("last_appid", 1);
+    }
+    // 开机动画
+    if (hal.config_show_boot_animation == true)
+    {
+        if ((app_settings_save[1].widget == 0 && (app_settings_save[1].data != 2 && app_settings_save[1].data != 4)) || (app_settings_save[2].widget == 0 && (app_settings_save[2].data != 2 && app_settings_save[2].data != 4)))
+        {
+            WiFi.begin();
+        }
+        videoPlayer.video_loop = false;
+        videoPlayer.playBuffer(__boot_mpeg, sizeof(__boot_mpeg));
+        videoPlayer.video_loop = true;
+    }
     protocol_init();
     appManagerLite.init(last_appid);
+    xTaskCreatePinnedToCore(task_lvgl_update, "lvgl_update", 1024 * 6, NULL, 1, NULL, 1);
+    xTaskCreatePinnedToCore(debug_USB_UART, "debug_USB_UART", 1024 * 4, NULL, 6, NULL, 1);
     vTaskDelay(portMAX_DELAY);
 }
