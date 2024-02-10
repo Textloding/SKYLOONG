@@ -52,7 +52,7 @@ static char *manual_config_password = NULL;
 void build_scr_connecting(const char *ssid, const char *passwd)
 {
     lv_obj_t *scr = lv_obj_create(NULL);
-    lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_FADE_IN, 300, 0, true);
+    lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, true);
     lv_obj_t *label = lv_label_create(scr);
     lv_obj_set_style_text_font(label, &lv_font_chinese_16, 0);
     lv_label_set_text_fmt(label, "正在连接到：%s", ssid);
@@ -145,7 +145,7 @@ static void WiFiScanDone(lv_obj_t *box, int n)
 void load_scr_manual()
 {
     lv_obj_t *scr = lv_obj_create(NULL);
-    lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_FADE_IN, 300, 0, false);
+    lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, false);
     lv_obj_t *label = lv_label_create(scr);
     lv_obj_set_style_text_font(label, &lv_font_chinese_16, 0);
     lv_label_set_text(label, "选择WiFi");
@@ -186,7 +186,7 @@ void drawDPPQRCode(const char *str)
 {
     hal.LOCKLV();
     lv_obj_t *scr = lv_obj_create(NULL);
-    lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_FADE_IN, 300, 0, false);
+    lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, false);
 
     lv_obj_t *box = lv_obj_create(scr);
 

@@ -4,9 +4,17 @@ esp_lcd_panel_handle_t panel_handle = NULL;
 esp_lcd_panel_io_handle_t io_handle = NULL;
 #define DRAW_BUF_SIZE (2 * screenWidth * screenHeight)
 lv_indev_t *indev_keypad;
-static int first_refresh = 2;
+static int first_refresh = 3;
+static inline void swapBuffer(uint16_t *buffer, uint32_t size)
+{
+    for (uint32_t i = 0; i < size; i++)
+    {
+        buffer[i] = (buffer[i] >> 8) | (buffer[i] << 8);
+    }
+}
 void my_disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p)
 {
+    swapBuffer((uint16_t *)color_p, (area->x2 - area->x1 + 1) * (area->y2 - area->y1 + 1));
     esp_lcd_panel_draw_bitmap(panel_handle, area->x1, area->y1, area->x2 + 1, area->y2 + 1, (uint16_t *)&color_p->full);
     if (first_refresh > 0)
     {
@@ -1090,6 +1098,7 @@ void parseAppSettings(const char *input)
     app_settings_save[2].ext_zoom = cJSON_GetObjectItem(item, "ext_zoom")->valuedouble;
     app_settings_save[2].showlbl = cJSON_GetObjectItem(item, "showlbl")->valueint;
     strncpy(app_settings_save[2].lbl, cJSON_GetObjectItem(item, "lbl")->valuestring, 128);
+    app_settings_save[2].showindicator = cJSON_GetObjectItem(item, "showindicator")->valueint;
     item = cJSON_GetArrayItem(root, 3);
     strncpy(app_settings_remote_ip, cJSON_GetObjectItem(item, "ip")->valuestring, 15);
     app_settings_remote_port = cJSON_GetObjectItem(item, "port")->valueint;
@@ -1123,6 +1132,7 @@ void appSettingsToJson(char *result)
     cJSON_AddNumberToObject(item, "ext_zoom", app_settings_save[2].ext_zoom);
     cJSON_AddBoolToObject(item, "showlbl", app_settings_save[2].showlbl);
     cJSON_AddStringToObject(item, "lbl", app_settings_save[2].lbl);
+    cJSON_AddBoolToObject(item, "showindicator", app_settings_save[2].showindicator);
     cJSON_AddItemToArray(root, item);
     item = cJSON_CreateObject();
     cJSON_AddStringToObject(item, "ip", app_settings_remote_ip);

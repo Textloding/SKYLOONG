@@ -9,6 +9,9 @@ static struct
 void updateTimeDisplay()
 {
     hal.getTime();
+    static uint8_t last_minute = -1;
+    if (hal.datetime.minute == last_minute)
+        return;
     if (hal.config_time_12hr)
     {
         if (hal.datetime.hour > 12)
@@ -66,16 +69,79 @@ lv_obj_t *build_time_widget(lv_obj_t *parent)
             return;
         }
         updateTimeDisplay(); },
-                    300, NULL);
+                    500, NULL);
     updateTimeDisplay();
     return time_widget;
 }
 
+#include <moonPhase.h>
+
+static lv_obj_t *obj_weather_moon;
+static lv_obj_t *img_moon;
+moonPhase mp;
+
+lv_img_dsc_t const *moon_imgs[] = {
+    &moon_000,
+    &moon_010,
+    &moon_020,
+    &moon_030,
+    &moon_040,
+    &moon_050,
+    &moon_060,
+    &moon_070,
+    &moon_080,
+    &moon_090,
+    &moon_100,
+    &moon_110,
+    &moon_120,
+    &moon_130,
+    &moon_140,
+    &moon_150,
+    &moon_160,
+    &moon_170,
+    &moon_180,
+    &moon_190,
+    &moon_200,
+    &moon_210,
+    &moon_220,
+    &moon_230,
+    &moon_240,
+    &moon_250,
+    &moon_260,
+    &moon_270,
+    &moon_280,
+    &moon_290,
+    &moon_300,
+    &moon_310,
+    &moon_320,
+    &moon_330,
+    &moon_340,
+    &moon_350,
+};
 lv_obj_t *build_moon_widget(lv_obj_t *parent)
 {
     lv_obj_t *moon_widget = lv_obj_create(parent);
+    lv_obj_clear_flag(moon_widget, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_size(moon_widget, (320 - 8) * (1 - 0.618), (240 - 34) * (0.618));
     lv_obj_align(moon_widget, LV_ALIGN_BOTTOM_RIGHT, -4, -4);
+    img_moon = lv_img_create(moon_widget);
+    lv_obj_align(img_moon, LV_ALIGN_CENTER, 0, 0);
+    moonData_t moon;
+    tm timenow;
+    hal.getTime();
+    timenow.tm_year = hal.datetime.year - 1900;
+    timenow.tm_mon = hal.datetime.month - 1;
+    timenow.tm_mday = hal.datetime.dayMonth;
+    timenow.tm_hour = hal.datetime.hour;
+    timenow.tm_min = hal.datetime.minute;
+    timenow.tm_sec = hal.datetime.second;
+    time_t utcnow = mktime(&timenow);    \
+    moon = mp.getPhase(utcnow - i18n::getNTPOffset() + (86400*7));
+
+    uint16_t angle = moon.angle / 10;
+    if(angle >= 36)angle = 0;
+    ESP_LOGI("moon", "moon angle: %d", angle);
+    lv_img_set_src(img_moon, moon_imgs[angle]);
     return moon_widget;
 }
 
@@ -301,6 +367,67 @@ void AppHome::setup()
     hal.LOCKLV();
     build_time_widget(_appScreen);
     hal.UNLOCKLV();
+    if (app_settings_save[1].widget == 0)
+    {
+        if (app_settings_save[1].data == 2)
+        {
+            // APS
+            chart1.init(_appScreen, (320 - 8) * (1 - 0.618), (240 - 34) * (0.618), 1000, 0, []() -> uint16_t
+                        { return map(hal.APM, 0, 30, 0, 1000); });
+            chart1.label_factor = 30 / 1000.0;
+        }
+        else if (app_settings_save[1].data == 4)
+        {
+            // 随机数
+            chart1.init(_appScreen, (320 - 8) * (1 - 0.618), (240 - 34) * (0.618), 500, 0, []() -> uint16_t
+                        { return rand() % 1000; });
+            chart1.label_factor = 0.1;
+        }
+        else
+        {
+            page_has_remote = true;
+            if (app_settings_save[1].data == 0 || app_settings_save[1].data == 1)
+            {
+
+                chart1.init(_appScreen, (320 - 8) * (1 - 0.618), (240 - 34) * (0.618), 500, 0, []() -> uint16_t
+                            { return handleTCPClient(app_settings_save[1].data); });
+                chart1.label_factor = 0.1;
+                tcp_started = true;
+            }
+            else
+            {
+                chart1.init(
+                    _appScreen, (320 - 8) * (1 - 0.618), (240 - 34) * (0.618), app_settings_save[1].ext_interval, 0, []() -> uint16_t
+                    { return websocket_data1; },
+                    app_settings_save[1].ext_interpolation);
+                if (app_settings_save[1].ext_url[0] != 0)
+                {
+                    esp_websocket_client_config_t websocket_cfg;
+                    memset(&websocket_cfg, 0, sizeof(websocket_cfg));
+                    websocket_cfg.uri = app_settings_save[1].ext_url;
+                    client1 = esp_websocket_client_init(&websocket_cfg);
+                    if (client1)
+                        esp_websocket_register_events(client1, WEBSOCKET_EVENT_DATA, handleWebSocket, &websocket_data1);
+                }
+            }
+        }
+        chart1.showLabel(app_settings_save[1].showindicator);
+        if (app_settings_save[1].showlbl && app_settings_save[1].lbl[0] != 0)
+            chart1.showTitle(app_settings_save[1].lbl);
+        lv_obj_align(chart1._chart_widget, LV_ALIGN_BOTTOM_RIGHT, -4, -4);
+    }
+    else if (app_settings_save[1].widget == 1)
+    {
+        hal.LOCKLV();
+        build_moon_widget(_appScreen);
+        hal.UNLOCKLV();
+    }
+    else
+    {
+        hal.LOCKLV();
+        build_img_right_widget(_appScreen);
+        hal.UNLOCKLV();
+    }
     if (app_settings_save[2].widget == 0)
     {
         if (app_settings_save[2].data == 2)
@@ -332,7 +459,7 @@ void AppHome::setup()
             {
                 chart2.init(
                     _appScreen, (320 - 8) * (0.618), 240 - 34, app_settings_save[2].ext_interval, 0, []() -> uint16_t
-                    { return websocket_data1; },
+                    { return websocket_data2; },
                     app_settings_save[2].ext_interpolation);
                 if (app_settings_save[2].ext_url[0] != 0)
                 {
@@ -357,28 +484,6 @@ void AppHome::setup()
         hal.UNLOCKLV();
     }
 
-    if (app_settings_save[1].widget == 0)
-    {
-        chart1.init(
-            _appScreen, (320 - 8) * (1 - 0.618), (240 - 34) * (0.618), 200, 500, []() -> uint16_t
-            { return rand() % 1000; },
-            40);
-        chart1.showLabel(false);
-        chart1.showTitle("Random");
-        lv_obj_align(chart1._chart_widget, LV_ALIGN_BOTTOM_RIGHT, -4, -4);
-    }
-    else if (app_settings_save[1].widget == 1)
-    {
-        hal.LOCKLV();
-        build_moon_widget(_appScreen);
-        hal.UNLOCKLV();
-    }
-    else
-    {
-        hal.LOCKLV();
-        build_img_right_widget(_appScreen);
-        hal.UNLOCKLV();
-    }
     if (page_has_remote)
     {
         if (WiFi.getMode() != WIFI_STA)

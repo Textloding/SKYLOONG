@@ -217,7 +217,7 @@ bool WiFiManager::requireWiFi(bool forceChoose)
             hal.UNLOCKLV();
             int res = esp_dpp_start(ssid, passwd);
             hal.LOCKLV();
-            lv_scr_load_anim(scr_store, LV_SCR_LOAD_ANIM_FADE_IN, 300, 0, true);
+            lv_scr_load_anim(scr_store, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, true);
             lv_indev_set_group(indev_keypad, last_group);
             lv_group_set_default(last_group);
             lv_group_del(group);

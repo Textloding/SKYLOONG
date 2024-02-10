@@ -88,7 +88,7 @@ void AppManagerLite::switchApp(BaseApp *app)
     ESP_LOGI("AppManagerLite", "switch begin");
     hal.LOCKLV();
     currentApp->_appScreen = lv_obj_create(NULL);
-    lv_scr_load_anim(currentApp->_appScreen, LV_SCR_LOAD_ANIM_FADE_IN, 300, 0, true);
+    lv_scr_load_anim(currentApp->_appScreen, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, true);
     hal.UNLOCKLV();
     hal.requireSettings(currentApp->requireSettings);
     currentApp->setup();
