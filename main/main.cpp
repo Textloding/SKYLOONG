@@ -106,15 +106,18 @@ extern "C" void app_main()
         last_appid = hal.pref.getInt("last_appid", 1);
     }
     // 开机动画
-    if (hal.config_show_boot_animation == true)
+    if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_UNDEFINED)
     {
-        if ((app_settings_save[1].widget == 0 && (app_settings_save[1].data != 2 && app_settings_save[1].data != 4)) || (app_settings_save[2].widget == 0 && (app_settings_save[2].data != 2 && app_settings_save[2].data != 4)))
+        if (hal.config_show_boot_animation == true)
         {
-            WiFi.begin();
+            if ((app_settings_save[1].widget == 0 && (app_settings_save[1].data != 2 && app_settings_save[1].data != 4)) || (app_settings_save[2].widget == 0 && (app_settings_save[2].data != 2 && app_settings_save[2].data != 4)))
+            {
+                WiFi.begin();
+            }
+            videoPlayer.video_loop = false;
+            videoPlayer.playBuffer(__boot_mpeg, sizeof(__boot_mpeg));
+            videoPlayer.video_loop = true;
         }
-        videoPlayer.video_loop = false;
-        videoPlayer.playBuffer(__boot_mpeg, sizeof(__boot_mpeg));
-        videoPlayer.video_loop = true;
     }
     protocol_init();
     xTaskCreatePinnedToCore(task_lvgl_update, "lvgl_update", 1024 * 6, NULL, 1, NULL, 1);

@@ -117,7 +117,10 @@ int gif_list_size = 0;
 bool show_gif(const char *path)
 {
     if (gif)
+    {
+        lv_obj_fade_out(gif, 1000, 0);
         lv_obj_del_delayed(gif, 1000);
+    }
     if (strstr(path, ".jpg") != NULL || strstr(path, ".png") != NULL)
     {
         gif = lv_img_create(_appScreen_1);

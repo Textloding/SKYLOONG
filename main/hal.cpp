@@ -829,25 +829,6 @@ bool myxcopy(const String path, const String newpath)
     root.close();
     return true;
 }
-String formatBytes(size_t bytes)
-{
-    if (bytes < 1024)
-    {
-        return String(bytes) + "B";
-    }
-    else if (bytes < (1024 * 1024))
-    {
-        return String(bytes / 1024.0) + "KB";
-    }
-    else if (bytes < (1024 * 1024 * 1024))
-    {
-        return String(bytes / 1024.0 / 1024.0) + "MB";
-    }
-    else
-    {
-        return String(bytes / 1024.0 / 1024.0 / 1024.0) + "GB";
-    }
-}
 
 String getContentType(String filename)
 {
@@ -949,7 +930,6 @@ void handleFileUpload()
             filename = "/" + filename;
         }
         ESP_LOGI("SERVER", "handleFileUpload Name: %s", filename.c_str());
-        ESP_LOGI("SERVER", "handleFileUpload Size? %d", upload.totalSize);
         fsUploadFile = FILESYSTEM.open(filename, "w");
         filename = String();
     }

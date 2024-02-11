@@ -61,6 +61,19 @@ void AppManagerLite::init(const uint32_t lastAppid)
     }
     xTaskCreatePinnedToCore(task_app_loop, "task_app_loop", 8192, NULL, 1, NULL, 1);
     xTaskCreatePinnedToCore(task_app_switch, "task_app_switch", 4096, NULL, 4, NULL, 0);
+    xTaskCreate([](void *p)
+                {
+                    while(1)
+                    {
+                        if (millis() - last_switch_millis > 50000)
+                        {
+                            if (last_overflow_appid != last_appid)
+                            {
+                                last_overflow_appid = last_appid;
+                                hal.pref.putInt("last_appid", last_appid);
+                            }
+                        } vTaskDelay(1000);} },
+                "task_app_save", 4096, NULL, 1, NULL);
 }
 void AppManagerLite::switchApp(BaseApp *app)
 {
@@ -99,14 +112,6 @@ void AppManagerLite::switchApp(BaseApp *app)
 
 void AppManagerLite::loop()
 {
-    if (millis() - last_switch_millis > 60000)
-    {
-        if (last_overflow_appid != last_appid)
-        {
-            last_overflow_appid = last_appid;
-            hal.pref.putInt("last_appid", last_appid);
-        }
-    }
     if (currentApp != NULL)
     {
         xSemaphoreTake(_mutex, portMAX_DELAY);
