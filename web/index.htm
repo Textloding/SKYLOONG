@@ -218,8 +218,8 @@
                         <button type="button" class="btn btn-warning" id="btnUpload"
                             style="margin-left: 5px;">上传</button>
                         <input type="file" id="fileInput" style="visibility: hidden; width: 0px;height: 0px;">
-                        <button type="button" class="btn btn-danger" id="btnOpenData"
-                            style="margin-left: 5px;">打开系统文件夹</button>
+                        <button type="button" class="btn btn-danger" id="btnOpenData" style="margin-left: 5px;"
+                            data-mdb-tooltip-init title="用于删除用不到的自定义图片以释放空间。">.data</button>
                         <button type="button" class="btn btn-danger" id="btnDeleteFolder"
                             style="margin-left: 5px;">删除文件夹</button>
                         <button type="button" class="btn btn-danger" id="btnReboot"
@@ -278,12 +278,16 @@
                                         <div class="form-check">
                                             <input class="form-check-input" type="radio" name="W3RG2" id="W3RG2R3"
                                                 onclick="fold('widget3Group3')" />
-                                            <label class="form-check-label" for="W3RG2R3"> 手速(APS) </label>
+                                            <label class="form-check-label" for="W3RG2R3" data-mdb-placement="right"
+                                                data-mdb-tooltip-init title="即每秒按下键盘按键的次数, Actions Per Second"> 手速(APS)
+                                            </label>
                                         </div>
                                         <div class="form-check">
                                             <input class="form-check-input" type="radio" name="W3RG2" id="W3RG2R4"
                                                 onclick="unfold('widget3Group3')" />
-                                            <label class="form-check-label" for="W3RG2R4"> 外部数据源(Websocket) </label>
+                                            <label class="form-check-label" for="W3RG2R4" data-mdb-placement="right"
+                                                data-mdb-tooltip-init title="需要自建TCP Server。选择以查看详情"> 外部数据源(TCP)
+                                            </label>
                                         </div>
                                         <div class="form-check">
                                             <input class="form-check-input" type="radio" name="W3RG2" id="W3RG2R5"
@@ -294,11 +298,15 @@
                                 </div>
                                 <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget3Group3">
                                     <h5>外部数据源设置</h5>
+                                    <label class="label" for="W3G3RANGE1">网络位置</label>
                                     <div class="form-outline" data-mdb-input-init>
-                                        <input type="text" id="W3G3TEXT1" class="form-control"
-                                            data-mdb-showcounter="true" maxlength="64" />
-                                        <label class="form-label" for="W3G3TEXT1">外部数据源URI</label>
-                                        <div class="form-helper"></div>
+                                        <div class="input-group mb-3">
+                                            <input type="text" class="form-control" placeholder="IP地址" aria-label="IP地址"
+                                                id="W3G3HOST" maxlength="15" />
+                                            <span class="input-group-text">:</span>
+                                            <input type="text" class="form-control" placeholder="端口" aria-label="端口"
+                                                id="W3G3PORT" maxlength="5" />
+                                        </div>
                                     </div>
                                     <label class="label" for="W3G3RANGE1">数据更新间隔（毫秒）</label>
                                     <div class="range" data-mdb-range-init>
@@ -312,6 +320,12 @@
                                     <div class="form-outline" data-mdb-input-init>
                                         <input type="number" id="W3G3NUMBER1" class="form-control" />
                                         <label class="form-label" for="W3G3NUMBER1">数据缩放比例</label>
+                                    </div>
+                                    <div class="row-2 myfold smallerContainer alert-warning shadow-4" id="widget3Group3">
+                                        <h5>数据格式与时序约定</h5>
+                                        <p>彩屏曲线图采用两个uint16_t变量存储最新的两个数据，下文称为：“原始数据”，范围为0-1000（超出无影响），每隔“插值更新间隔”时间，使用余弦插值算法和当前相对坐标，对最新的两个数据进行插值并追加到图表末尾。模组使用一个临时变量存储从TCP收到的数据。</p>
+                                        <p>当服务器检测到彩屏模组连接时，需要每隔“数据更新间隔”时间，向模组发送一个uint16_t数据，低字节在前。模组收到数据后，将立即发送1字节0x00到服务器作为ACK，并将数据存储到临时变量中，等待曲线图更新线程获取。</p>
+                                        <p>数据指示器的值=数据缩放比例*原始数据。</p>
                                     </div>
                                 </div>
                                 <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget3Group4">
@@ -445,12 +459,16 @@
                                         <div class="form-check">
                                             <input class="form-check-input" type="radio" name="W2RG2" id="W2RG2R3"
                                                 onclick="fold('widget2Group3')" />
-                                            <label class="form-check-label" for="W2RG2R3"> 手速(APS) </label>
+                                            <label class="form-check-label" for="W2RG2R3" data-mdb-tooltip-init
+                                                data-mdb-placement="right" title="即每秒按下键盘按键的次数, Actions Per Second">
+                                                手速(APS) </label>
                                         </div>
                                         <div class="form-check">
                                             <input class="form-check-input" type="radio" name="W2RG2" id="W2RG2R4"
                                                 onclick="unfold('widget2Group3')" />
-                                            <label class="form-check-label" for="W2RG2R4"> 外部数据源(Websocket) </label>
+                                            <label class="form-check-label" for="W2RG2R4" data-mdb-placement="right"
+                                                data-mdb-tooltip-init title="需要自建TCP Server。选择以查看详情"> 外部数据源(TCP)
+                                            </label>
                                         </div>
                                         <div class="form-check">
                                             <input class="form-check-input" type="radio" name="W2RG2" id="W2RG2R5"
@@ -461,11 +479,15 @@
                                 </div>
                                 <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget2Group3">
                                     <h5>外部数据源设置</h5>
+                                    <label class="label" for="W3G3RANGE1">网络位置</label>
                                     <div class="form-outline" data-mdb-input-init>
-                                        <input type="text" id="W2G3TEXT1" class="form-control"
-                                            data-mdb-showcounter="true" maxlength="64" />
-                                        <label class="form-label" for="W2G3TEXT1">外部数据源URI</label>
-                                        <div class="form-helper"></div>
+                                        <div class="input-group mb-3">
+                                            <input type="text" class="form-control" placeholder="IP地址" aria-label="IP地址"
+                                                id="W2G3HOST" maxlength="15" />
+                                            <span class="input-group-text">:</span>
+                                            <input type="text" class="form-control" placeholder="端口" aria-label="端口"
+                                                id="W2G3PORT" maxlength="5" />
+                                        </div>
                                     </div>
                                     <label class="label" for="W2G3RANGE1">数据更新间隔（毫秒）</label>
                                     <div class="range" data-mdb-range-init>
@@ -479,6 +501,12 @@
                                     <div class="form-outline" data-mdb-input-init>
                                         <input type="number" id="W2G3NUMBER1" class="form-control" />
                                         <label class="form-label" for="W3G3NUMBER1">数据缩放比例</label>
+                                    </div>
+                                    <div class="row-2 myfold smallerContainer alert-warning shadow-4" id="widget3Group3">
+                                        <h5>数据格式与时序约定</h5>
+                                        <p>彩屏曲线图采用两个uint16_t变量存储最新的两个数据，下文称为：“原始数据”，范围为0-1000（超出无影响），每隔“插值更新间隔”时间，使用余弦插值算法和当前相对坐标，对最新的两个数据进行插值并追加到图表末尾。模组使用一个临时变量存储从TCP收到的数据。</p>
+                                        <p>当服务器检测到彩屏模组连接时，需要每隔“数据更新间隔”时间，向模组发送一个uint16_t数据，低字节在前。模组收到数据后，将立即发送1字节0x00到服务器作为ACK，并将数据存储到临时变量中，等待曲线图更新线程获取。</p>
+                                        <p>数据指示器的值=数据缩放比例*原始数据。</p>
                                     </div>
                                 </div>
                                 <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget2Group4">
@@ -579,14 +607,13 @@
                             document.getElementById('W2RG6R1').click();
                         else
                             document.getElementById('W2RG6R2').click();
-                        document.getElementById('W2G3TEXT1').setAttribute('value', data[1]["ext_url"]);
+                        document.getElementById('W2G3HOST').setAttribute('value', data[1]["ext_host"]);
+                        document.getElementById('W2G3PORT').setAttribute('value', data[1]["ext_port"]);
                         document.getElementById('W2G3RANGE1').setAttribute('value', data[1]["ext_interval"]);
                         document.getElementById('W2G3RANGE2').setAttribute('value', data[1]["ext_interpolation"]);
                         document.getElementById('W2G3NUMBER1').setAttribute('value', data[1]["ext_zoom"].toFixed(5));
                         if (data[1]["lbl"] != '')
                             document.getElementById('W2G5TEXT1').classList.add('active');
-                        if (data[1]["ext_url"] != '')
-                            document.getElementById('W2G3TEXT1').classList.add('active');
                         document.getElementById('W2G3NUMBER1').classList.add('active');
 
                         if (data[1]["widget"] == 0)
@@ -617,14 +644,13 @@
                             document.getElementById('W3RG6R1').click();
                         else
                             document.getElementById('W3RG6R2').click();
-                        document.getElementById('W3G3TEXT1').setAttribute('value', data[2]["ext_url"]);
+                        document.getElementById('W3G3HOST').setAttribute('value', data[2]["ext_host"]);
+                        document.getElementById('W3G3PORT').setAttribute('value', data[2]["ext_port"]);
                         document.getElementById('W3G3RANGE1').setAttribute('value', data[2]["ext_interval"]);
                         document.getElementById('W3G3RANGE2').setAttribute('value', data[2]["ext_interpolation"]);
                         document.getElementById('W3G3NUMBER1').setAttribute('value', data[2]["ext_zoom"].toFixed(5));
                         if (data[2]["lbl"] != '')
                             document.getElementById('W3G5TEXT1').classList.add('active');
-                        if (data[2]["ext_url"] != '')
-                            document.getElementById('W3G3TEXT1').classList.add('active');
                         document.getElementById('W3G3NUMBER1').classList.add('active');
                         if (data[2]["widget"] == 0)
                             document.getElementById('W3RG1R1').click();
@@ -658,7 +684,8 @@
                         "showlbl": document.getElementById('W2RG4R1').checked ? true : false,
                         "lbl": document.getElementById('W2G5TEXT1').value,
                         "showindicator": document.getElementById('W2RG6R1').checked ? true : false,
-                        "ext_url": document.getElementById('W2G3TEXT1').value,
+                        "ext_host": document.getElementById('W2G3HOST').value,
+                        "ext_port": Number(document.getElementById('W2G3PORT').value),
                         "ext_interval": Number(document.getElementById('W2G3RANGE1').value),
                         "ext_interpolation": Number(document.getElementById('W2G3RANGE2').value),
                         "ext_zoom": Number(document.getElementById('W2G3NUMBER1').value)
@@ -669,7 +696,8 @@
                         "showlbl": document.getElementById('W3RG4R1').checked ? true : false,
                         "lbl": document.getElementById('W3G5TEXT1').value,
                         "showindicator": document.getElementById('W3RG6R1').checked ? true : false,
-                        "ext_url": document.getElementById('W3G3TEXT1').value,
+                        "ext_host": document.getElementById('W3G3HOST').value,
+                        "ext_port": Number(document.getElementById('W3G3PORT').value),
                         "ext_interval": Number(document.getElementById('W3G3RANGE1').value),
                         "ext_interpolation": Number(document.getElementById('W3G3RANGE2').value),
                         "ext_zoom": Number(document.getElementById('W3G3NUMBER1').value)

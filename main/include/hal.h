@@ -53,7 +53,8 @@ struct app_setting
     uint8_t widget;
     bool bg;
     uint8_t data;
-    char ext_url[129];
+    char ext_host[65];
+    uint16_t ext_port;
     uint16_t ext_interval;
     uint8_t ext_interpolation;
     float ext_zoom;

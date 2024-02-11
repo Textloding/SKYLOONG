@@ -266,7 +266,7 @@ void MyChart::init(lv_obj_t *parent, uint16_t width, uint16_t height, uint16_t d
     _timer = lv_timer_create([](lv_timer_t *timer)
                              {
         MyChart *chart_ptr = (MyChart *)timer->user_data;
-        if(chart_ptr->_data_weight_max == chart_ptr->_data_weight_current)
+        if(chart_ptr->_data_weight_current >=chart_ptr->_data_weight_max)
         {
             chart_ptr->_data_weight_current = 0;
             if(chart_ptr->_callback != NULL)
@@ -317,22 +317,23 @@ void MyChart::destroy()
 }
 MyChart chart1;
 MyChart chart2;
-#include <esp_websocket_client.h>
 struct tcp_client_data
 {
     float cpu_pct;
     float mem_pct;
 };
-static bool tcp_connected;
+static bool tcp_started = false;
+static bool tcp_started_ext1 = false;
+static bool tcp_started_ext2 = false;
 static struct tcp_client_data s_tcp_client_data;
-static WiFiClient tcpClient; // 用于获取CPU或内存数据
-static esp_websocket_client_handle_t client1 = NULL;
-static esp_websocket_client_handle_t client2 = NULL;
-uint16_t websocket_data1 = 0; // 用于暂存外部数据源数据
-uint16_t websocket_data2 = 0;
+static WiFiClient tcpClient;  // 用于获取CPU或内存数据
+static WiFiClient extClient1; // 用于获取CPU或内存数据
+static WiFiClient extClient2; // 用于获取CPU或内存数据
+uint16_t ext_data1 = 0;       // 用于暂存外部数据源数据
+uint16_t ext_data2 = 0;
 static bool i_started_wifi = false;
 static bool page_has_remote = false;
-static bool tcp_started = false;
+#include <lwip/sockets.h>
 static uint16_t handleTCPClient(uint8_t data_source)
 {
     if (data_source == 0)
@@ -340,13 +341,28 @@ static uint16_t handleTCPClient(uint8_t data_source)
     else
         return (uint16_t)(s_tcp_client_data.mem_pct * 1000);
 }
-static void handleWebSocket(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
+void TCPConnect(WiFiClient &wifi, const char *ip, const uint16_t port, bool &tcp_started)
 {
-    esp_websocket_event_data_t *data = (esp_websocket_event_data_t *)event_data;
-    if (event_id == WEBSOCKET_EVENT_DATA)
+    if (tcp_started)
     {
-        ESP_LOGI("websocket", "Received data: %s", data->data_ptr);
-        *(uint16_t *)data->user_context = atoi(data->data_ptr);
+        IPAddress remote;
+        remote.fromString(ip);
+        if (wifi.connect(remote, port) == false)
+        {
+            lwip_close(wifi.fd());
+            wifi.stop();
+            GUI::toast(_tr(I18N_ID_TCP_FAILED));
+            tcp_started = false;
+        }
+    }
+}
+void TCPDisconnect(WiFiClient &wifi, bool &tcp_started)
+{
+    if (tcp_started)
+    {
+        lwip_close(wifi.fd());
+        wifi.stop();
+        tcp_started = false;
     }
 }
 void AppHome::setup()
@@ -387,17 +403,13 @@ void AppHome::setup()
             {
                 chart1.init(
                     _appScreen, (320 - 8) * (1 - 0.618), (240 - 34) * (0.618), app_settings_save[1].ext_interval, 0, []() -> uint16_t
-                    { return websocket_data1; },
+                    { return ext_data1; },
                     app_settings_save[1].ext_interpolation);
-                if (app_settings_save[1].ext_url[0] != 0)
+                if (app_settings_save[1].ext_host[0] != 0)
                 {
-                    esp_websocket_client_config_t websocket_cfg;
-                    memset(&websocket_cfg, 0, sizeof(websocket_cfg));
-                    websocket_cfg.uri = app_settings_save[1].ext_url;
-                    client1 = esp_websocket_client_init(&websocket_cfg);
-                    if (client1)
-                        esp_websocket_register_events(client1, WEBSOCKET_EVENT_DATA, handleWebSocket, &websocket_data1);
+                    tcp_started_ext1 = true;
                 }
+                chart1.label_factor = app_settings_save[1].ext_zoom;
             }
         }
         chart1.showLabel(app_settings_save[1].showindicator);
@@ -448,17 +460,13 @@ void AppHome::setup()
             {
                 chart2.init(
                     _appScreen, (320 - 8) * (0.618), 240 - 34, app_settings_save[2].ext_interval, 0, []() -> uint16_t
-                    { return websocket_data2; },
+                    { return ext_data2; },
                     app_settings_save[2].ext_interpolation);
-                if (app_settings_save[2].ext_url[0] != 0)
+                if (app_settings_save[2].ext_host[0] != 0)
                 {
-                    esp_websocket_client_config_t websocket_cfg;
-                    memset(&websocket_cfg, 0, sizeof(websocket_cfg));
-                    websocket_cfg.uri = app_settings_save[2].ext_url;
-                    client2 = esp_websocket_client_init(&websocket_cfg);
-                    if (client2)
-                        esp_websocket_register_events(client2, WEBSOCKET_EVENT_DATA, handleWebSocket, &websocket_data2);
+                    tcp_started_ext2 = true;
                 }
+                chart2.label_factor = app_settings_save[2].ext_zoom;
             }
         }
         chart2.showLabel(app_settings_save[2].showindicator);
@@ -481,29 +489,14 @@ void AppHome::setup()
             {
                 i_started_wifi = true;
                 // 连接服务器
-                if (tcp_started)
+                TCPConnect(tcpClient, app_settings_remote_ip, app_settings_remote_port, tcp_started);
+                TCPConnect(extClient1, app_settings_save[1].ext_host, app_settings_save[1].ext_port, tcp_started_ext1);
+                TCPConnect(extClient2, app_settings_save[2].ext_host, app_settings_save[2].ext_port, tcp_started_ext2);
+                if (!(tcp_started || tcp_started_ext1 || tcp_started_ext2))
                 {
-                    IPAddress remote;
-                    remote.fromString(app_settings_remote_ip);
-                    if (tcpClient.connect(remote, app_settings_remote_port))
-                    {
-                        tcp_connected = true;
-                    }
-                    else
-                    {
-                        tcpClient.stop();
-                        GUI::toast(_tr(I18N_ID_TCP_FAILED));
-                        tcp_connected = false;
-                        tcp_started = false;
-                    }
-                }
-                if (client1)
-                {
-                    esp_websocket_client_start(client1);
-                }
-                if (client2)
-                {
-                    esp_websocket_client_start(client2);
+                    page_has_remote = false;
+                    GUI::toast(_tr(I18N_ID_OFFLINE_MODE));
+                    WiFiMgr.disconnect();
                 }
             }
             else
@@ -521,85 +514,76 @@ void AppHome::loop()
     {
         if (WiFi.isConnected() == false)
         {
-            if (client1)
-                esp_websocket_client_stop(client1);
-            if (client2)
-                esp_websocket_client_stop(client2);
-            tcpClient.stop();
+            TCPDisconnect(tcpClient, tcp_started);
+            TCPDisconnect(extClient1, tcp_started_ext1);
+            TCPDisconnect(extClient2, tcp_started_ext2);
             if (WiFiMgr.requireWiFi())
             {
-                if (client1)
-                    esp_websocket_client_start(client1);
-                if (client2)
-                    esp_websocket_client_start(client2);
+                TCPConnect(tcpClient, app_settings_remote_ip, app_settings_remote_port, tcp_started);
+                TCPConnect(extClient1, app_settings_save[1].ext_host, app_settings_save[1].ext_port, tcp_started_ext1);
+                TCPConnect(extClient2, app_settings_save[2].ext_host, app_settings_save[2].ext_port, tcp_started_ext2);
             }
             else
             {
-                if (client1)
-                    esp_websocket_client_destroy(client1);
-                if (client2)
-                    esp_websocket_client_destroy(client2);
-                tcp_connected = tcp_started = false;
-                client1 = NULL;
-                client2 = NULL;
+                tcp_started = tcp_started_ext1 = tcp_started_ext2 = false;
                 page_has_remote = false;
                 GUI::toast(_tr(I18N_ID_OFFLINE_MODE));
             }
         }
         else
         {
-            if (tcp_connected)
+            // 获取CPU和内存数据
+            if (tcpClient.connected())
             {
                 if (tcpClient.available() >= sizeof(s_tcp_client_data))
                 {
                     tcpClient.readBytes((char *)&s_tcp_client_data, sizeof(s_tcp_client_data));
                     tcpClient.write((uint8_t)0x00);
                 }
-                if (tcpClient.connected() == false)
-                {
-                    tcp_connected = false;
-                    GUI::toast(_tr(I18N_ID_TCP_DISCONNECTED));
-                }
             }
             else if (tcp_started)
+                TCPConnect(tcpClient, app_settings_remote_ip, app_settings_remote_port, tcp_started);
+            // 外部数据源1
+            if (extClient1.connected())
             {
-                IPAddress remote;
-                remote.fromString(app_settings_remote_ip);
-                if (tcpClient.connect(remote, app_settings_remote_port))
+                if (extClient1.available() >= sizeof(ext_data1))
                 {
-                    tcp_connected = true;
-                }
-                else
-                {
-                    tcpClient.stop();
-                    GUI::toast(_tr(I18N_ID_TCP_FAILED));
-                    tcp_connected = false;
-                    tcp_started = false;
+                    extClient1.readBytes((char *)&ext_data1, sizeof(ext_data1));
+                    extClient1.write((uint8_t)0x00);
                 }
             }
+            else if (tcp_started_ext1)
+                TCPConnect(extClient1, app_settings_save[1].ext_host, app_settings_save[1].ext_port, tcp_started_ext1);
+            // 外部数据源2
+            if (extClient2.connected())
+            {
+                if (extClient2.available() >= sizeof(ext_data2))
+                {
+                    extClient2.readBytes((char *)&ext_data2, sizeof(ext_data2));
+                    extClient2.write((uint8_t)0x00);
+                }
+            }
+            else if (tcp_started_ext2)
+                TCPConnect(extClient2, app_settings_save[2].ext_host, app_settings_save[2].ext_port, tcp_started_ext2);
+        }
+        if (!(tcp_started || tcp_started_ext1 || tcp_started_ext2))
+        {
+            page_has_remote = false;
+            GUI::toast(_tr(I18N_ID_OFFLINE_MODE));
+            if (i_started_wifi)
+                WiFiMgr.disconnect();
+            i_started_wifi = false;
         }
     }
-    delay(100);
 }
-
 void AppHome::destroy()
 {
     memset(&s_timedisplay_data, 0, sizeof(s_timedisplay_data));
     chart1.destroy();
     chart2.destroy();
-    if (client1)
-    {
-        esp_websocket_client_stop(client1);
-        esp_websocket_client_destroy(client1);
-        client1 = NULL;
-    }
-    if (client2)
-    {
-        esp_websocket_client_stop(client2);
-        esp_websocket_client_destroy(client2);
-        client2 = NULL;
-    }
-    tcpClient.stop();
+    TCPDisconnect(tcpClient, tcp_started);
+    TCPDisconnect(extClient1, tcp_started_ext1);
+    TCPDisconnect(extClient2, tcp_started_ext2);
     if (i_started_wifi)
     {
         WiFiMgr.disconnect();
