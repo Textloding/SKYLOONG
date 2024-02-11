@@ -335,7 +335,7 @@ static bool page_has_remote = false;
 static bool tcp_started = false;
 static uint16_t handleTCPClient(uint8_t data_source)
 {
-    if (data_source == 1)
+    if (data_source == 0)
         return (uint16_t)(s_tcp_client_data.cpu_pct * 1000);
     else
         return (uint16_t)(s_tcp_client_data.mem_pct * 1000);
@@ -483,7 +483,9 @@ void AppHome::setup()
                 // 连接服务器
                 if (tcp_started)
                 {
-                    if (tcpClient.connect(app_settings_remote_ip, app_settings_remote_port))
+                    IPAddress remote;
+                    remote.fromString(app_settings_remote_ip);
+                    if (tcpClient.connect(remote, app_settings_remote_port))
                     {
                         tcp_connected = true;
                     }
@@ -551,6 +553,7 @@ void AppHome::loop()
                 if (tcpClient.available() >= sizeof(s_tcp_client_data))
                 {
                     tcpClient.readBytes((char *)&s_tcp_client_data, sizeof(s_tcp_client_data));
+                    tcpClient.write((uint8_t)0x00);
                 }
                 if (tcpClient.connected() == false)
                 {
@@ -560,7 +563,9 @@ void AppHome::loop()
             }
             else if (tcp_started)
             {
-                if (tcpClient.connect(app_settings_remote_ip, app_settings_remote_port))
+                IPAddress remote;
+                remote.fromString(app_settings_remote_ip);
+                if (tcpClient.connect(remote, app_settings_remote_port))
                 {
                     tcp_connected = true;
                 }

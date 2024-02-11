@@ -117,8 +117,8 @@ extern "C" void app_main()
         videoPlayer.video_loop = true;
     }
     protocol_init();
-    appManagerLite.init(last_appid);
     xTaskCreatePinnedToCore(task_lvgl_update, "lvgl_update", 1024 * 6, NULL, 1, NULL, 1);
     xTaskCreatePinnedToCore(debug_USB_UART, "debug_USB_UART", 1024 * 4, NULL, 6, NULL, 1);
+    appManagerLite.init(last_appid);
     vTaskDelay(portMAX_DELAY);
 }
