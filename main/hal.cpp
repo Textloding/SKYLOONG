@@ -1014,8 +1014,13 @@ void handleFileList()
 
     File root = FILESYSTEM.open(path);
     path = String();
-
-    String output = "[";
+    String output;
+    bool first = true;
+    output = "{\"size\":";
+    output += String(FILESYSTEM.usedBytes());
+    output += ",\"total\":";
+    output += String(FILESYSTEM.totalBytes());
+    output += ",\"data\":[";
     if (root.isDirectory())
     {
         File file = root.openNextFile();
@@ -1026,10 +1031,11 @@ void handleFileList()
                 file = root.openNextFile();
                 continue;
             }
-            if (output != "[")
+            if (first == false)
             {
                 output += ',';
             }
+            first = false;
             output += "{\"type\":\"";
             output += (file.isDirectory()) ? "dir" : "file";
             output += "\",\"name\":\"";
@@ -1040,7 +1046,7 @@ void handleFileList()
             file = root.openNextFile();
         }
     }
-    output += "]";
+    output += "]}";
     server.send(200, "text/json", output);
 }
 
@@ -1080,6 +1086,26 @@ void handleMkdir()
         String path = server.arg("path");
         if (LittleFS.mkdir(path))
         {
+            server.send(200, "text/plain", "OK");
+            return;
+        }
+    }
+    server.send(500, "text/plain", "ERR 500");
+}
+void handleTime()
+{
+    if (server.hasArg("plain"))
+    {
+        String time = server.arg("plain");
+        timeval tv;
+        tm newtime;
+        tv.tv_sec = atol(time.c_str());
+        tv.tv_usec = 0;
+        if (tv.tv_sec > 0)
+        {
+            tv.tv_sec += i18n::getNTPOffset();
+            localtime_r(&tv.tv_sec, &newtime);
+            hal.setTime(newtime.tm_year + 1900, newtime.tm_mon + 1, newtime.tm_mday, newtime.tm_hour, newtime.tm_min, newtime.tm_sec);
             server.send(200, "text/plain", "OK");
             return;
         }
@@ -1248,7 +1274,7 @@ void HAL::start_webserver()
 {
     if (WiFi.getMode() == WIFI_OFF)
     {
-        WiFi.softAP("GKScreen", "12345678");
+        WiFi.softAP("GKScreen");
     }
     MDNS.begin("gkscreen");
     if (LittleFS.exists("/.data") == false)
@@ -1268,6 +1294,7 @@ void HAL::start_webserver()
     server.on("/rmrf", HTTP_POST, handleRMRF);
     server.on("/mkdir", HTTP_POST, handleMkdir);
     server.on("/rename", HTTP_POST, handleRename);
+    server.on("/time", HTTP_POST, handleTime);
     server.on("/reboot", HTTP_POST, []()
               {
         server.send(200, "text/plain", "OK");

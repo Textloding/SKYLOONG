@@ -196,6 +196,10 @@
                                 当前目录：
                             </h6>
                             <div class="progress" style="height: 20px;--mdb-progress-bg:#fbf1dd;">
+                                <div id="usageProgress" class="progress-bar" role="progressbar" style="width: 0%;">
+                                </div>
+                            </div>
+                            <div class="progress" style="height: 20px;--mdb-progress-bg:#fbf1dd;">
                                 <div id="uploadProgress" class="progress-bar" role="progressbar" style="width: 0%;">
                                 </div>
                             </div>
@@ -321,10 +325,13 @@
                                         <input type="number" id="W3G3NUMBER1" class="form-control" />
                                         <label class="form-label" for="W3G3NUMBER1">数据缩放比例</label>
                                     </div>
-                                    <div class="row-2 myfold smallerContainer alert-warning shadow-4" id="widget3Group3">
+                                    <div class="row-2 myfold smallerContainer alert-warning shadow-4"
+                                        id="widget3Group3">
                                         <h5>数据格式与时序约定</h5>
-                                        <p>彩屏曲线图采用两个uint16_t变量存储最新的两个数据，下文称为：“原始数据”，范围为0-1000（超出无影响），每隔“插值更新间隔”时间，使用余弦插值算法和当前相对坐标，对最新的两个数据进行插值并追加到图表末尾。模组使用一个临时变量存储从TCP收到的数据。</p>
-                                        <p>当服务器检测到彩屏模组连接时，需要每隔“数据更新间隔”时间，向模组发送一个uint16_t数据，低字节在前。模组收到数据后，将立即发送1字节0x00到服务器作为ACK，并将数据存储到临时变量中，等待曲线图更新线程获取。</p>
+                                        <p>彩屏曲线图采用两个uint16_t变量存储最新的两个数据，下文称为：“原始数据”，范围为0-1000（超出无影响），每隔“插值更新间隔”时间，使用余弦插值算法和当前相对坐标，对最新的两个数据进行插值并追加到图表末尾。模组使用一个临时变量存储从TCP收到的数据。
+                                        </p>
+                                        <p>当服务器检测到彩屏模组连接时，需要每隔“数据更新间隔”时间，向模组发送一个uint16_t数据，低字节在前。模组收到数据后，将立即发送1字节0x00到服务器作为ACK，并将数据存储到临时变量中，等待曲线图更新线程获取。
+                                        </p>
                                         <p>数据指示器的值=数据缩放比例*原始数据。</p>
                                     </div>
                                 </div>
@@ -502,10 +509,13 @@
                                         <input type="number" id="W2G3NUMBER1" class="form-control" />
                                         <label class="form-label" for="W3G3NUMBER1">数据缩放比例</label>
                                     </div>
-                                    <div class="row-2 myfold smallerContainer alert-warning shadow-4" id="widget3Group3">
+                                    <div class="row-2 myfold smallerContainer alert-warning shadow-4"
+                                        id="widget3Group3">
                                         <h5>数据格式与时序约定</h5>
-                                        <p>彩屏曲线图采用两个uint16_t变量存储最新的两个数据，下文称为：“原始数据”，范围为0-1000（超出无影响），每隔“插值更新间隔”时间，使用余弦插值算法和当前相对坐标，对最新的两个数据进行插值并追加到图表末尾。模组使用一个临时变量存储从TCP收到的数据。</p>
-                                        <p>当服务器检测到彩屏模组连接时，需要每隔“数据更新间隔”时间，向模组发送一个uint16_t数据，低字节在前。模组收到数据后，将立即发送1字节0x00到服务器作为ACK，并将数据存储到临时变量中，等待曲线图更新线程获取。</p>
+                                        <p>彩屏曲线图采用两个uint16_t变量存储最新的两个数据，下文称为：“原始数据”，范围为0-1000（超出无影响），每隔“插值更新间隔”时间，使用余弦插值算法和当前相对坐标，对最新的两个数据进行插值并追加到图表末尾。模组使用一个临时变量存储从TCP收到的数据。
+                                        </p>
+                                        <p>当服务器检测到彩屏模组连接时，需要每隔“数据更新间隔”时间，向模组发送一个uint16_t数据，低字节在前。模组收到数据后，将立即发送1字节0x00到服务器作为ACK，并将数据存储到临时变量中，等待曲线图更新线程获取。
+                                        </p>
                                         <p>数据指示器的值=数据缩放比例*原始数据。</p>
                                     </div>
                                 </div>
@@ -709,6 +719,20 @@
                 ];
                 xhr.send(JSON.stringify(data));
             }
+            function updateTime() {
+                var now = new Date();
+                var utcTime = (now.getTime() / 1000).toFixed(0).toString();
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', '/time', true);
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState == 4 && xhr.status == 200) {
+                        var data = xhr.responseText;
+                        displayJson(0, "已发送浏览器时间");
+                    }
+                };
+                xhr.send(utcTime);
+            }
+            setTimeout(updateTime, 1000);
             getConfig();
             btnSaveConfig = document.getElementById('btnSaveConfig');
             btnSaveConfig.onclick = function () {
@@ -833,8 +857,13 @@
                 xhr.onreadystatechange = function () {
                     if (xhr.readyState == 4 && xhr.status == 200) {
                         var data = JSON.parse(xhr.responseText);
-                        // console.log(data);
-                        //下面是响应成功
+                        used = data["size"];
+                        total = data["total"];
+                        usageProgress = document.getElementById('usageProgress');
+                        usageProgress.style = 'width: ' + String(used / total * 100) + '%;';
+                        usageProgress.innerHTML = (used / total * 100).toFixed(0).toString() + '%';
+                        html_cwd.innerHTML = '当前目录：' + cwd + '&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp【' + (used / 1024).toFixed(0) + ' KiB / ' + (total / 1024).toFixed(0) + ' KiB 】';
+                        data = data["data"];
                         table.deleteRow(0);
                         var row = table.insertRow();
                         var cell1 = row.insertCell();

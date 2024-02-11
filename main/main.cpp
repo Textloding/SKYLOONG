@@ -110,9 +110,12 @@ extern "C" void app_main()
     {
         if (hal.config_show_boot_animation == true)
         {
-            if ((app_settings_save[1].widget == 0 && (app_settings_save[1].data != 2 && app_settings_save[1].data != 4)) || (app_settings_save[2].widget == 0 && (app_settings_save[2].data != 2 && app_settings_save[2].data != 4)))
+            if (last_appid == 1)
             {
-                WiFi.begin();
+                if ((app_settings_save[1].widget == 0 && (app_settings_save[1].data != 2 && app_settings_save[1].data != 4)) || (app_settings_save[2].widget == 0 && (app_settings_save[2].data != 2 && app_settings_save[2].data != 4)))
+                {
+                    WiFi.begin();
+                }
             }
             videoPlayer.video_loop = false;
             videoPlayer.playBuffer(__boot_mpeg, sizeof(__boot_mpeg));

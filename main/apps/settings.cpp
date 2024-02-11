@@ -208,6 +208,9 @@ void AppSettings::setup()
                 }
             } });
     lv_obj_add_state(factory_reset_btn, LV_STATE_CHECKED);
+    o = lv_label_create(_appScreen);
+    lv_label_set_text(o, FIRMWARE_VERSION);
+    lv_obj_set_style_text_color(o, lv_palette_main(LV_PALETTE_GREY), 0);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     lv_obj_set_scroll_snap_y(_appScreen, LV_SCROLL_SNAP_CENTER);
     uint8_t key = LV_KEY_NEXT;

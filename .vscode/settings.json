@@ -15,6 +15,7 @@
         "*.ipp": "cpp",
         "regex": "c",
         "list": "cpp",
-        "*.tcc": "cpp"
+        "*.tcc": "cpp",
+        "type_traits": "cpp"
     },
 }
