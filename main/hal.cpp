@@ -256,6 +256,7 @@ void HAL::init()
     pref.begin("settings", false);
     hal._brightness = pref.getUInt("bright", 6);
     hal.config_time_12hr = pref.getBool("12hr", false);
+    hal.config_theme = pref.getInt("theme", 0);
     i18n::setLanguage(pref.getUInt("lang", 0));
     i18n::setNTPOffset(pref.getInt("ntp", 3600 * 8));
     static lv_disp_draw_buf_t draw_buf;

@@ -51,6 +51,12 @@ const char *i18n_dict[][2] = {
     {"WiFi列表已满", "WiFi list is full"},
     {"已连接", "Connected"},
     {"正在连接WiFi", "Connecting to WiFi"},
+    {"重新选择WiFi", "Reselect WiFi"},
+    {"重新扫描附近的WiFi并连接", "Rescan nearby WiFi and connect"},
+    {"扫描", "Scan"},
+    {"主题", "Themes"},
+    {"修改主题", "Change themes"},
+    {"默认\n斯巴达勇士\n九尾狐", "Default\nSpartan\nFox"},
 };
 static time_t offset = 3600 * 8;
 time_t i18n::getNTPOffset()

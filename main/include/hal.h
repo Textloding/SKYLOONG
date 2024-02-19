@@ -27,7 +27,7 @@ typedef struct kb_status_t
 {
     uint8_t channel_available : 4;
     uint8_t : 2;
-    uint8_t channel_current : 2;
+    uint8_t channel_current : 2;            //0:24G, 1:BT1, 2:BT2, 3:USB
     uint8_t numlock : 1;
     uint8_t capslock : 1;
     uint8_t scrolllock : 1;
@@ -79,6 +79,7 @@ public:
     bool lv_has_kb = false;                 // 是否当前显示了键盘控件，用于选择发送key的类型
     bool server_started = false;            // 是否已经启动了网页服务器
     bool config_time_12hr = false;
+    uint8_t config_theme = 0;
     uint32_t config_time_roll = 5000;
     SemaphoreHandle_t _mutex;
     void init();

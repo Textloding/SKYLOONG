@@ -35,13 +35,13 @@ lv_obj_t *create_settings_list(lv_obj_t *parent, const char *title, const char *
     lv_label_set_text(lbl_setting_desc, str);
     lv_obj_align_to(lbl_setting_desc, lbl_setting_title, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 0);
     lv_label_set_long_mode(lbl_setting_desc, LV_LABEL_LONG_WRAP);
-    lv_obj_set_width(lbl_setting_desc, lv_pct(70));
+    lv_obj_set_width(lbl_setting_desc, lv_pct(60));
     lv_obj_set_height(lbl_setting_desc, LV_SIZE_CONTENT);
     lv_obj_set_style_text_color(lbl_setting_desc, lv_palette_main(LV_PALETTE_GREY), 0);
 
     lv_obj_t *lst = lv_dropdown_create(box);
     lv_dropdown_set_options(lst, dropdown);
-    lv_obj_set_width(lst, lv_pct(30));
+    lv_obj_set_width(lst, lv_pct(40));
     lv_obj_align(lst, LV_ALIGN_RIGHT_MID, 0, 0);
     lv_obj_add_event_cb(lst, cb, LV_EVENT_ALL, NULL);
     return lst;
@@ -90,9 +90,11 @@ void create_settings_slider(lv_obj_t *_appScreen, const char *title, lv_event_cb
     lv_obj_add_event_cb(slider, cb, LV_EVENT_ALL, NULL);
 }
 static bool ntp_req = false;
+static bool rechoose_wifi = false;
 static int factory_reset_count = 20;
 static uint32_t factory_reset_millis_last = 0;
 static lv_obj_t *factory_reset_btn = NULL;
+static lv_obj_t *btn_server = NULL;
 void AppSettings::setup()
 {
     hal.LOCKLV();
@@ -100,6 +102,11 @@ void AppSettings::setup()
     lv_obj_set_flex_flow(_appScreen, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(_appScreen, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_text_font(_appScreen, &lv_font_chinese_16, 0);
+    //////////////////////////////////////////////////////////////////////////
+    o = create_settings_button(_appScreen, _tr(I18N_ID_RECHOOSE_WIFI), _tr(I18N_ID_RECHOOSE_WIFI_DESC), _tr(I18N_ID_RECHOOSE), [](lv_event_t *e)
+                               {
+        if (e->code == LV_EVENT_CLICKED)
+            rechoose_wifi = true; });
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     o = create_settings_switch(_appScreen, _tr(I18N_ID_12HR), _tr(I18N_ID_12HR_DESC), [](lv_event_t *e)
                                {
@@ -110,8 +117,8 @@ void AppSettings::setup()
     else
         lv_obj_clear_state(o, LV_STATE_CHECKED);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    o = create_settings_button(_appScreen, _tr(I18N_ID_START_WEBSERVER), _tr(I18N_ID_START_WEBSERVER_DESC), _tr(I18N_ID_START), [](lv_event_t *e)
-                               {
+    btn_server = create_settings_button(_appScreen, _tr(I18N_ID_START_WEBSERVER), _tr(I18N_ID_START_WEBSERVER_DESC), _tr(I18N_ID_START), [](lv_event_t *e)
+                                        {
         if (e->code == LV_EVENT_VALUE_CHANGED)
         {
             if(lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED))
@@ -125,12 +132,7 @@ void AppSettings::setup()
                 hal.send_sysctl(EVENT_SERVERCTL, 0);
             }
         } });
-    lv_obj_add_flag(o, LV_OBJ_FLAG_CHECKABLE);
-    if (hal.server_started)
-    {
-        lv_obj_add_state(o, LV_STATE_CHECKED);
-        lv_label_set_text(lv_obj_get_child(o, 0), _tr(I18N_ID_STOP));
-    }
+    lv_obj_add_flag(btn_server, LV_OBJ_FLAG_CHECKABLE);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     create_settings_button(_appScreen, _tr(I18N_ID_SYNC_TIME), _tr(I18N_ID_SYNC_TIME_DESC), _tr(I18N_ID_SYNC), [](lv_event_t *e)
                            {
@@ -145,6 +147,14 @@ void AppSettings::setup()
             {
                 lv_slider_set_value((lv_obj_t*)lv_event_get_target(e), hal._brightness, LV_ANIM_OFF);
             } });
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    o = create_settings_list(_appScreen, _tr(I18N_ID_THEME), _tr(I18N_ID_CHANGE_THEME), _tr(I18N_ID_THEME_LIST), [](lv_event_t *e)
+                             {
+                if (e->code == LV_EVENT_VALUE_CHANGED)
+                {
+                    hal.config_theme = lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e));
+                } });
+    lv_dropdown_set_selected(o, hal.config_theme);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     o = create_settings_list(_appScreen, "Language", "修改语言", "中文\nEnglish", [](lv_event_t *e)
                              {
@@ -190,18 +200,39 @@ void AppSettings::setup()
     lv_obj_set_style_text_color(o, lv_palette_main(LV_PALETTE_GREY), 0);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     lv_obj_set_scroll_snap_y(_appScreen, LV_SCROLL_SNAP_CENTER);
-    uint8_t key = LV_KEY_NEXT;
-    xQueueSend(hal._queue_kb, &key, 0);
+    // uint8_t key = LV_KEY_NEXT;
+    // xQueueSend(hal._queue_kb, &key, 0);
     hal.UNLOCKLV();
-    delay(65); // 等待按键事件响应
-    hal.LOCKLV();
-    lv_obj_scroll_to_view_recursive(lv_group_get_focused(lv_group_get_default()), LV_ANIM_OFF);
-    hal.UNLOCKLV();
+    // delay(65); // 等待按键事件响应
+    // hal.LOCKLV();
+    // lv_obj_scroll_to_view_recursive(lv_group_get_focused(lv_group_get_default()), LV_ANIM_OFF);
+    // hal.UNLOCKLV();
 }
 
 #include "nvs_flash.h"
+uint32_t last_millis = 0;
 void AppSettings::loop()
 {
+    if (millis() - last_millis > 300)
+    {
+        last_millis = millis();
+        if (hal.server_started)
+        {
+            if (WiFi.getMode() == WIFI_AP)
+                lv_label_set_text(lv_obj_get_child(btn_server, 0), "192.168.4.1");
+            else
+                lv_label_set_text(lv_obj_get_child(btn_server, 0), WiFi.localIP().toString().c_str());
+        }
+        else
+        {
+            lv_label_set_text(lv_obj_get_child(btn_server, 0), _tr(I18N_ID_START));
+        }
+    }
+    if(rechoose_wifi)
+    {
+        WiFiMgr.requireWiFi(true);
+        rechoose_wifi = false;
+    }
     if (ntp_req)
     {
         if (WiFiMgr.requireWiFi())
@@ -234,9 +265,11 @@ void AppSettings::loop()
 void AppSettings::destroy()
 {
     if (hal.server_started == false)
-        WiFiMgr.disconnect();
+        hal.send_sysctl(EVENT_SERVERCTL, 0);
+    WiFiMgr.disconnect();
     hal.pref.putUInt("bright", hal._brightness);
     hal.pref.putBool("12hr", hal.config_time_12hr);
+    hal.pref.putInt("theme", hal.config_theme);
     hal.pref.putUInt("lang", i18n::getLanguage());
     hal.pref.putInt("ntp", i18n::getNTPOffset());
 }
