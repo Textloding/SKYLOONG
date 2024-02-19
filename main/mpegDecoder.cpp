@@ -58,6 +58,8 @@ extern bool get_vid_stop();
 
 void VideoPlayer::play(FILE *f)
 {
+
+    videoPlayer.video_loop = false;
     hal.LOCKLV();
     rgb_buffer = (uint8_t *)ps_malloc(320 * 240 * 2);
     assert(rgb_buffer != NULL);
@@ -89,6 +91,8 @@ void VideoPlayer::play(FILE *f)
 
 void VideoPlayer::playBuffer(const uint8_t *video_buffer, uint32_t buffer_size)
 {
+
+    videoPlayer.video_loop = false;
     hal.LOCKLV();
     rgb_buffer = (uint8_t *)ps_malloc(320 * 240 * 2);
     assert(rgb_buffer != NULL);

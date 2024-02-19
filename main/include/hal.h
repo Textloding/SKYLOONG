@@ -77,10 +77,8 @@ public:
     bool setting_mode = false;              // 当前是否进入了设置模式
     bool lv_has_kb = false;                 // 是否当前显示了键盘控件，用于选择发送key的类型
     bool server_started = false;            // 是否已经启动了网页服务器
-    bool config_show_battery_value = false; // 显示电池图标或数值
-    bool config_statusbar_center = false;   // 状态栏图标是否居中
-    bool config_show_boot_animation = true; // 是否显示开机动画
     bool config_time_12hr = false;
+    uint32_t config_time_roll = 5000;
     SemaphoreHandle_t _mutex;
     void init();
     uint8_t getDoW(uint16_t iYear, uint8_t iMonth, uint8_t iDay);
@@ -90,12 +88,8 @@ public:
     void setBrightness(int8_t brightness);
     void LOCKLV();
     void UNLOCKLV();
-    void requireSettings(bool req); // 要求用户进入设置模式
-    bool getLastRequireSettings();  // 获取上一次是否要求过用户进入设置模式
     void goSleep();
     void send_sysctl(system_event_type_t type, uint8_t data = 0);
-    void copy(File &newFile, File &file);
-    void rm_rf(const char *path);
     void saveAppSettings();
     void loadAppSettings();
     void start_webserver();

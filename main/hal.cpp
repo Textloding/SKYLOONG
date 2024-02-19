@@ -47,194 +47,6 @@ static void keypad_read(lv_indev_drv_t *indev_drv, lv_indev_data_t *data)
     data->state = LV_INDEV_STATE_PR;
     last_key = act_key;
 }
-static lv_obj_t *box_enter_settings = NULL;
-static bool current_require_setting = false; // 当前是否要求进入设置模式
-static void create_box_enter_settings()
-{
-    hal.LOCKLV();
-    if (box_enter_settings != NULL)
-        lv_obj_del(box_enter_settings);
-    box_enter_settings = lv_obj_create(lv_layer_top());
-    lv_obj_set_size(box_enter_settings, 300, 170);
-    lv_obj_align(box_enter_settings, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_t *lbl_title = lv_label_create(box_enter_settings);
-    lv_obj_set_style_text_font(lbl_title, &lv_font_big_32, 0);
-    lv_label_set_text(lbl_title, _tr(I18N_ID_NEED_ACTION));
-    lv_obj_align(lbl_title, LV_ALIGN_TOP_MID, 0, 10);
-    lv_obj_t *line1;
-    static lv_point_t line_points[] = {{0, 0}, {150, 0}};
-    line1 = lv_line_create(box_enter_settings);
-    lv_line_set_points(line1, line_points, 2); /*Set the points*/
-    lv_obj_align(line1, LV_ALIGN_TOP_MID, 0, 50);
-
-    lv_obj_t *label = lv_label_create(box_enter_settings);
-    lv_obj_set_style_text_font(label, &lv_font_chinese_16, 0);
-    lv_label_set_text(label, _tr(I18N_ID_NEED_ACTION_DESC));
-    lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 60);
-    lv_obj_set_width(label, 260);
-    lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
-    lv_obj_pop_up(box_enter_settings);
-    hal.UNLOCKLV();
-}
-static void delete_box_enter_settings()
-{
-    if (box_enter_settings == NULL)
-        return;
-    hal.LOCKLV();
-    lv_obj_fall_down(box_enter_settings);
-    lv_obj_del_delayed(box_enter_settings, 310);
-    hal.UNLOCKLV();
-    box_enter_settings = NULL;
-}
-static lv_obj_t *status_bar_A = NULL;
-static lv_obj_t *status_bar_S = NULL;
-static lv_obj_t *status_bar_1 = NULL;
-static lv_obj_t *status_bar_winLK = NULL;
-static lv_obj_t *status_bar_charging = NULL;
-static lv_obj_t *status_bar_battery = NULL;
-static lv_obj_t *status_bar_system = NULL; // Windows或mac
-static lv_obj_t *status_bar_Bluetooth = NULL;
-static lv_obj_t *status_bar_24 = NULL;
-static lv_obj_t *status_bar_USB = NULL;
-static lv_obj_t *status_bar_webserver = NULL;
-
-void update_kb_lock(lv_obj_t *&obj, bool lock, const char *symbol, lv_state_t state)
-{
-    if (lock)
-    {
-        if (obj == NULL)
-            obj = GUI::status_bar_insert(symbol, 0);
-        GUI::status_bar_status_set(obj, state);
-    }
-    else if (obj != NULL)
-    {
-        if (lv_obj_has_state(obj, state))
-        {
-            GUI::status_bar_status_set(obj, 0);
-            obj->user_data = (void *)millis();
-        }
-        else if (millis() - (uint32_t)obj->user_data > 5000)
-        {
-            GUI::status_bar_remove(obj);
-            obj = NULL;
-        }
-    }
-}
-void update_kb_connectivity(lv_obj_t *&obj, bool available, int channel_state, const char *symbol)
-{
-    static const lv_state_t state[4] = {0, LV_STATE_USER_1, LV_STATE_USER_1, LV_STATE_USER_2};
-    if (available && channel_state != 0)
-    {
-        if (obj == NULL)
-            obj = GUI::status_bar_insert(symbol, 0);
-        if (state[channel_state] == LV_STATE_USER_1)
-        {
-            if (lv_obj_has_state(obj, LV_STATE_USER_1 | LV_STATE_USER_4) == false)
-                GUI::status_bar_status_set(obj, state[channel_state]);
-        }
-        else if (lv_obj_has_state(obj, state[channel_state]) == false)
-            GUI::status_bar_status_set(obj, state[channel_state]);
-        obj->user_data = 0;
-    }
-    else if (obj != NULL)
-    {
-        if (obj->user_data == 0)
-        {
-            GUI::status_bar_status_set(obj, 0);
-            obj->user_data = (void *)millis();
-        }
-        else if (millis() - (uint32_t)obj->user_data > 5000)
-        {
-            GUI::status_bar_remove(obj);
-            obj = NULL;
-        }
-    }
-}
-
-void update_status_bar()
-{
-    static uint8_t last_charging_state = 255;
-    static uint8_t os = 2;
-    int delay_total = -60;
-    // 判断键盘锁定
-    hal.LOCKLV();
-    update_kb_lock(status_bar_winLK, hal.kb_status.winlk, SYMBOL_COMMAND_LOCK, LV_STATE_USER_3);
-    update_kb_lock(status_bar_1, hal.kb_status.numlock, "1", LV_STATE_USER_2);
-    update_kb_lock(status_bar_S, hal.kb_status.scrolllock, "S", LV_STATE_USER_2);
-    update_kb_lock(status_bar_A, hal.kb_status.capslock, "A", LV_STATE_USER_2);
-    update_kb_lock(status_bar_webserver, hal.server_started, SYMBOL_GLOBAL, LV_STATE_USER_2);
-    // 判断通道
-    update_kb_connectivity(status_bar_USB, hal.kb_status.channel_current == 3, hal.kb_status.chan_state, SYMBOL_USB);
-    update_kb_connectivity(status_bar_Bluetooth, hal.kb_status.channel_current == 2 || hal.kb_status.channel_current == 1, hal.kb_status.chan_state, SYMBOL_BLUETOOTH);
-    update_kb_connectivity(status_bar_24, hal.kb_status.channel_current == 0, hal.kb_status.chan_state, SYMBOL_24G);
-    // 判断系统类型
-    if (os != hal.kb_status.system)
-    {
-        os = hal.kb_status.system;
-        if (os == 1)
-            GUI::status_bar_replace(SYMBOL_WINDOWS, status_bar_system);
-        else
-            GUI::status_bar_replace(SYMBOL_APPLE, status_bar_system);
-    }
-    // 判断WINLK
-    // 判断充电状态
-    if (hal.battery_pct != 0)
-    {
-        if (hal.battery_status != last_charging_state)
-        {
-            last_charging_state = hal.battery_status;
-            if (hal.battery_status == BATTERY_STATUS_CHARGING)
-            {
-                if (status_bar_charging == NULL)
-                    status_bar_charging = GUI::status_bar_add(SYMBOL_CHARGING, (delay_total += 60));
-                GUI::status_bar_status_set(status_bar_charging, LV_STATE_USER_1);
-            }
-            else if (hal.battery_status == BATTERY_STATUS_CHARGED)
-            {
-                if (status_bar_charging == NULL)
-                    status_bar_charging = GUI::status_bar_add(SYMBOL_CHARGING, (delay_total += 60));
-                GUI::status_bar_status_set(status_bar_charging, LV_STATE_USER_2);
-            }
-            else if (status_bar_charging != NULL)
-            {
-                GUI::status_bar_status_set(status_bar_charging, 0);
-                status_bar_charging->user_data = (void *)millis();
-            }
-        }
-        if (status_bar_charging != NULL && (last_charging_state == 0 || last_charging_state == 3))
-        {
-            if (millis() - (uint32_t)status_bar_charging->user_data > 2000)
-            {
-                GUI::status_bar_remove(status_bar_charging);
-                status_bar_charging = NULL;
-            }
-        }
-        if (status_bar_battery == NULL)
-            status_bar_battery = GUI::status_bar_add(SYMBOL_BATTERY_100, (delay_total += 60));
-        if (hal.config_show_battery_value)
-        {
-            lv_obj_set_style_text_font(status_bar_battery, &lv_font_chinese_16, 0);
-            char buf[8];
-            sprintf(buf, "%d", hal.battery_pct);
-            lv_label_set_text(lv_obj_get_child(status_bar_battery, 0), buf);
-        }
-        else
-        {
-            lv_obj_set_style_text_font(status_bar_battery, &symbol_16, 0);
-            if (hal.battery_pct < 20)
-                lv_label_set_text(lv_obj_get_child(status_bar_battery, 0), SYMBOL_BATTERY_0);
-            else if (hal.battery_pct < 40)
-                lv_label_set_text(lv_obj_get_child(status_bar_battery, 0), SYMBOL_BATTERY_25);
-            else if (hal.battery_pct < 60)
-                lv_label_set_text(lv_obj_get_child(status_bar_battery, 0), SYMBOL_BATTERY_50);
-            else if (hal.battery_pct < 80)
-                lv_label_set_text(lv_obj_get_child(status_bar_battery, 0), SYMBOL_BATTERY_75);
-            else
-                lv_label_set_text(lv_obj_get_child(status_bar_battery, 0), SYMBOL_BATTERY_100);
-        }
-    }
-    hal.UNLOCKLV();
-}
 static void task_systemctl(void *p)
 {
     while (1)
@@ -248,51 +60,28 @@ static void task_systemctl(void *p)
             break;
         case EVENT_GOTO_SETTING:
             hal.setting_mode = true;
-            if (current_require_setting == true)
-                delete_box_enter_settings();
+            appManagerLite.switchSetting();
             break;
         case EVENT_EXIT_SETTING:
             hal.setting_mode = false;
-            if (current_require_setting == true)
-                create_box_enter_settings();
+            appManagerLite.exitSetting();
             break;
         case EVENT_REQUIRE_SETTING:
-        {
-            current_require_setting = event.data;
-            if (current_require_setting == true)
+            break;
+        case EVENT_TOGGLE_SCREEN_ON:
+            if (event.data == 0)
             {
-                if (hal.setting_mode == false)
-                    create_box_enter_settings();
+                ledcWrite(7, 0);
             }
             else
             {
-                delete_box_enter_settings();
+                hal.setBrightness(hal._brightness);
             }
-            break;
-        }
-        case EVENT_TOGGLE_SCREEN_ON:
-            // if (event.data == 0)
-            // {
-            //     if (xSemaphoreTake(hal._mutex, 2000) == pdTRUE)
-            //     {
-            //         xSemaphoreGive(hal._mutex);
-            //         ledcWrite(7, 0);
-            //     }
-            // }
-            // else
-            // {
-            //     hal.setBrightness(hal._brightness);
-            // }
             break;
         case EVENT_APM_CHANGED:
             hal.APM = event.data;
             break;
         case EVENT_KB_STATUS_CHANGED:
-            if (xSemaphoreTake(hal._mutex, 2000) == pdTRUE)
-            {
-                xSemaphoreGive(hal._mutex);
-                update_status_bar();
-            }
             break;
         case EVENT_SERVERCTL:
             if (event.data == 1)
@@ -466,9 +255,6 @@ void HAL::init()
     pref.begin("settings", false);
     hal._brightness = pref.getUInt("bright", 6);
     hal.config_time_12hr = pref.getBool("12hr", false);
-    hal.config_show_battery_value = pref.getBool("s_b_v", false);
-    hal.config_statusbar_center = pref.getBool("s_c", false);
-    hal.config_show_boot_animation = hal.pref.getBool("b_a", false);
     i18n::setLanguage(pref.getUInt("lang", 0));
     i18n::setNTPOffset(pref.getInt("ntp", 3600 * 8));
     static lv_disp_draw_buf_t draw_buf;
@@ -668,14 +454,6 @@ void HAL::goSleep()
     esp_deep_sleep_start();
 }
 
-void HAL::requireSettings(bool req)
-{
-    send_sysctl(EVENT_REQUIRE_SETTING, req);
-}
-bool HAL::getLastRequireSettings()
-{
-    return current_require_setting;
-}
 void HAL::send_sysctl(system_event_type_t type, uint8_t data)
 {
     sysctl_event_t event;
@@ -683,87 +461,11 @@ void HAL::send_sysctl(system_event_type_t type, uint8_t data)
     event.data = data;
     xQueueSend(_queue, &event, portMAX_DELAY);
 }
-void HAL::copy(File &newFile, File &file)
-{
-    char *buf = (char *)malloc(512);
-    size_t currentsize = 0;
-    if (!buf)
-    {
-        ESP_LOGE("FileCopy", "no memory");
-        ESP.restart();
-    }
-    while (1)
-    {
-        currentsize = file.readBytes(buf, 512);
-        if (currentsize == 0)
-            break;
-        newFile.write((uint8_t *)buf, currentsize);
-    }
-    free(buf);
-}
 #include <stdio.h>
 #include <stdlib.h>
 #include <dirent.h>
 #include <sys/stat.h>
 
-void HAL::rm_rf(const char *path)
-{
-    DIR *dp;
-    struct dirent *entry;
-    struct stat statbuf;
-
-    // 打开目录
-    if ((dp = opendir(path)) == NULL)
-    {
-        perror("opendir");
-        return;
-    }
-
-    // 迭代读取目录中的文件
-    while ((entry = readdir(dp)) != NULL)
-    {
-        // 获取文件的完整路径
-        char filePath[257];
-        snprintf(filePath, sizeof(filePath), "%s/%s", path, entry->d_name);
-
-        // 获取文件信息
-        if (stat(filePath, &statbuf) == -1)
-        {
-            perror("lstat");
-            continue;
-        }
-
-        // 判断是否是目录
-        if (S_ISDIR(statbuf.st_mode))
-        {
-            // 忽略.和..目录
-            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-            {
-                continue;
-            }
-
-            // 递归删除子目录
-            rm_rf(filePath);
-        }
-        else
-        {
-            // 删除文件
-            if (remove(filePath) != 0)
-            {
-                perror("remove");
-            }
-        }
-    }
-
-    // 关闭目录
-    closedir(dp);
-
-    // 删除空目录
-    if (rmdir(path) != 0)
-    {
-        perror("rmdir");
-    }
-}
 //////////////////////////////////网页服务器部分
 
 #include <WebServer.h>
@@ -774,61 +476,6 @@ WebServer server(80);
 // holds the current upload
 File fsUploadFile;
 #include <list>
-// format bytes
-bool myxcopy(const String path, const String newpath)
-{
-    std::list<String> filenames;
-    File root, file;
-    filenames.push_back(path);
-    String tmp;
-    while (filenames.empty() == false)
-    {
-        root = LittleFS.open(filenames.back());
-        tmp = filenames.back();
-        tmp.replace(path, newpath);
-        filenames.pop_back();
-        if (!root)
-        {
-            ESP_LOGE("SERVER", "[文件] 无法打开目录");
-            continue;
-        }
-        LittleFS.mkdir(tmp);
-        file = root.openNextFile();
-        while (file)
-        {
-            String name = file.name();
-            if (file.isDirectory())
-            {
-                tmp = file.path();
-                tmp.replace(path, newpath);
-                LittleFS.mkdir(tmp);
-                filenames.push_back(file.path());
-            }
-            else
-            {
-                // 复制文件
-                tmp = file.path();
-                tmp.replace(path, newpath);
-                File newFile = LittleFS.open(tmp, "w");
-                if (!newFile)
-                {
-                    // 打开失败
-                    ESP_LOGE("SERVER", "无法写入文件");
-                    file.close();
-                    root.close();
-                    return false;
-                }
-                hal.copy(newFile, file);
-                newFile.close();
-                file.close();
-            }
-            file.close();
-            file = root.openNextFile();
-        }
-    }
-    root.close();
-    return true;
-}
 
 String getContentType(String filename)
 {
@@ -1052,45 +699,15 @@ void handleFileList()
 
 void handleRMRF()
 {
-    if (server.hasArg("path"))
-    {
-        String path = server.arg("path");
-        if (path == "")
-        {
-            server.send(500, "text/plain", "ERR 500");
-        }
-        hal.rm_rf((String("/littlefs/") + path).c_str());
-        server.send(200, "text/plain", "OK");
-        return;
-    }
-    server.send(500, "text/plain", "ERR 500");
+    server.send(500, "text/plain", "此功能已被移除");
 }
 void handleRename()
 {
-    if (server.hasArg("path") && server.hasArg("new"))
-    {
-        String path = server.arg("path");
-        String newpath = server.arg("new");
-        if (LittleFS.rename(path, newpath))
-        {
-            server.send(200, "text/plain", "OK");
-            return;
-        }
-    }
-    server.send(500, "text/plain", "ERR 500");
+    server.send(500, "text/plain", "此功能已被移除");
 }
 void handleMkdir()
 {
-    if (server.hasArg("path"))
-    {
-        String path = server.arg("path");
-        if (LittleFS.mkdir(path))
-        {
-            server.send(200, "text/plain", "OK");
-            return;
-        }
-    }
-    server.send(500, "text/plain", "ERR 500");
+    server.send(500, "text/plain", "此功能已被移除");
 }
 void handleTime()
 {
@@ -1111,10 +728,6 @@ void handleTime()
         }
     }
     server.send(500, "text/plain", "ERR 500");
-}
-void handleRoot()
-{
-    server.send(200, "text/html", "Hello from ESP32!");
 }
 //////////////////////////////////主页APP JSON处理
 #include <cJSON.h>
@@ -1277,23 +890,14 @@ void HAL::start_webserver()
         WiFi.softAP("GKScreen");
     }
     MDNS.begin("gkscreen");
-    if (LittleFS.exists("/.data") == false)
-    {
-        LittleFS.mkdir("/.data");
-    }
     server.on("/list", HTTP_GET, handleFileList);
     server.on("/edit", HTTP_PUT, handleFileCreate);    // create file
     server.on("/edit", HTTP_DELETE, handleFileDelete); // delete file
-    // first callback is called after the request has ended with all parsed arguments
-    // second callback handles file uploads at that location
     server.on(
         "/edit", HTTP_POST, []()
         { server.send(200, "text/plain", ""); },
         handleFileUpload);
 
-    server.on("/rmrf", HTTP_POST, handleRMRF);
-    server.on("/mkdir", HTTP_POST, handleMkdir);
-    server.on("/rename", HTTP_POST, handleRename);
     server.on("/time", HTTP_POST, handleTime);
     server.on("/reboot", HTTP_POST, []()
               {

@@ -110,29 +110,6 @@ void AppSettings::setup()
     else
         lv_obj_clear_state(o, LV_STATE_CHECKED);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    o = create_settings_switch(_appScreen, _tr(I18N_ID_SHOW_BATTERY), _tr(I18N_ID_SHOW_BATTERY_DESC), [](lv_event_t *e)
-                               {
-            if (e->code == LV_EVENT_VALUE_CHANGED)
-                hal.config_show_battery_value = lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED); });
-    if (hal.config_show_battery_value)
-        lv_obj_add_state(o, LV_STATE_CHECKED);
-    else
-        lv_obj_clear_state(o, LV_STATE_CHECKED);
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    o = create_settings_switch(_appScreen, _tr(I18N_ID_STATUS_BAR_CENTER), _tr(I18N_ID_STATUS_BAR_CENTER_DESC), [](lv_event_t *e)
-                               {if (e->code == LV_EVENT_VALUE_CHANGED){hal.config_statusbar_center = lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED); GUI::status_bar_refresh(true);} });
-    if (hal.config_statusbar_center)
-        lv_obj_add_state(o, LV_STATE_CHECKED);
-    else
-        lv_obj_clear_state(o, LV_STATE_CHECKED);
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    o = create_settings_switch(_appScreen, _tr(I18N_ID_BOOT_ANIMATION), _tr(I18N_ID_BOOT_ANIMATION_DESC), [](lv_event_t *e)
-                               {if (e->code == LV_EVENT_VALUE_CHANGED) hal.config_show_boot_animation = lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED); });
-    if (hal.config_show_boot_animation)
-        lv_obj_add_state(o, LV_STATE_CHECKED);
-    else
-        lv_obj_clear_state(o, LV_STATE_CHECKED);
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     o = create_settings_button(_appScreen, _tr(I18N_ID_START_WEBSERVER), _tr(I18N_ID_START_WEBSERVER_DESC), _tr(I18N_ID_START), [](lv_event_t *e)
                                {
         if (e->code == LV_EVENT_VALUE_CHANGED)
@@ -260,9 +237,6 @@ void AppSettings::destroy()
         WiFiMgr.disconnect();
     hal.pref.putUInt("bright", hal._brightness);
     hal.pref.putBool("12hr", hal.config_time_12hr);
-    hal.pref.putBool("s_b_v", hal.config_show_battery_value);
-    hal.pref.putBool("s_c", hal.config_statusbar_center);
-    hal.pref.putBool("b_a", hal.config_show_boot_animation);
     hal.pref.putUInt("lang", i18n::getLanguage());
     hal.pref.putInt("ntp", i18n::getNTPOffset());
 }

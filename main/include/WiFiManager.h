@@ -13,7 +13,6 @@ public:
     String getPassword(const String ssid);
     void clearall();
     bool requireWiFi(bool forceChoose = false);
-    lv_obj_t *_status_obj = NULL;
     bool requireWiFiForce(bool forceChoose = false)
     {
         for (uint8_t i = 0; i < 3; i++)

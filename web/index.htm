@@ -61,29 +61,6 @@
         .btn {
             margin-top: 5px;
         }
-
-        .perspective {
-            perspective: 5.5cm;
-            /* 设置透视距离，增加3D效果的深度 */
-        }
-
-        .myfold {
-            transform-style: preserve-3d;
-            transition: transform 0.4s ease-out, opacity 0.3s;
-            transform-origin: top left;
-            opacity: 1;
-        }
-
-        /* 折叠状态 */
-        .myfolded {
-            transform: rotateX(-30deg) rotateY(30deg);
-            opacity: 0;
-            /* 旋转90度，实现折叠效果 */
-        }
-
-        .hide {
-            display: none;
-        }
     </style>
     <script src="/js/jq.js"></script>
     <script>
@@ -102,26 +79,6 @@
                 });
             }, 1000);
         }
-        function fold(objname) {
-            var obj = document.getElementById(objname);
-            if (obj.classList.contains('myfolded') == false) {
-                obj.classList.add('myfolded');
-                setTimeout(function () {
-                    if (obj.classList.contains('myfolded')) {
-                        obj.classList.add('hide');
-                    }
-                }, 350);
-            }
-        }
-        function unfold(objname) {
-            var obj = document.getElementById(objname);
-            if (obj.classList.contains('myfolded')) {
-                obj.classList.remove('hide');
-                setTimeout(function () {
-                    obj.classList.remove('myfolded');
-                }, 30);
-            }
-        }
     </script>
 </head>
 
@@ -137,50 +94,11 @@
                 <div class="modal-body" id="filePreviewBody">
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-info" data-mdb-dismiss="modal" id="btnRename">重命名</button>
                     <button type="button" class="btn btn-info" data-mdb-dismiss="modal"
                         id="btnDownloadPreview">下载</button>
                     <button type="button" class="btn btn-danger" data-mdb-dismiss="modal"
                         id="btnDeletePreview">删除</button>
                     <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">返回</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="modal fade" id="modalRename" tabindex="-1" aria-labelledby="modalRenameLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="modalRenameLabel">重命名</h5>
-                    <button type="button" class="btn-close" data-mdb-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <input type="text" id="input_newFileName" class="form-control singleLineTxt"
-                        placeholder="请输入新文件名"></input>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" id="btnRenameConfirm"
-                        data-mdb-dismiss="modal">确认</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="modal fade" id="modalNewFolder" tabindex="-1" aria-labelledby="modalNewFolderLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="modalNewFolderLabel">新建文件夹</h5>
-                    <button type="button" class="btn-close" data-mdb-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <input type="text" id="input_Mkdir" class="form-control singleLineTxt"
-                        placeholder="请输入新文件夹名"></input>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" id="btnMkdirConfirm"
-                        data-mdb-dismiss="modal">确认</button>
                 </div>
             </div>
         </div>
@@ -212,354 +130,15 @@
                             </table>
                     </div>
                     <div class="col globalContainer alert-primary shadow-4">
-                        <button type="button" class="btn btn-primary" id="btnMkDir" data-mdb-ripple-init
-                            data-mdb-modal-init data-mdb-target="#modalNewFolder"
-                            style="margin-left: 5px;">新建文件夹</button>
-                        <button type="button" class="btn btn-primary" id="btnGoBack"
-                            style="margin-left: 5px;">上级目录</button>
                         <button type="button" class="btn btn-primary" id="btnRefresh"
                             style="margin-left: 5px;">刷新</button>
                         <button type="button" class="btn btn-warning" id="btnUpload"
                             style="margin-left: 5px;">上传</button>
                         <input type="file" id="fileInput" style="visibility: hidden; width: 0px;height: 0px;">
-                        <button type="button" class="btn btn-danger" id="btnOpenData" style="margin-left: 5px;"
-                            data-mdb-tooltip-init title="用于删除用不到的自定义图片以释放空间。">.data</button>
-                        <button type="button" class="btn btn-danger" id="btnDeleteFolder"
-                            style="margin-left: 5px;">删除文件夹</button>
                         <button type="button" class="btn btn-danger" id="btnReboot"
                             style="margin-left: 5px;">重启</button>
                         <button type="button" class="btn btn-success" id="btnSaveConfig"
                             style="margin-left: 5px;">保存设置</button>
-                    </div>
-                </div>
-            </div>
-            <div class="globalContainer alert-success shadow-4" style="padding-left: 20px;">
-                <div class="row">
-                    <h3>系统设置（修改后记得点保存）</h3>
-                    <hr style="width: 99%;" />
-                    <h4>CPU/内存占用数据源</h4>
-                    <div class="input-group mb-3">
-                        <input type="text" class="form-control" placeholder="IP地址" aria-label="IP地址" id="CPUUSAGEIP"
-                            maxlength="15" />
-                        <span class="input-group-text">:</span>
-                        <input type="text" class="form-control" placeholder="端口" aria-label="端口" id="CPUUSAGEPORT"
-                            maxlength="5" />
-                    </div>
-                    <div class="row">
-                        <h4>自定义主屏幕UI</h4>
-                    </div>
-                    <div class="row">
-                        <div class="col-6 globalContainer alert-primary shadow-4">
-                            <div class="row-2  globalContainer alert-primary shadow-4">
-                                <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget3Group1">
-                                    <h5>控件选择</h5>
-                                    <div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W3RG1" id="W3RG1R1"
-                                                onchange="unfold('widget3Group2');if(document.getElementById('W3RG2R4').checked == true)unfold('widget3Group3');else fold('widget3Group3');unfold('widget3Group4');if(document.getElementById('W3RG4R1').checked == true)unfold('widget3Group5');else fold('widget3Group5'); unfold('widget3Group6');fold('widget3Group7');" />
-                                            <label class="form-check-label" for="W3RG1R1"> 曲线图 </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W3RG1" id="W3RG1R2"
-                                                onchange="fold('widget3Group2');fold('widget3Group3');fold('widget3Group4');fold('widget3Group5');fold('widget3Group6');unfold('widget3Group7');" />
-                                            <label class="form-check-label" for="W3RG1R2"> 自定义图片 </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget3Group2">
-                                    <h5>图表数据源</h5>
-                                    <div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W3RG2" id="W3RG2R1"
-                                                onclick="fold('widget3Group3')" />
-                                            <label class="form-check-label" for="W3RG2R1"> CPU占用 </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W3RG2" id="W3RG2R2"
-                                                onclick="fold('widget3Group3')" />
-                                            <label class="form-check-label" for="W3RG2R2"> 内存占用 </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W3RG2" id="W3RG2R3"
-                                                onclick="fold('widget3Group3')" />
-                                            <label class="form-check-label" for="W3RG2R3" data-mdb-placement="right"
-                                                data-mdb-tooltip-init title="即每秒按下键盘按键的次数, Actions Per Second"> 手速(APS)
-                                            </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W3RG2" id="W3RG2R4"
-                                                onclick="unfold('widget3Group3')" />
-                                            <label class="form-check-label" for="W3RG2R4" data-mdb-placement="right"
-                                                data-mdb-tooltip-init title="需要自建TCP Server。选择以查看详情"> 外部数据源(TCP)
-                                            </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W3RG2" id="W3RG2R5"
-                                                onclick="fold('widget3Group3')" />
-                                            <label class="form-check-label" for="W3RG2R5"> 随机数 </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget3Group3">
-                                    <h5>外部数据源设置</h5>
-                                    <label class="label" for="W3G3RANGE1">网络位置</label>
-                                    <div class="form-outline" data-mdb-input-init>
-                                        <div class="input-group mb-3">
-                                            <input type="text" class="form-control" placeholder="IP地址" aria-label="IP地址"
-                                                id="W3G3HOST" maxlength="15" />
-                                            <span class="input-group-text">:</span>
-                                            <input type="text" class="form-control" placeholder="端口" aria-label="端口"
-                                                id="W3G3PORT" maxlength="5" />
-                                        </div>
-                                    </div>
-                                    <label class="label" for="W3G3RANGE1">数据更新间隔（毫秒）</label>
-                                    <div class="range" data-mdb-range-init>
-                                        <input type="range" class="form-range" min="20" max="2000" step="20"
-                                            id="W3G3RANGE1" />
-                                    </div>
-                                    <label class="label" for="W3G3RANGE2">插值更新间隔（毫秒）</label>
-                                    <div class="range" data-mdb-range-init>
-                                        <input type="range" class="form-range" min="16" max="200" id="W3G3RANGE2" />
-                                    </div>
-                                    <div class="form-outline" data-mdb-input-init>
-                                        <input type="number" id="W3G3NUMBER1" class="form-control" />
-                                        <label class="form-label" for="W3G3NUMBER1">数据缩放比例</label>
-                                    </div>
-                                    <div class="row-2 myfold smallerContainer alert-warning shadow-4"
-                                        id="widget3Group3">
-                                        <h5>数据格式与时序约定</h5>
-                                        <p>彩屏曲线图采用两个uint16_t变量存储最新的两个数据，下文称为：“原始数据”，范围为0-1000（超出无影响），每隔“插值更新间隔”时间，使用余弦插值算法和当前相对坐标，对最新的两个数据进行插值并追加到图表末尾。模组使用一个临时变量存储从TCP收到的数据。
-                                        </p>
-                                        <p>当服务器检测到彩屏模组连接时，需要每隔“数据更新间隔”时间，向模组发送一个uint16_t数据，低字节在前。模组收到数据后，将立即发送1字节0x00到服务器作为ACK，并将数据存储到临时变量中，等待曲线图更新线程获取。
-                                        </p>
-                                        <p>数据指示器的值=数据缩放比例*原始数据。</p>
-                                    </div>
-                                </div>
-                                <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget3Group4">
-                                    <h5>图表标题</h5>
-                                    <div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W3RG4" id="W3RG4R1"
-                                                onchange="unfold('widget3Group5')" />
-                                            <label class="form-check-label" for="W3RG4R1"> 显示 </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W3RG4" id="W3RG4R2"
-                                                onchange="fold('widget3Group5')" />
-                                            <label class="form-check-label" for="W3RG4R2"> 隐藏 </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget3Group5">
-                                    <div class="form-outline" data-mdb-input-init>
-                                        <input type="text" id="W3G5TEXT1" class="form-control" maxlength="30" />
-                                        <label class="form-label" for="W3G5TEXT1">图表标题内容</label>
-                                    </div>
-                                </div>
-                                <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget3Group6">
-                                    <h5>数据指示器</h5>
-                                    <div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W3RG6" id="W3RG6R1" />
-                                            <label class="form-check-label" for="W3RG6R1"> 显示 </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W3RG6" id="W3RG6R2" />
-                                            <label class="form-check-label" for="W3RG6R2"> 隐藏 </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget3Group7">
-                                    <h5>重新上传图片(可选)</h5>
-                                    <input type="file" class="form-control" id="W3G7FILE1" accept=".jpg,.jpeg" />
-                                    <h7>仅支持JPEG Baseline，建议分辨率192*206</h7>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="row-2  globalContainer alert-primary shadow-4">
-                                <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget1Group1">
-                                    <h5>控件选择</h5>
-                                    <div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W1RG1" id="W1RG1R1" />
-                                            <label class="form-check-label" for="W1RG1R1"> 时间 </label>
-                                        </div>
-
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W1RG1" id="W1RG1R2" />
-                                            <label class="form-check-label" for="W1RG1R2"> 时间与日期 </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget1Group2">
-                                    <h5>时间格式</h5>
-                                    <div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W1RG2" id="W1RG2R1" />
-                                            <label class="form-check-label" for="W1RG2R1"> 12小时制 </label>
-                                        </div>
-
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W1RG2" id="W1RG2R2" />
-                                            <label class="form-check-label" for="W1RG2R2"> 24小时制 </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget1Group3">
-                                    <h5>自定义背景图</h5>
-                                    <div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W1RG3" id="W1RG3R1"
-                                                onchange="unfold('widget1Group4');" />
-                                            <label class="form-check-label" for="W1RG3R1"> 是 </label>
-                                        </div>
-
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W1RG3" id="W1RG3R2"
-                                                onchange="fold('widget1Group4');" />
-                                            <label class="form-check-label" for="W1RG3R2"> 否 </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget1Group4">
-                                    <h5>重新上传图片(可选)</h5>
-                                    <input type="file" class="form-control" id="W1G3FILE1" accept=".jpg,.jpeg" />
-                                    <h7>仅支持JPEG Baseline，建议分辨率119*78</h7>
-                                </div>
-                            </div>
-                            <div class="row-2  globalContainer alert-primary shadow-4">
-                                <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget2Group1">
-                                    <h5>控件选择</h5>
-                                    <div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W2RG1" id="W2RG1R1"
-                                                onchange="unfold('widget2Group2');if(document.getElementById('W2RG2R4').checked == true)unfold('widget2Group3');else fold('widget2Group3');unfold('widget2Group4');if(document.getElementById('W2RG4R1').checked == true)unfold('widget2Group5');else fold('widget2Group5'); unfold('widget2Group6');fold('widget2Group7');" />
-                                            <label class="form-check-label" for="W2RG1R1"> 曲线图 </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W2RG1" id="W2RG1R2"
-                                                onchange="fold('widget2Group2');fold('widget2Group3');fold('widget2Group4');fold('widget2Group5');fold('widget2Group6');fold('widget2Group7');" />
-                                            <label class="form-check-label" for="W2RG1R2"> 月相 </label>
-                                        </div>
-
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W2RG1" id="W2RG1R3"
-                                                onchange="fold('widget2Group2');fold('widget2Group3');fold('widget2Group4');fold('widget2Group5');fold('widget2Group6');unfold('widget2Group7');" />
-                                            <label class="form-check-label" for="W2RG1R3"> 自定义图片 </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget2Group2">
-                                    <h5>图表数据源</h5>
-                                    <div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W2RG2" id="W2RG2R1"
-                                                onclick="fold('widget2Group3')" />
-                                            <label class="form-check-label" for="W2RG2R1"> CPU占用 </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W2RG2" id="W2RG2R2"
-                                                onclick="fold('widget2Group3')" />
-                                            <label class="form-check-label" for="W2RG2R2"> 内存占用 </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W2RG2" id="W2RG2R3"
-                                                onclick="fold('widget2Group3')" />
-                                            <label class="form-check-label" for="W2RG2R3" data-mdb-tooltip-init
-                                                data-mdb-placement="right" title="即每秒按下键盘按键的次数, Actions Per Second">
-                                                手速(APS) </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W2RG2" id="W2RG2R4"
-                                                onclick="unfold('widget2Group3')" />
-                                            <label class="form-check-label" for="W2RG2R4" data-mdb-placement="right"
-                                                data-mdb-tooltip-init title="需要自建TCP Server。选择以查看详情"> 外部数据源(TCP)
-                                            </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W2RG2" id="W2RG2R5"
-                                                onclick="fold('widget2Group3')" />
-                                            <label class="form-check-label" for="W2RG2R5"> 随机数 </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget2Group3">
-                                    <h5>外部数据源设置</h5>
-                                    <label class="label" for="W3G3RANGE1">网络位置</label>
-                                    <div class="form-outline" data-mdb-input-init>
-                                        <div class="input-group mb-3">
-                                            <input type="text" class="form-control" placeholder="IP地址" aria-label="IP地址"
-                                                id="W2G3HOST" maxlength="15" />
-                                            <span class="input-group-text">:</span>
-                                            <input type="text" class="form-control" placeholder="端口" aria-label="端口"
-                                                id="W2G3PORT" maxlength="5" />
-                                        </div>
-                                    </div>
-                                    <label class="label" for="W2G3RANGE1">数据更新间隔（毫秒）</label>
-                                    <div class="range" data-mdb-range-init>
-                                        <input type="range" class="form-range" min="20" max="2000" step="20"
-                                            id="W2G3RANGE1" />
-                                    </div>
-                                    <label class="label" for="W2G3RANGE2">插值更新间隔（毫秒）</label>
-                                    <div class="range" data-mdb-range-init>
-                                        <input type="range" class="form-range" min="16" max="200" id="W2G3RANGE2" />
-                                    </div>
-                                    <div class="form-outline" data-mdb-input-init>
-                                        <input type="number" id="W2G3NUMBER1" class="form-control" />
-                                        <label class="form-label" for="W3G3NUMBER1">数据缩放比例</label>
-                                    </div>
-                                    <div class="row-2 myfold smallerContainer alert-warning shadow-4"
-                                        id="widget3Group3">
-                                        <h5>数据格式与时序约定</h5>
-                                        <p>彩屏曲线图采用两个uint16_t变量存储最新的两个数据，下文称为：“原始数据”，范围为0-1000（超出无影响），每隔“插值更新间隔”时间，使用余弦插值算法和当前相对坐标，对最新的两个数据进行插值并追加到图表末尾。模组使用一个临时变量存储从TCP收到的数据。
-                                        </p>
-                                        <p>当服务器检测到彩屏模组连接时，需要每隔“数据更新间隔”时间，向模组发送一个uint16_t数据，低字节在前。模组收到数据后，将立即发送1字节0x00到服务器作为ACK，并将数据存储到临时变量中，等待曲线图更新线程获取。
-                                        </p>
-                                        <p>数据指示器的值=数据缩放比例*原始数据。</p>
-                                    </div>
-                                </div>
-                                <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget2Group4">
-                                    <h5>图表标题</h5>
-                                    <div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W2RG4" id="W2RG4R1"
-                                                onchange="unfold('widget2Group5')" />
-                                            <label class="form-check-label" for="W2RG4R1"> 显示 </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W2RG4" id="W2RG4R2"
-                                                onchange="fold('widget2Group5')" />
-                                            <label class="form-check-label" for="W2RG4R2"> 隐藏 </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget2Group5">
-                                    <div class="form-outline" data-mdb-input-init>
-                                        <input type="text" id="W2G5TEXT1" class="form-control" maxlength="30" />
-                                        <label class="form-label" for="W2G5TEXT1">图表标题内容</label>
-                                    </div>
-                                </div>
-                                <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget2Group6">
-                                    <h5>数据指示器</h5>
-                                    <div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W2RG6" id="W2RG6R1" />
-                                            <label class="form-check-label" for="W2RG6R1"> 显示 </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="W2RG6" id="W2RG6R2" />
-                                            <label class="form-check-label" for="W2RG6R2"> 隐藏 </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row-2 myfold smallerContainer alert-primary shadow-4" id="widget2Group7">
-                                    <h5>重新上传图片(可选)</h5>
-                                    <input type="file" class="form-control" id="W2G7FILE1" accept=".jpg,.jpeg" />
-                                    <h7>仅支持JPEG Baseline，建议分辨率119*127</h7>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -568,157 +147,10 @@
             id="openFilePreview" style="display: none;">
             文件预览
         </button>
-        <button type="button" data-mdb-ripple-init data-mdb-modal-init data-mdb-target="#modalRename"
-            id="btnToggleRenameModal" style="display: none;">
-            重命名
-        </button>
         <input style="visibility: hidden;" id="fileManagerCurrent" />
         <div id="alertContainer"></div>
         <script src="/js/mdb.js"></script>
         <script>
-            function getConfig() {
-                var xhr = new XMLHttpRequest();
-                xhr.open('GET', 'http://192.168.8.228/config.json', true);
-                xhr.onreadystatechange = function () {
-                    if (xhr.readyState == 4 && xhr.status == 200) {
-                        var data = JSON.parse(xhr.responseText);
-                        console.log(data);
-                        // Widget1
-                        if (data[0]["widget"] == 0)
-                            document.getElementById('W1RG1R1').click();
-                        else
-                            document.getElementById('W1RG1R2').click();
-                        if (data[0]["time12"] == true)
-                            document.getElementById('W1RG2R1').click();
-                        else
-                            document.getElementById('W1RG2R2').click();
-                        if (data[0]["bg"] == true)
-                            document.getElementById('W1RG3R1').click();
-                        else
-                            document.getElementById('W1RG3R2').click();
-                        // Widget2
-                        if (data[1]["data"] == 0)
-                            document.getElementById('W2RG2R1').click();
-                        else if (data[1]["data"] == 1)
-                            document.getElementById('W2RG2R2').click();
-                        else if (data[1]["data"] == 2)
-                            document.getElementById('W2RG2R3').click();
-                        else if (data[1]["data"] == 3)
-                            document.getElementById('W2RG2R4').click();
-                        else
-                            document.getElementById('W2RG2R5').click();
-
-                        if (data[1]["showlbl"] == true)
-                            document.getElementById('W2RG4R1').click();
-                        else
-                            document.getElementById('W2RG4R2').click();
-                        document.getElementById('W2G5TEXT1').setAttribute('value', data[1]["lbl"]);
-                        if (data[1]["showindicator"] == true)
-                            document.getElementById('W2RG6R1').click();
-                        else
-                            document.getElementById('W2RG6R2').click();
-                        document.getElementById('W2G3HOST').setAttribute('value', data[1]["ext_host"]);
-                        document.getElementById('W2G3PORT').setAttribute('value', data[1]["ext_port"]);
-                        document.getElementById('W2G3RANGE1').setAttribute('value', data[1]["ext_interval"]);
-                        document.getElementById('W2G3RANGE2').setAttribute('value', data[1]["ext_interpolation"]);
-                        document.getElementById('W2G3NUMBER1').setAttribute('value', data[1]["ext_zoom"].toFixed(5));
-                        if (data[1]["lbl"] != '')
-                            document.getElementById('W2G5TEXT1').classList.add('active');
-                        document.getElementById('W2G3NUMBER1').classList.add('active');
-
-                        if (data[1]["widget"] == 0)
-                            document.getElementById('W2RG1R1').click();
-                        else if (data[1]["widget"] == 1)
-                            document.getElementById('W2RG1R2').click();
-                        else
-                            document.getElementById('W2RG1R3').click();
-                        // Widget3
-
-                        if (data[2]["data"] == 0)
-                            document.getElementById('W3RG2R1').click();
-                        else if (data[2]["data"] == 1)
-                            document.getElementById('W3RG2R2').click();
-                        else if (data[2]["data"] == 2)
-                            document.getElementById('W3RG2R3').click();
-                        else if (data[2]["data"] == 3)
-                            document.getElementById('W3RG2R4').click();
-                        else
-                            document.getElementById('W3RG2R5').click();
-
-                        if (data[2]["showlbl"] == true)
-                            document.getElementById('W3RG4R1').click();
-                        else
-                            document.getElementById('W3RG4R2').click();
-                        document.getElementById('W3G5TEXT1').setAttribute('value', data[2]["lbl"]);
-                        if (data[2]["showindicator"] == true)
-                            document.getElementById('W3RG6R1').click();
-                        else
-                            document.getElementById('W3RG6R2').click();
-                        document.getElementById('W3G3HOST').setAttribute('value', data[2]["ext_host"]);
-                        document.getElementById('W3G3PORT').setAttribute('value', data[2]["ext_port"]);
-                        document.getElementById('W3G3RANGE1').setAttribute('value', data[2]["ext_interval"]);
-                        document.getElementById('W3G3RANGE2').setAttribute('value', data[2]["ext_interpolation"]);
-                        document.getElementById('W3G3NUMBER1').setAttribute('value', data[2]["ext_zoom"].toFixed(5));
-                        if (data[2]["lbl"] != '')
-                            document.getElementById('W3G5TEXT1').classList.add('active');
-                        document.getElementById('W3G3NUMBER1').classList.add('active');
-                        if (data[2]["widget"] == 0)
-                            document.getElementById('W3RG1R1').click();
-                        else
-                            document.getElementById('W3RG1R2').click();
-                        // CPU/内存数据源
-                        document.getElementById('CPUUSAGEIP').setAttribute('value', data[3]["ip"]);
-                        document.getElementById('CPUUSAGEPORT').setAttribute('value', data[3]["port"]);
-                        displayJson(0, "配置已加载");
-                    }
-                };
-                xhr.send();
-            }
-            function saveConfig() {
-                var xhr = new XMLHttpRequest();
-                xhr.open('POST', 'http://192.168.8.228/config.json', true);
-                xhr.onreadystatechange = function () {
-                    if (xhr.readyState == 4 && xhr.status == 200) {
-                        displayJson(0, "配置已保存");
-                    }
-                };
-                var data = [
-                    {
-                        "widget": document.getElementById('W1RG1R1').checked ? 0 : 1,
-                        "time12": document.getElementById('W1RG2R1').checked ? true : false,
-                        "bg": document.getElementById('W1RG3R1').checked ? true : false
-                    },
-                    {
-                        "widget": document.getElementById('W2RG1R1').checked ? 0 : document.getElementById('W2RG1R2').checked ? 1 : 2,
-                        "data": document.getElementById('W2RG2R1').checked ? 0 : document.getElementById('W2RG2R2').checked ? 1 : document.getElementById('W2RG2R3').checked ? 2 : document.getElementById('W2RG2R4').checked ? 3 : 4,
-                        "showlbl": document.getElementById('W2RG4R1').checked ? true : false,
-                        "lbl": document.getElementById('W2G5TEXT1').value,
-                        "showindicator": document.getElementById('W2RG6R1').checked ? true : false,
-                        "ext_host": document.getElementById('W2G3HOST').value,
-                        "ext_port": Number(document.getElementById('W2G3PORT').value),
-                        "ext_interval": Number(document.getElementById('W2G3RANGE1').value),
-                        "ext_interpolation": Number(document.getElementById('W2G3RANGE2').value),
-                        "ext_zoom": Number(document.getElementById('W2G3NUMBER1').value)
-                    },
-                    {
-                        "widget": document.getElementById('W3RG1R1').checked ? 0 : 1,
-                        "data": document.getElementById('W3RG2R1').checked ? 0 : document.getElementById('W3RG2R2').checked ? 1 : document.getElementById('W3RG2R3').checked ? 2 : document.getElementById('W3RG2R4').checked ? 3 : 4,
-                        "showlbl": document.getElementById('W3RG4R1').checked ? true : false,
-                        "lbl": document.getElementById('W3G5TEXT1').value,
-                        "showindicator": document.getElementById('W3RG6R1').checked ? true : false,
-                        "ext_host": document.getElementById('W3G3HOST').value,
-                        "ext_port": Number(document.getElementById('W3G3PORT').value),
-                        "ext_interval": Number(document.getElementById('W3G3RANGE1').value),
-                        "ext_interpolation": Number(document.getElementById('W3G3RANGE2').value),
-                        "ext_zoom": Number(document.getElementById('W3G3NUMBER1').value)
-                    },
-                    {
-                        "ip": document.getElementById('CPUUSAGEIP').value,
-                        "port": Number(document.getElementById('CPUUSAGEPORT').value)
-                    }
-                ];
-                xhr.send(JSON.stringify(data));
-            }
             function updateTime() {
                 var now = new Date();
                 var utcTime = (now.getTime() / 1000).toFixed(0).toString();
@@ -733,32 +165,12 @@
                 xhr.send(utcTime);
             }
             setTimeout(updateTime, 1000);
-            getConfig();
-            btnSaveConfig = document.getElementById('btnSaveConfig');
-            btnSaveConfig.onclick = function () {
-                saveConfig();
-            }
         </script>
         <script>
             var cwd = '/';
             var currentFilePath = '/';
             var currentFileName = '/';
             var fileManagerCurrent = document.getElementById('fileManagerCurrent');
-            function updir() {
-                if (cwd.lastIndexOf("/") != 0) {
-                    cwd = cwd.substring(0, cwd.lastIndexOf("/"));
-                }
-                else {
-                    cwd = '/';
-                }
-                console.log(cwd);
-            }
-            function gotodir(filename) {
-                if (cwd != "/") {
-                    cwd += "/"
-                }
-                cwd += filename;
-            }
             function deleteFile(filename) {
                 var xhr = new XMLHttpRequest();
                 xhr.open('DELETE', '/edit', true);
@@ -772,75 +184,12 @@
                 xhr.send(filename);
                 displayJson(0, "已发送请求");
             }
-            function deleteFolder(filename) {
-                if (filename == '/') {
-                    displayJson(1, "不允许删除根目录");
-                    return;
-                }
-                var xhr = new XMLHttpRequest();
-                xhr.open('POST', '/rmrf?path=' + filename, true);
-                xhr.onreadystatechange = function () {
-                    if (xhr.readyState == 4 && xhr.status == 200) {
-                        displayJson(0, "文件夹已删除");
-                        var data = xhr.responseText;
-                        updir();
-                        refreshFileList();
-                    }
-                };
-                xhr.send();
-                displayJson(0, "已发送请求");
-            }
-            function mkdir(filename) {
-                if (filename == '/') {
-                    displayJson(1, "不允许创建根目录");
-                    return;
-                }
-                var tmp = cwd;
-                if (cwd != '/')
-                    tmp += '/';
-                tmp += filename;
-                var xhr = new XMLHttpRequest();
-                xhr.open('POST', '/mkdir?path=' + tmp, true);
-                xhr.onreadystatechange = function () {
-                    if (xhr.readyState == 4) {
-                        if (xhr.status == 200) {
-                            displayJson(0, "文件夹已创建");
-                            gotodir(filename);
-                        }
-                        else {
-                            displayJson(1, "文件夹创建失败");
-                        }
-                        refreshFileList();
-                    }
-                };
-                xhr.send();
-                displayJson(0, "已发送请求");
-            }
             function downloadFile(content, fileName) {
                 var aEle = document.createElement("a");// 创建a标签
                 aEle.download = fileName;// 设置下载文件的文件名
                 aEle.href = content;// content为后台返回的下载地址
                 aEle.target = '_blank';
                 aEle.click();
-            }
-            function rename(filename, newname) {
-                console.log(filename, newname);
-                if (filename == newname) return;
-                var xhr = new XMLHttpRequest();
-                xhr.open('POST', '/rename?path=' + filename + '&new=' + newname, true);
-                xhr.onreadystatechange = function () {
-                    if (xhr.readyState == 4) {
-                        if (xhr.status == 200) {
-                            displayJson(0, "重命名成功");
-                        }
-                        else {
-                            displayJson(1, "重命名失败");
-                        }
-                        refreshFileList();
-                    }
-                };
-                xhr.send();
-                displayJson(0, "已发送请求");
             }
             function refreshFileList() {
                 var html_cwd = document.getElementById('html_cwd');
@@ -898,7 +247,6 @@
                             else {
                                 cell3.innerHTML = "文件夹";
                                 row.onclick = function () {
-                                    gotodir(element["name"]);
                                     refreshFileList();
                                 }
                             }
@@ -908,34 +256,9 @@
                 };
                 xhr.send();
             }
-            var btnGoBack = document.getElementById('btnGoBack');
-            btnGoBack.onclick = function () {
-                updir();
-                refreshFileList();
-            }
-            var btnOpenData = document.getElementById('btnOpenData');
-            btnOpenData.onclick = function () {
-                cwd = '/.data';
-                refreshFileList();
-            }
             btnRefresh = document.getElementById('btnRefresh');
             btnRefresh.onclick = function () {
                 refreshFileList();
-            }
-            var btnRename = document.getElementById('btnRename');
-            btnRename.onclick = function () {
-                var btnToggleRenameModal = document.getElementById('btnToggleRenameModal');
-                var input_newFileName = document.getElementById('input_newFileName');
-                input_newFileName.value = currentFileName;
-                btnToggleRenameModal.click();
-            }
-            var btnRenameConfirm = document.getElementById('btnRenameConfirm');
-            btnRenameConfirm.onclick = function () {
-                var input_newFileName = document.getElementById('input_newFileName');
-                var tmp = cwd;
-                if (cwd != '/') tmp += '/';
-                tmp += input_newFileName.value;
-                rename(currentFilePath, tmp);
             }
             var btnDownloadPreview = document.getElementById('btnDownloadPreview');
             btnDownloadPreview.onclick = function () {
@@ -944,11 +267,6 @@
             var btnDeletePreview = document.getElementById('btnDeletePreview');
             btnDeletePreview.onclick = function () {
                 deleteFile(currentFilePath);
-            }
-            var btnDeleteFolder = document.getElementById('btnDeleteFolder');
-            btnDeleteFolder.onclick = function () {
-                deleteFolder(cwd);
-                updir();
             }
             var fileInput = document.getElementById("fileInput");
             fileInput.addEventListener("change", function (event) {
@@ -991,13 +309,6 @@
                 fileInput.click();  // 模拟点击文件输入框
             }
             document.getElementById('btnUpload').onclick = upload;
-            var btnMkdirConfirm = document.getElementById('btnMkdirConfirm');
-            btnMkdirConfirm.onclick = function () {
-                var input_Mkdir = document.getElementById('input_Mkdir');
-                if (input_Mkdir.value.trim() != "") {
-                    mkdir(input_Mkdir.value.trim());
-                }
-            }
             var btnReboot = document.getElementById('btnReboot');
             btnReboot.onclick = function () {
                 var xhr = new XMLHttpRequest();
@@ -1010,108 +321,6 @@
                 xhr.send();
                 displayJson(0, "已发送请求");
             }
-            var fileInput1 = document.getElementById("W1G3FILE1");
-            fileInput1.addEventListener("change", function (event) {
-                var selectedFile = event.target.files[0];  // 获取用户选择的文件
-                console.log("用户选择的文件：", selectedFile);
-                let formData = new FormData();
-                var tmp = "/.data/1.jpg";
-                formData.append("data", event.target.files[0], tmp);
-                console.log(tmp);
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', '/edit');
-                xhr.onreadystatechange = function () {
-                    if (xhr.readyState == 4) {
-                        if (xhr.status == 200) {
-                            displayJson(0, "上传成功！");
-                            refreshFileList()
-                        }
-                        else {
-                            displayJson(1, "上传失败！");
-                        }
-                    }
-                }
-                xhr.upload.onprogress = function (event) {
-                    var uploadProgress = document.getElementById('uploadProgress');
-                    var prog = String(Math.ceil((event.loaded / event.total) * 100));
-                    uploadProgress.style = 'width: ' + prog + '%;';
-                    uploadProgress.innerHTML = prog + "%";
-                    if (prog == "100")
-                        uploadProgress.className = "progress-bar bg-success";
-                    else
-                        uploadProgress.className = "progress-bar";
-                };
-                xhr.send(formData);
-                displayJson(0, "已发送请求");
-            });
-            var fileInput2 = document.getElementById("W2G7FILE1");
-            fileInput2.addEventListener("change", function (event) {
-                var selectedFile = event.target.files[0];  // 获取用户选择的文件
-                console.log("用户选择的文件：", selectedFile);
-                let formData = new FormData();
-                var tmp = "/.data/2.jpg";
-                formData.append("data", event.target.files[0], tmp);
-                console.log(tmp);
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', '/edit');
-                xhr.onreadystatechange = function () {
-                    if (xhr.readyState == 4) {
-                        if (xhr.status == 200) {
-                            displayJson(0, "上传成功！");
-                            refreshFileList()
-                        }
-                        else {
-                            displayJson(1, "上传失败！");
-                        }
-                    }
-                }
-                xhr.upload.onprogress = function (event) {
-                    var uploadProgress = document.getElementById('uploadProgress');
-                    var prog = String(Math.ceil((event.loaded / event.total) * 100));
-                    uploadProgress.style = 'width: ' + prog + '%;';
-                    uploadProgress.innerHTML = prog + "%";
-                    if (prog == "100")
-                        uploadProgress.className = "progress-bar bg-success";
-                    else
-                        uploadProgress.className = "progress-bar";
-                };
-                xhr.send(formData);
-                displayJson(0, "已发送请求");
-            });
-            var fileInput3 = document.getElementById("W3G7FILE1");
-            fileInput3.addEventListener("change", function (event) {
-                var selectedFile = event.target.files[0];  // 获取用户选择的文件
-                console.log("用户选择的文件：", selectedFile);
-                let formData = new FormData();
-                var tmp = "/.data/3.jpg";
-                formData.append("data", event.target.files[0], tmp);
-                console.log(tmp);
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', '/edit');
-                xhr.onreadystatechange = function () {
-                    if (xhr.readyState == 4) {
-                        if (xhr.status == 200) {
-                            displayJson(0, "上传成功！");
-                            refreshFileList()
-                        }
-                        else {
-                            displayJson(1, "上传失败！");
-                        }
-                    }
-                }
-                xhr.upload.onprogress = function (event) {
-                    var uploadProgress = document.getElementById('uploadProgress');
-                    var prog = String(Math.ceil((event.loaded / event.total) * 100));
-                    uploadProgress.style = 'width: ' + prog + '%;';
-                    uploadProgress.innerHTML = prog + "%";
-                    if (prog == "100")
-                        uploadProgress.className = "progress-bar bg-success";
-                    else
-                        uploadProgress.className = "progress-bar";
-                };
-                xhr.send(formData);
-                displayJson(0, "已发送请求");
-            });
             refreshFileList();
         </script>
 </body>

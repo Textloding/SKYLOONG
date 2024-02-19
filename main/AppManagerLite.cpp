@@ -13,6 +13,8 @@ AppManagerLite appManagerLite;
 
 BaseApp *AppManagerLite::getAppByName(const uint32_t appid)
 {
+    if (appid == 50)
+        return appSettings;
     for (int i = 0; i < appListLen; i++)
     {
         if (appList[i]->appid == appid)
@@ -65,9 +67,9 @@ void AppManagerLite::init(const uint32_t lastAppid)
                 {
                     while(1)
                     {
-                        if (millis() - last_switch_millis > 50000)
+                        if (millis() - last_switch_millis > 30000)
                         {
-                            if (last_overflow_appid != last_appid)
+                            if (last_overflow_appid != last_appid && last_appid != 50)
                             {
                                 last_overflow_appid = last_appid;
                                 hal.pref.putInt("last_appid", last_appid);
@@ -103,9 +105,7 @@ void AppManagerLite::switchApp(BaseApp *app)
     currentApp->_appScreen = lv_obj_create(NULL);
     lv_scr_load_anim(currentApp->_appScreen, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, true);
     hal.UNLOCKLV();
-    hal.requireSettings(currentApp->requireSettings);
     currentApp->setup();
-    GUI::status_bar_show(!currentApp->hideStatusBar);
     ESP_LOGI("AppManagerLite", "Switch to %u", currentApp->appid);
     xSemaphoreGive(_mutex);
 }

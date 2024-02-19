@@ -115,7 +115,7 @@ void parasePkt(protocol_t *pkt)
                 hal.send_sysctl(EVENT_EXIT_SETTING);
             break;
         case 0xA1: // BackSpace
-            xSemaphoreGive(appManagerLite._binary_switchApp);
+            //xSemaphoreGive(appManagerLite._binary_switchApp);
             break;
         case 0xA2: // 方向键向左
             send_data = LV_KEY_LEFT;

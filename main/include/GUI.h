@@ -45,15 +45,6 @@ void lv_obj_move_anim(lv_obj_t *obj, int16_t x, int16_t y,
 namespace GUI
 {
     void toast(const char *str, bool lock = true);
-    void status_bar_refresh(bool force = false);
-    lv_obj_t *status_bar_add(const char *symbol, int delay_ms);
-    void status_bar_remove(lv_obj_t *obj);
-    void status_bar_status_set(lv_obj_t *obj, lv_state_t status);
-    lv_obj_t *status_bar_insert(const char *symbol, int index);
-    lv_obj_t *status_bar_replace(const char *symbol, lv_obj_t *&last);
-    void status_bar_init();
-    void status_bar_show(bool show);
-    bool status_bar_show_get();
 }
 
 class VideoPlayer
@@ -67,39 +58,3 @@ public:
 };
 
 extern VideoPlayer videoPlayer;
-LV_IMG_DECLARE(moon_000);
-LV_IMG_DECLARE(moon_010);
-LV_IMG_DECLARE(moon_020);
-LV_IMG_DECLARE(moon_030);
-LV_IMG_DECLARE(moon_040);
-LV_IMG_DECLARE(moon_050);
-LV_IMG_DECLARE(moon_060);
-LV_IMG_DECLARE(moon_070);
-LV_IMG_DECLARE(moon_080);
-LV_IMG_DECLARE(moon_090);
-LV_IMG_DECLARE(moon_100);
-LV_IMG_DECLARE(moon_110);
-LV_IMG_DECLARE(moon_120);
-LV_IMG_DECLARE(moon_130);
-LV_IMG_DECLARE(moon_140);
-LV_IMG_DECLARE(moon_150);
-LV_IMG_DECLARE(moon_160);
-LV_IMG_DECLARE(moon_170);
-LV_IMG_DECLARE(moon_180);
-LV_IMG_DECLARE(moon_190);
-LV_IMG_DECLARE(moon_200);
-LV_IMG_DECLARE(moon_210);
-LV_IMG_DECLARE(moon_220);
-LV_IMG_DECLARE(moon_230);
-LV_IMG_DECLARE(moon_240);
-LV_IMG_DECLARE(moon_250);
-LV_IMG_DECLARE(moon_260);
-LV_IMG_DECLARE(moon_270);
-LV_IMG_DECLARE(moon_280);
-LV_IMG_DECLARE(moon_290);
-LV_IMG_DECLARE(moon_300);
-LV_IMG_DECLARE(moon_310);
-LV_IMG_DECLARE(moon_320);
-LV_IMG_DECLARE(moon_330);
-LV_IMG_DECLARE(moon_340);
-LV_IMG_DECLARE(moon_350);

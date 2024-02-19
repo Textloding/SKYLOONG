@@ -33,7 +33,6 @@ public:
     void init()
     {
         appid = 3;
-        requireSettings = true;
     }
     void setup();
     void loop();

@@ -144,51 +144,6 @@ bool WiFiManager::requireWiFi(bool forceChoose)
     hal.LOCKLV();
     lv_group_t *last_group = lv_group_get_default();
     lv_group_t *group;
-    if (_status_obj == NULL)
-    {
-        _status_obj = GUI::status_bar_add(SYMBOL_WIFI, 0);
-        lv_timer_create([](lv_timer_t *timer)
-                        {
-            lv_obj_t *_status_obj = WiFiMgr._status_obj;
-            static bool has_connected = false;
-            static int disconnect_count = 0;
-            if(_status_obj == NULL)
-            {
-                lv_timer_del(timer);
-                has_connected = false;
-                disconnect_count = 0;       //准备下次使用
-                return;
-            }
-            if(has_connected)
-            {
-                if (WiFi.status() == WL_CONNECTED)
-                {
-                    GUI::status_bar_status_set(_status_obj, LV_STATE_USER_2);
-                }
-                else
-                {
-                    GUI::status_bar_status_set(_status_obj, 0);
-                    disconnect_count ++;
-                    if(disconnect_count >= 3)
-                    {
-                        GUI::status_bar_remove(_status_obj);
-                        WiFiMgr._status_obj = NULL;
-                        return;
-                    }
-                }
-            }
-            else if(WiFi.status() == WL_CONNECTED)
-            {
-                has_connected = true;
-                GUI::status_bar_status_set(_status_obj, LV_STATE_USER_2);
-            }
-            if(lv_obj_has_state(_status_obj, LV_STATE_USER_3))
-            {
-                has_connected = true;
-            } },
-                        1000, NULL);
-    }
-    GUI::status_bar_status_set(_status_obj, LV_STATE_USER_1);
     hal.UNLOCKLV();
     if (WiFi.status() != WL_CONNECTED)
     {
@@ -204,10 +159,6 @@ bool WiFiManager::requireWiFi(bool forceChoose)
         else
         {
         choose:
-            bool last_req = hal.getLastRequireSettings();
-            bool last_status_bar = GUI::status_bar_show_get();
-            hal.requireSettings(true);
-            GUI::status_bar_show(false);
             char ssid[64];
             char passwd[64];
             hal.LOCKLV();
@@ -223,8 +174,6 @@ bool WiFiManager::requireWiFi(bool forceChoose)
             lv_group_set_default(last_group);
             lv_group_del(group);
             hal.UNLOCKLV();
-            GUI::status_bar_show(last_status_bar);
-            hal.requireSettings(last_req);
             vTaskDelay(320);
             if (res == 0)
             {
@@ -234,14 +183,10 @@ bool WiFiManager::requireWiFi(bool forceChoose)
                 return true;
             }
             else
-            {
-                GUI::status_bar_status_set(_status_obj, LV_STATE_USER_3);
                 return false;
-            }
         }
     }
     else
         return true;
-    GUI::status_bar_status_set(_status_obj, LV_STATE_USER_3);
     return false;
 }

@@ -34,7 +34,7 @@ void debug_USB_UART(void *p)
                 hal.send_sysctl(EVENT_EXIT_SETTING);
             break;
         case '\b': // BackSpace
-            xSemaphoreGive(appManagerLite._binary_switchApp);
+            //xSemaphoreGive(appManagerLite._binary_switchApp);
             break;
         case 'a': // 方向键向左
             if (hal.lv_has_kb == true)
@@ -98,9 +98,8 @@ extern "C" void app_main()
     appSettings.init();
     add_to_app_list(&appHome);
     add_to_app_list(&appGIF);
-    add_to_app_list(&appSettings);
+    appManagerLite.appSettings = &appSettings;
     //////////////////////
-    GUI::status_bar_init();
     if (last_appid == 0)
     {
         last_appid = hal.pref.getInt("last_appid", 1);
@@ -108,19 +107,7 @@ extern "C" void app_main()
     // 开机动画
     if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_UNDEFINED)
     {
-        if (hal.config_show_boot_animation == true)
-        {
-            if (last_appid == 1)
-            {
-                if ((app_settings_save[1].widget == 0 && (app_settings_save[1].data != 2 && app_settings_save[1].data != 4)) || (app_settings_save[2].widget == 0 && (app_settings_save[2].data != 2 && app_settings_save[2].data != 4)))
-                {
-                    WiFi.begin();
-                }
-            }
-            videoPlayer.video_loop = false;
-            videoPlayer.playBuffer(__boot_mpeg, sizeof(__boot_mpeg));
-            videoPlayer.video_loop = true;
-        }
+        videoPlayer.playBuffer(__boot_mpeg, sizeof(__boot_mpeg));
     }
     protocol_init();
     xTaskCreatePinnedToCore(task_lvgl_update, "lvgl_update", 1024 * 6, NULL, 1, NULL, 1);

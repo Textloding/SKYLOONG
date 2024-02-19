@@ -8,8 +8,6 @@ public:
     bool _addToSwitchApp = true; // 是否将当前App加入到切换列表
     uint32_t appid = 0;
     lv_obj_t *_appScreen = NULL;
-    bool requireSettings = false;
-    bool hideStatusBar = false;
     virtual void setup() = 0;
     virtual void loop() = 0;
     virtual void destroy() = 0; // 销毁当前App，注意应该在此处释放LVGL定时器
@@ -23,6 +21,7 @@ class AppManagerLite
 public:
     BaseApp *currentApp = NULL;
     BaseApp *lastAppBeforeSetting = NULL;
+    BaseApp *appSettings = NULL;
     BaseApp *getAppByName(const uint32_t appid);
     void init(const uint32_t lastAppid);
     void switchApp(BaseApp *app);
@@ -43,6 +42,15 @@ public:
         i++;
         if(i >= appListLen) i = 0;
         switchApp(appList[i]);
+    }
+    void switchSetting()
+    {
+        lastAppBeforeSetting = currentApp;
+        switchApp(50);
+    }
+    void exitSetting()
+    {
+        switchApp(lastAppBeforeSetting);
     }
     void loop();
     SemaphoreHandle_t _mutex = NULL;
