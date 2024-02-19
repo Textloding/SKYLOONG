@@ -80,6 +80,7 @@ static void task_systemctl(void *p)
             break;
         case EVENT_APM_CHANGED:
             hal.APM = event.data;
+            hal.APMChanged = true;
             break;
         case EVENT_KB_STATUS_CHANGED:
             break;

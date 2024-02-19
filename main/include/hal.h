@@ -74,6 +74,7 @@ public:
     enum battery_status_t battery_status = BATTERY_STATUS_CHARGING;
     kb_status_t kb_status;
     uint8_t APM = 0;
+    bool APMChanged = false;
     bool setting_mode = false;              // 当前是否进入了设置模式
     bool lv_has_kb = false;                 // 是否当前显示了键盘控件，用于选择发送key的类型
     bool server_started = false;            // 是否已经启动了网页服务器

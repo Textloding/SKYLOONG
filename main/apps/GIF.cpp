@@ -36,6 +36,10 @@ bool show_gif(const char *path)
             return false;
         }
         hal.UNLOCKLV();
+        if(gif_list_size > 1)
+            videoPlayer.video_loop = false;
+        else
+            videoPlayer.video_loop = true;
         videoPlayer.play(f);
         hal.LOCKLV();
         fclose(f);
@@ -92,7 +96,8 @@ void AppGIF::setup()
     lv_obj_set_style_text_font(lv_layer_top(), &lv_font_chinese_16, 0);
     hal.UNLOCKLV();
     update_list("/littlefs");
-    last_roll_time = -10000;
+    last_roll_time = 0;
+    gif_list_idx = 0;
 }
 void AppGIF::loop()
 {
@@ -102,8 +107,9 @@ void AppGIF::loop()
         delay(50);
         return;
     }
-    if (millis() - last_roll_time > hal.config_time_roll)
+    if (millis() - last_roll_time > hal.config_time_roll || last_roll_time == 0)
     {
+        ESP_LOGI("GIF", "Rolling");
         last_roll_time = millis();
         if (gif_list_size > 0)
         {

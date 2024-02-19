@@ -81,6 +81,7 @@ void debug_USB_UART(void *p)
     }
 }
 AppHome appHome;
+AppAPS appAPS;
 AppGIF appGIF;
 AppSettings appSettings;
 extern void add_to_app_list(BaseApp *app);
@@ -94,9 +95,11 @@ extern "C" void app_main()
     WiFiMgr.init();
     //////////////////////
     appHome.init();
+    appAPS.init();
     appGIF.init();
     appSettings.init();
     add_to_app_list(&appHome);
+    add_to_app_list(&appAPS);
     add_to_app_list(&appGIF);
     appManagerLite.appSettings = &appSettings;
     //////////////////////

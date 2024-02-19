@@ -9,3 +9,4 @@ idf_build_set_property(COMPILE_OPTIONS "-Wno-error=stringop-truncation" APPEND)
 project(GK87-Screen)
 
 littlefs_create_partition_image(spiffs data)
+

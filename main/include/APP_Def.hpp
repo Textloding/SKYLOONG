@@ -11,13 +11,24 @@ public:
     void loop();
     void destroy();
 };
+class AppAPS : public BaseApp
+{
+public:
+    void init()
+    {
+        appid = 2;
+    }
+    void setup();
+    void loop();
+    void destroy();
+};
 
 class AppGIF : public BaseApp
 {
 public:
     void init()
     {
-        appid = 2;
+        appid = 3;
     }
     void listFilesRecursively(char *basePath);
     void setup();
