@@ -105,9 +105,10 @@ namespace theme_fox
     lv_obj_t *img_am;
     lv_obj_t *lbl_time;
     lv_obj_t *lbl_date;
-    bool toggle_connection = true;
+    bool toggle_connection;
     void setup(lv_obj_t *home_appScreen)
     {
+        toggle_connection = true;
         lv_obj_set_style_bg_img_src(home_appScreen, &img_main1_bg, 0);
         img_1 = lv_img_create(home_appScreen);
         lv_obj_set_pos(img_1, 115, 120);
@@ -137,8 +138,8 @@ namespace theme_fox
         lv_label_set_text(lbl_date, "");
         lv_obj_set_style_text_font(lbl_date, &lv_font_montserrat_26, 0);
         lv_obj_set_style_text_color(lbl_date, lv_color_hex(0xf9c262), 0);
-        lv_obj_set_pos(lbl_date, 13, 110);
-        lv_obj_set_width(lbl_date, 70);
+        lv_obj_set_pos(lbl_date, 3, 110);
+        lv_obj_set_width(lbl_date, 90);
         lv_obj_set_style_text_align(lbl_date, LV_TEXT_ALIGN_CENTER, 0);
         img_am = lv_img_create(home_appScreen);
         //lv_img_set_src(img_am, &img_am1);
@@ -269,10 +270,11 @@ namespace theme_spartan
     lv_obj_t *lbl_time;
     lv_obj_t *lbl_date;
     lv_obj_t *lbl_year;
-    bool toggle_connection = true;
+    bool toggle_connection;
     const lv_img_dsc_t *img_2_src[4] = {&img_rf, &img_bt1, &img_bt2, &img_usb};
     void setup(lv_obj_t *home_appScreen)
     {
+        toggle_connection = true;
         lv_obj_set_style_bg_img_src(home_appScreen, &img_main2_bg, 0);
         obj_img_1 = lv_obj_create(home_appScreen);
         lv_obj_set_size(obj_img_1, 45, 45);
@@ -357,8 +359,8 @@ namespace theme_spartan
         lv_label_set_text(lbl_year, "");
         lv_obj_set_style_text_font(lbl_year, &lv_font_montserrat_20, 0);
         lv_obj_set_style_text_color(lbl_year, lv_color_hex(0x3c3c3c), 0);
-        lv_obj_set_pos(lbl_year, 22, 17);
-        lv_obj_set_width(lbl_year, 80);
+        lv_obj_set_pos(lbl_year, 12, 17);
+        lv_obj_set_width(lbl_year, 100);
         lv_obj_set_style_text_align(lbl_year, LV_TEXT_ALIGN_CENTER, 0);
         img_am = lv_img_create(home_appScreen);
         //lv_img_set_src(img_am, &img_am2);
