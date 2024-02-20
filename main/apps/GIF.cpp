@@ -44,6 +44,7 @@ bool show_gif(const char *path)
         hal.LOCKLV();
         fclose(f);
         lv_obj_invalidate(lv_scr_act());
+        last_roll_time = 0;
         return true;
     }
     if (gif)
@@ -99,7 +100,6 @@ void AppGIF::setup()
     hal.UNLOCKLV();
     update_list("/littlefs");
     last_roll_time = 0;
-    gif_list_idx = 0;
 }
 void AppGIF::loop()
 {
