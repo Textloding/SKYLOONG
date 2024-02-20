@@ -108,6 +108,15 @@ void AppSettings::setup()
         if (e->code == LV_EVENT_CLICKED)
             rechoose_wifi = true; });
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    o = create_settings_switch(_appScreen, _tr(I18N_ID_BOOT_ANIMATION), _tr(I18N_ID_BOOT_ANIMATION_DESC), [](lv_event_t *e)
+                               {
+            if (e->code == LV_EVENT_VALUE_CHANGED)
+                hal.config_bootanimation = lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED); });
+    if (hal.config_bootanimation)
+        lv_obj_add_state(o, LV_STATE_CHECKED);
+    else
+        lv_obj_clear_state(o, LV_STATE_CHECKED);
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     o = create_settings_switch(_appScreen, _tr(I18N_ID_12HR), _tr(I18N_ID_12HR_DESC), [](lv_event_t *e)
                                {
             if (e->code == LV_EVENT_VALUE_CHANGED)
@@ -154,7 +163,14 @@ void AppSettings::setup()
                 {
                     hal.config_theme = lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e));
                 } });
-    lv_dropdown_set_selected(o, hal.config_theme);
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    o = create_settings_list(_appScreen, _tr(I18N_ID_ROLL_TIME), _tr(I18N_ID_ROLL_TIME_DESC), "2s\n3s\n4s\n5s\n6s\n7s\n8s\n9s\n10s\n11s\n12s\n13s\n14s\n15s", [](lv_event_t *e)
+                             {
+                if (e->code == LV_EVENT_VALUE_CHANGED)
+                {
+                    hal.config_time_roll = (lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e)) + 2) * 1000;
+                } });
+    lv_dropdown_set_selected(o, hal.config_time_roll / 1000 - 2);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     o = create_settings_list(_appScreen, "Language", "修改语言", "中文\nEnglish", [](lv_event_t *e)
                              {
@@ -269,6 +285,8 @@ void AppSettings::destroy()
     WiFiMgr.disconnect();
     hal.pref.putUInt("bright", hal._brightness);
     hal.pref.putBool("12hr", hal.config_time_12hr);
+    hal.pref.putBool("s_b_a", hal.config_bootanimation);
+    hal.pref.putInt("t_r", hal.config_time_roll);
     hal.pref.putInt("theme", hal.config_theme);
     hal.pref.putUInt("lang", i18n::getLanguage());
     hal.pref.putInt("ntp", i18n::getNTPOffset());

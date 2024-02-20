@@ -79,6 +79,7 @@ public:
     bool lv_has_kb = false;                 // 是否当前显示了键盘控件，用于选择发送key的类型
     bool server_started = false;            // 是否已经启动了网页服务器
     bool config_time_12hr = false;
+    bool config_bootanimation = true;
     uint8_t config_theme = 0;
     uint32_t config_time_roll = 5000;
     SemaphoreHandle_t _mutex;

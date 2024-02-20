@@ -110,7 +110,8 @@ extern "C" void app_main()
     // 开机动画
     if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_UNDEFINED)
     {
-        videoPlayer.playBuffer(__boot_mpeg, sizeof(__boot_mpeg));
+        if(hal.config_bootanimation)
+            videoPlayer.playBuffer(__boot_mpeg, sizeof(__boot_mpeg));
     }
     protocol_init();
     xTaskCreatePinnedToCore(task_lvgl_update, "lvgl_update", 1024 * 6, NULL, 1, NULL, 1);

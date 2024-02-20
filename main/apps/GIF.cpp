@@ -50,9 +50,11 @@ bool show_gif(const char *path)
     {
         lv_obj_fade_out(gif, 1000, 0);
         lv_obj_del_delayed(gif, 1000);
+        gif = NULL;
     }
-    if (strstr(path, ".jpg") != NULL || strstr(path, ".png") != NULL)
+    if (strstr(path, ".jpg") != NULL || strstr(path, ".jpeg") != NULL || strstr(path, ".png") != NULL)
     {
+        ESP_LOGI("GIF", "Playing image %s", path);
         gif = lv_img_create(_appScreen_1);
         lv_img_set_src(gif, path);
         lv_obj_center(gif);

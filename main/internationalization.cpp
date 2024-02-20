@@ -58,6 +58,8 @@ const char *i18n_dict[][2] = {
     {"修改主题", "Change themes"},
     {"默认\n斯巴达勇士\n九尾狐", "Default\nSpartan\nFox"},
     {"检测到RTC断电", "RTC shutdown detected"},
+    {"图片轮播间隔", "Image rolling interval"},
+    {"设置图片轮播间隔，视频不受影响", "Set image rolling interval"},
 };
 static time_t offset = 3600 * 8;
 time_t i18n::getNTPOffset()
