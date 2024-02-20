@@ -264,7 +264,7 @@ void AppSettings::loop()
 
 void AppSettings::destroy()
 {
-    if (hal.server_started == false)
+    if (hal.server_started)
         hal.send_sysctl(EVENT_SERVERCTL, 0);
     WiFiMgr.disconnect();
     hal.pref.putUInt("bright", hal._brightness);

@@ -68,3 +68,4 @@ namespace i18n
 #define I18N_ID_THEME 53
 #define I18N_ID_CHANGE_THEME 54
 #define I18N_ID_THEME_LIST 55
+#define I18N_ID_RTC_SHUTDOWN 56

@@ -115,6 +115,11 @@ extern "C" void app_main()
     protocol_init();
     xTaskCreatePinnedToCore(task_lvgl_update, "lvgl_update", 1024 * 6, NULL, 1, NULL, 1);
     xTaskCreatePinnedToCore(debug_USB_UART, "debug_USB_UART", 1024 * 4, NULL, 6, NULL, 1);
+    if(DS1302_isHalted(&hal.rtc)){
+        DS1302_halt(&hal.rtc, false);
+        GUI::toast(_tr(I18N_ID_RTC_SHUTDOWN), true, 10000);
+    }
     appManagerLite.init(last_appid);
+    vTaskDelete(NULL);
     vTaskDelay(portMAX_DELAY);
 }

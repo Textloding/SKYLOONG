@@ -57,6 +57,7 @@ const char *i18n_dict[][2] = {
     {"主题", "Themes"},
     {"修改主题", "Change themes"},
     {"默认\n斯巴达勇士\n九尾狐", "Default\nSpartan\nFox"},
+    {"检测到RTC断电", "RTC shutdown detected"},
 };
 static time_t offset = 3600 * 8;
 time_t i18n::getNTPOffset()

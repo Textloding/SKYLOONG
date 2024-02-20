@@ -43,7 +43,7 @@ class AppSettings : public BaseApp
 public:
     void init()
     {
-        appid = 3;
+        appid = 50;
     }
     void setup();
     void loop();

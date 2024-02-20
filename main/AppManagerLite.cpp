@@ -34,7 +34,7 @@ void task_app_loop(void *p)
     }
 }
 static uint32_t last_switch_millis = 0;
-static uint8_t last_overflow_appid = 1;
+static uint8_t last_overflow_appid = 1;     // 上次保存的appid
 void task_app_switch(void *p)
 {
     while (1)
@@ -69,7 +69,7 @@ void AppManagerLite::init(const uint32_t lastAppid)
                     {
                         if (millis() - last_switch_millis > 30000)
                         {
-                            if (last_overflow_appid != last_appid && last_appid != 50)
+                            if ((last_overflow_appid != last_appid) && (last_appid != 50))
                             {
                                 last_overflow_appid = last_appid;
                                 hal.pref.putInt("last_appid", last_appid);

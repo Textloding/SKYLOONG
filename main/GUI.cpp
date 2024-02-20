@@ -31,7 +31,7 @@ static void toast_anim_out(lv_obj_t *obj)
     lv_anim_start(&a);
 }
 
-static void toast_anim_in(lv_obj_t *obj)
+static void toast_anim_in(lv_obj_t *obj, uint32_t delay)
 {
     lv_anim_t a;
     uint16_t p;
@@ -60,7 +60,7 @@ static void toast_anim_in(lv_obj_t *obj)
     lv_anim_start(&a);
 }
 
-void GUI::toast(const char *str, bool lock)
+void GUI::toast(const char *str, bool lock, uint32_t delay)
 {
     if (str == NULL)
         return;
@@ -68,6 +68,8 @@ void GUI::toast(const char *str, bool lock)
         return;
     if (lock)
         hal.LOCKLV();
+    if(delay == 0)
+        delay = TOAST_DISPLAY_TIME;
     if (lv_obj_is_valid(last_toast))
     {
         toast_anim_out(last_toast);
@@ -88,7 +90,7 @@ void GUI::toast(const char *str, bool lock)
     lv_obj_set_style_text_font(lbl, &lv_font_chinese_16, false);
     lv_obj_clear_flag(obj_toast, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_CLICK_FOCUSABLE);
     lv_obj_align(obj_toast, LV_ALIGN_BOTTOM_MID, 0, -(screenHeight / 4));
-    toast_anim_in(obj_toast);
+    toast_anim_in(obj_toast,delay);
     last_toast = obj_toast;
     if (lock)
         hal.UNLOCKLV();

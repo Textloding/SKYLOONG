@@ -44,7 +44,7 @@ void lv_obj_move_anim(lv_obj_t *obj, int16_t x, int16_t y,
                       uint16_t time = 500, uint16_t waitBeforeStart = 0);
 namespace GUI
 {
-    void toast(const char *str, bool lock = true);
+    void toast(const char *str, bool lock = true, uint32_t delay = 0);
 }
 
 class VideoPlayer

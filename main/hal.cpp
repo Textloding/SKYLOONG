@@ -887,6 +887,8 @@ void handleJson()
 
 void HAL::start_webserver()
 {
+    if(webserver_task != NULL)
+        return;
     if (WiFi.getMode() == WIFI_OFF)
     {
         WiFi.softAP("GKScreen");
@@ -936,6 +938,8 @@ void HAL::start_webserver()
 
 void HAL::stop_webserver()
 {
+    if(webserver_task == NULL)
+        return;
     server.stop();
     if (WiFi.getMode() == WIFI_AP)
     {
