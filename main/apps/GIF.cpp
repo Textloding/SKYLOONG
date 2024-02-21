@@ -62,6 +62,15 @@ bool show_gif(const char *path)
         lv_obj_fade_in(gif, 1000, 0);
         return true;
     }
+    else if(strstr(path, ".gif") != NULL)
+    {
+        ESP_LOGI("GIF", "Playing gif %s", path);
+        gif = lv_gif_create(_appScreen_1);
+        lv_gif_set_src(gif, path);
+        lv_obj_center(gif);
+        lv_obj_fade_in(gif, 1000, 0);
+        return true;
+    }
     return false;
 }
 void update_list(const char *basePath)

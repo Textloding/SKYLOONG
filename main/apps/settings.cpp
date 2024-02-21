@@ -163,6 +163,7 @@ void AppSettings::setup()
                 {
                     hal.config_theme = lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e));
                 } });
+    lv_dropdown_set_selected(o, hal.config_theme);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     o = create_settings_list(_appScreen, _tr(I18N_ID_ROLL_TIME), _tr(I18N_ID_ROLL_TIME_DESC), "2s\n3s\n4s\n5s\n6s\n7s\n8s\n9s\n10s\n11s\n12s\n13s\n14s\n15s", [](lv_event_t *e)
                              {
