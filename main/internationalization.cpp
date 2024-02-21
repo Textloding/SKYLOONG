@@ -60,6 +60,7 @@ const char *i18n_dict[][2] = {
     {"检测到RTC断电", "RTC shutdown detected"},
     {"图片轮播间隔", "Image rolling interval"},
     {"设置图片轮播间隔，视频不受影响", "Set image rolling interval"},
+    {"Web服务器在后台运行", "Webserver still running"},
 };
 static time_t offset = 3600 * 8;
 time_t i18n::getNTPOffset()

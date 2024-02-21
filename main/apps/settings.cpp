@@ -142,6 +142,10 @@ void AppSettings::setup()
             }
         } });
     lv_obj_add_flag(btn_server, LV_OBJ_FLAG_CHECKABLE);
+    if(hal.server_started)
+    {
+        lv_obj_add_state(btn_server, LV_STATE_CHECKED);
+    }
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     create_settings_button(_appScreen, _tr(I18N_ID_SYNC_TIME), _tr(I18N_ID_SYNC_TIME_DESC), _tr(I18N_ID_SYNC), [](lv_event_t *e)
                            {
@@ -282,8 +286,9 @@ void AppSettings::loop()
 void AppSettings::destroy()
 {
     if (hal.server_started)
-        hal.send_sysctl(EVENT_SERVERCTL, 0);
-    WiFiMgr.disconnect();
+    {
+        GUI::toast(_tr(I18N_ID_WEBSERVER_RUNNING_BACKGROUND));
+    }
     hal.pref.putUInt("bright", hal._brightness);
     hal.pref.putBool("12hr", hal.config_time_12hr);
     hal.pref.putBool("s_b_a", hal.config_bootanimation);
