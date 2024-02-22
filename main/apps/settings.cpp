@@ -91,8 +91,10 @@ void create_settings_slider(lv_obj_t *_appScreen, const char *title, lv_event_cb
 }
 static bool ntp_req = false;
 static bool rechoose_wifi = false;
+static bool update_req = false;
 static int factory_reset_count = 20;
 static uint32_t factory_reset_millis_last = 0;
+static lv_obj_t *ota_update_btn = NULL;
 static lv_obj_t *factory_reset_btn = NULL;
 static lv_obj_t *btn_server = NULL;
 void AppSettings::setup()
@@ -142,7 +144,7 @@ void AppSettings::setup()
             }
         } });
     lv_obj_add_flag(btn_server, LV_OBJ_FLAG_CHECKABLE);
-    if(hal.server_started)
+    if (hal.server_started)
     {
         lv_obj_add_state(btn_server, LV_STATE_CHECKED);
     }
@@ -200,6 +202,13 @@ void AppSettings::setup()
         lv_dropdown_set_selected(o, t);
     }
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ota_update_btn = create_settings_button(_appScreen, "OTA", "进行OTA更新", "检查更新", [](lv_event_t *e)
+                                            {
+            if (e->code == LV_EVENT_CLICKED)
+            {
+                update_req = true;
+            } });
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     factory_reset_btn = create_settings_button(_appScreen, _tr(I18N_ID_FACTORY_RESET), _tr(I18N_ID_FACTORY_RESET_DESC), _tr(I18N_ID_FACTORY_RESET_BTN), [](lv_event_t *e)
                                                {
             if (e->code == LV_EVENT_CLICKED)
@@ -216,6 +225,7 @@ void AppSettings::setup()
                 }
             } });
     lv_obj_add_state(factory_reset_btn, LV_STATE_CHECKED);
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     o = lv_label_create(_appScreen);
     lv_label_set_text(o, FIRMWARE_VERSION);
     lv_obj_set_style_text_color(o, lv_palette_main(LV_PALETTE_GREY), 0);
@@ -231,7 +241,20 @@ void AppSettings::setup()
 }
 
 #include "nvs_flash.h"
+#include <HTTPClient.h>
+#include <HTTPUpdate.h>
+#include "cJSON.h"
+#define REMOTE_UPDATE_URL "http://cloudmouse.oss-cn-beijing.aliyuncs.com/FWFile/666888%2Fupdate.json"
+String update_bin_url = "";
+int update_version_int = 0;
+String update_version_str = "";
 uint32_t last_millis = 0;
+HTTPClient http;
+lv_obj_t *scr_update_ui;
+lv_obj_t *lbl_update_info;
+lv_obj_t *progress_update;
+lv_obj_t *lbl_update_progress;
+
 void AppSettings::loop()
 {
     if (millis() - last_millis > 300)
@@ -249,7 +272,7 @@ void AppSettings::loop()
             lv_label_set_text(lv_obj_get_child(btn_server, 0), _tr(I18N_ID_START));
         }
     }
-    if(rechoose_wifi)
+    if (rechoose_wifi)
     {
         WiFiMgr.requireWiFi(true);
         rechoose_wifi = false;
@@ -280,6 +303,109 @@ void AppSettings::loop()
         nvs_flash_erase();
         LittleFS.format();
         ESP.restart();
+    }
+    if (update_req)
+    {
+        if (WiFiMgr.requireWiFi())
+        {
+            WiFiClient client;
+            if (lv_obj_has_state(ota_update_btn, LV_STATE_CHECKED) == true && update_bin_url.length() > 4)
+            {
+                scr_update_ui = lv_obj_create(NULL);
+                lv_obj_set_style_text_font(scr_update_ui, &lv_font_chinese_16, 0);
+                lbl_update_info = lv_label_create(scr_update_ui);
+                lv_label_set_text(lbl_update_info, "正在更新...\n如需取消更新，请在进度达到95%之前\n关闭设备电源");
+                lv_obj_set_width(lbl_update_info, lv_pct(80));
+                lv_obj_align(lbl_update_info, LV_ALIGN_TOP_MID, 0, 20);
+                lv_obj_set_style_text_align(lbl_update_info, LV_TEXT_ALIGN_CENTER, 0);
+                lv_label_set_long_mode(lbl_update_info, LV_LABEL_LONG_WRAP);
+                progress_update = lv_bar_create(scr_update_ui);
+                lv_obj_set_width(progress_update, lv_pct(80));
+                lv_obj_align(progress_update, LV_ALIGN_BOTTOM_MID, 0, -60);
+                lv_obj_set_style_opa(progress_update, LV_OPA_0, LV_PART_KNOB);
+                lv_bar_set_value(progress_update, 0, LV_ANIM_OFF);
+                lv_bar_set_range(progress_update, 0, 100);
+                lbl_update_progress = lv_label_create(scr_update_ui);
+                lv_label_set_text(lbl_update_progress, "准备中");
+                lv_obj_align(lbl_update_progress, LV_ALIGN_BOTTOM_MID, 0, -30);
+                lv_obj_set_style_text_align(lbl_update_progress, LV_TEXT_ALIGN_CENTER, 0);
+                lv_scr_load_anim(scr_update_ui, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, true);
+                httpUpdate.onStart([]
+                                   { lv_label_set_text_fmt(lbl_update_progress, "OTA更新已启动"); });
+                httpUpdate.onEnd([]
+                                 { lv_label_set_text_fmt(lbl_update_progress, "OTA更新完成"); vTaskDelay(2000); });
+                httpUpdate.onProgress([](int cur, int total)
+                                      {
+                    lv_bar_set_value(progress_update, (int)(cur * 100 / total), LV_ANIM_OFF);
+                    lv_label_set_text_fmt(lbl_update_progress, "%d%%", (int)(cur * 100 / total)); });
+                httpUpdate.onError([](int err)
+                                   {
+                    GUI::toast("OTA更新失败");
+                    ESP_LOGE("OTA", "HTTP update failed with error %d", err);
+                    vTaskDelay(5000);
+                    ESP.restart(); });
+                t_httpUpdate_return ret = httpUpdate.update(client, update_bin_url);
+                switch (ret)
+                {
+                case HTTP_UPDATE_FAILED:
+                    ESP_LOGE("OTA", "HTTP_UPDATE_FAILED Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+                    break;
+
+                case HTTP_UPDATE_NO_UPDATES:
+                    ESP_LOGE("OTA", "HTTP_UPDATE_NO_UPDATES");
+                    break;
+
+                case HTTP_UPDATE_OK:
+                    ESP_LOGE("OTA", "HTTP_UPDATE_OK");
+                    break;
+                }
+                vTaskDelay(5000);
+                ESP.restart();
+            }
+            else
+            {
+                // 读取远程更新信息
+                http.begin(REMOTE_UPDATE_URL);
+                int httpCode = http.GET();
+                if (httpCode == 200)
+                {
+                    String payload = http.getString();
+                    cJSON *root = cJSON_Parse(payload.c_str());
+                    cJSON *version = cJSON_GetObjectItem(root, "version");
+                    cJSON *version_int = cJSON_GetObjectItem(root, "version_int");
+                    cJSON *url = cJSON_GetObjectItem(root, "url");
+                    update_version_int = version_int->valueint;
+                    update_version_str = version->valuestring;
+                    update_bin_url = url->valuestring;
+                    if (update_bin_url.length() > 0)
+                    {
+                        if (FIRMWARE_VERSION_INT < update_version_int)
+                        {
+                            ESP_LOGI("OTA", "New version %d", update_version_int);
+                            ESP_LOGI("OTA", "%s", update_version_str.c_str());
+                            ESP_LOGI("OTA", "Start updating firmware from %s", update_bin_url.c_str());
+                            GUI::toast("发现新版本");
+                            lv_obj_add_state(ota_update_btn, LV_STATE_CHECKED);
+                            lv_label_set_text(lv_obj_get_child(ota_update_btn, 0), "立即更新");
+                        }
+                        else
+                        {
+                            GUI::toast("已经是最新版本");
+                        }
+                    }
+                    else
+                    {
+                        GUI::toast("内部错误");
+                    }
+                }
+                else
+                {
+                    GUI::toast("无法连接服务器");
+                }
+                http.end();
+            }
+        }
+        update_req = false;
     }
 }
 

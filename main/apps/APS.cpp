@@ -5,10 +5,10 @@
 extern "C" const lv_img_dsc_t img_APS;
 
 lv_obj_t *chart_aps = NULL;
-lv_chart_series_t* ser1 = NULL;
-lv_obj_t* lbl_aps = NULL;
-lv_obj_t* lbl_apm = NULL;
-lv_obj_t* lbl_keyN = NULL;
+lv_chart_series_t *ser1 = NULL;
+lv_obj_t *lbl_aps = NULL;
+lv_obj_t *lbl_apm = NULL;
+lv_obj_t *lbl_keyN = NULL;
 #include <math.h>
 int key_total = 0;
 int time_cnt = 0;
@@ -16,7 +16,7 @@ void set_aps(int aps)
 {
     key_total += aps;
     time_cnt++;
-    if(key_total >= 100000)
+    if (key_total >= 100000)
     {
         key_total = 0;
         time_cnt = 1;
@@ -24,10 +24,16 @@ void set_aps(int aps)
     lv_label_set_text_fmt(lbl_aps, "%d", aps);
     lv_label_set_text_fmt(lbl_apm, "%d", key_total * 60 / time_cnt);
     lv_label_set_text_fmt(lbl_keyN, "%d", key_total);
+    if (time_cnt < 10)
+        lv_chart_set_update_mode(chart_aps, LV_CHART_UPDATE_MODE_CIRCULAR);
+    else
+        lv_chart_set_update_mode(chart_aps, LV_CHART_UPDATE_MODE_SHIFT);
     lv_chart_set_next_value(chart_aps, ser1, (int)(log10(aps) * 100));
 }
 void AppAPS::setup()
 {
+    time_cnt = 0;
+    key_total = 0;
     hal.LOCKLV();
     lv_obj_set_style_bg_img_src(_appScreen, &img_APS, 0);
     lbl_aps = lv_label_create(_appScreen);
@@ -57,20 +63,19 @@ void AppAPS::setup()
     lv_obj_set_style_line_opa(chart_aps, LV_OPA_0, 0);
     lv_obj_set_pos(chart_aps, 39, 52);
     lv_obj_set_size(chart_aps, 193, 151);
-    lv_chart_set_type(chart_aps, LV_CHART_TYPE_LINE);   
+    lv_chart_set_type(chart_aps, LV_CHART_TYPE_LINE);
     ser1 = lv_chart_add_series(chart_aps, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
     lv_obj_set_style_pad_all(chart_aps, 0, 0);
-    lv_chart_set_update_mode(chart_aps, LV_CHART_UPDATE_MODE_SHIFT);
     lv_chart_set_range(chart_aps, LV_CHART_AXIS_PRIMARY_Y, 0, 247);
     hal.UNLOCKLV();
 }
 
 void AppAPS::loop()
 {
-    if(hal.APMChanged)
+    if (hal.APMChanged)
     {
         hal.APMChanged = false;
-        if(hal.APM != 0)
+        if (hal.APM != 0)
             set_aps(hal.APM);
     }
 }
