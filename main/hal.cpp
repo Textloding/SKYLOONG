@@ -736,12 +736,10 @@ void handleTime()
 //////////////////////////////////主页APP JSON处理
 #include <cJSON.h>
 
-static char jsonbuffer[2048];
-const char default_app_setting[] = "[{\"widget\":1,\"time12\":false,\"bg\":false},{\"widget\":1,\"data\":0,\"showlbl\":true,\"lbl\":\"标题\",\"showindicator\":true,\"ext_host\":\"192.168.1.2\",\"ext_port\":9564,\"ext_interval\":200,\"ext_interpolation\":20,\"ext_zoom\":0.69},{\"widget\":0,\"data\":2,\"showlbl\":true,\"lbl\":\"APS\",\"showindicator\":true,\"ext_host\":\"192.168.1.2\",\"ext_port\":9564,\"ext_interval\":500,\"ext_interpolation\":40,\"ext_zoom\":0.05},{\"ip\":\"192.168.1.2\",\"port\":1648}]";
+static char jsonbuffer[1024];
+const char default_app_setting[] = "{\"ip\":\"192.168.1.1\",\"port\":1648,\"weather\":\"\",\"city\":\"北京\"}";
 
-char app_settings_remote_ip[16];
-uint16_t app_settings_remote_port;
-struct app_setting app_settings_save[3];
+struct app_setting app_settings_save;
 
 void parseAppSettings(const char *input)
 {
@@ -752,84 +750,28 @@ void parseAppSettings(const char *input)
         cJSON_Delete(root);
         root = cJSON_Parse(default_app_setting);
     }
-    cJSON *item = cJSON_GetArrayItem(root, 0);
-    app_settings_save[0].widget = cJSON_GetObjectItem(item, "widget")->valueint;
-    hal.config_time_12hr = cJSON_GetObjectItem(item, "time12")->valueint;
-    app_settings_save[0].bg = cJSON_GetObjectItem(item, "bg")->valueint;
-    item = cJSON_GetArrayItem(root, 1);
-    app_settings_save[1].widget = cJSON_GetObjectItem(item, "widget")->valueint;
-    app_settings_save[1].data = cJSON_GetObjectItem(item, "data")->valueint;
-    strncpy(app_settings_save[1].ext_host, cJSON_GetObjectItem(item, "ext_host")->valuestring, 64);
-    app_settings_save[1].ext_port = cJSON_GetObjectItem(item, "ext_port")->valueint;
-    app_settings_save[1].ext_interval = cJSON_GetObjectItem(item, "ext_interval")->valueint;
-    app_settings_save[1].ext_interpolation = cJSON_GetObjectItem(item, "ext_interpolation")->valueint;
-    app_settings_save[1].ext_zoom = cJSON_GetObjectItem(item, "ext_zoom")->valuedouble;
-    app_settings_save[1].showlbl = cJSON_GetObjectItem(item, "showlbl")->valueint;
-    strncpy(app_settings_save[1].lbl, cJSON_GetObjectItem(item, "lbl")->valuestring, 128);
-    app_settings_save[1].showindicator = cJSON_GetObjectItem(item, "showindicator")->valueint;
-    item = cJSON_GetArrayItem(root, 2);
-    app_settings_save[2].widget = cJSON_GetObjectItem(item, "widget")->valueint;
-    app_settings_save[2].data = cJSON_GetObjectItem(item, "data")->valueint;
-    strncpy(app_settings_save[2].ext_host, cJSON_GetObjectItem(item, "ext_host")->valuestring, 64);
-    app_settings_save[2].ext_port = cJSON_GetObjectItem(item, "ext_port")->valueint;
-    app_settings_save[2].ext_interval = cJSON_GetObjectItem(item, "ext_interval")->valueint;
-    app_settings_save[2].ext_interpolation = cJSON_GetObjectItem(item, "ext_interpolation")->valueint;
-    app_settings_save[2].ext_zoom = cJSON_GetObjectItem(item, "ext_zoom")->valuedouble;
-    app_settings_save[2].showlbl = cJSON_GetObjectItem(item, "showlbl")->valueint;
-    strncpy(app_settings_save[2].lbl, cJSON_GetObjectItem(item, "lbl")->valuestring, 128);
-    app_settings_save[2].showindicator = cJSON_GetObjectItem(item, "showindicator")->valueint;
-    item = cJSON_GetArrayItem(root, 3);
-    strncpy(app_settings_remote_ip, cJSON_GetObjectItem(item, "ip")->valuestring, 15);
-    app_settings_remote_port = cJSON_GetObjectItem(item, "port")->valueint;
+    strncpy(app_settings_save.remote_ip, cJSON_GetObjectItem(root, "ip")->valuestring, sizeof(app_settings_save.remote_ip));
+    app_settings_save.remote_port = cJSON_GetObjectItem(root, "port")->valueint;
+    strncpy(app_settings_save.weather_secret, cJSON_GetObjectItem(root, "weather")->valuestring, sizeof(app_settings_save.weather_secret) - 1);
+    strncpy(app_settings_save.weather_city, cJSON_GetObjectItem(root, "city")->valuestring, sizeof(app_settings_save.weather_city) - 1);
+    cJSON_Delete(root);
 }
 
 void appSettingsToJson(char *result)
 {
-    cJSON *root = cJSON_CreateArray();
     cJSON *item = cJSON_CreateObject();
-    cJSON_AddNumberToObject(item, "widget", app_settings_save[0].widget);
-    cJSON_AddBoolToObject(item, "time12", hal.config_time_12hr);
-    cJSON_AddBoolToObject(item, "bg", app_settings_save[0].bg);
-    cJSON_AddItemToArray(root, item);
-    item = cJSON_CreateObject();
-    cJSON_AddNumberToObject(item, "widget", app_settings_save[1].widget);
-    cJSON_AddNumberToObject(item, "data", app_settings_save[1].data);
-    cJSON_AddStringToObject(item, "ext_host", app_settings_save[1].ext_host);
-    cJSON_AddNumberToObject(item, "ext_port", app_settings_save[1].ext_port);
-    cJSON_AddNumberToObject(item, "ext_interval", app_settings_save[1].ext_interval);
-    cJSON_AddNumberToObject(item, "ext_interpolation", app_settings_save[1].ext_interpolation);
-    cJSON_AddNumberToObject(item, "ext_zoom", app_settings_save[1].ext_zoom);
-    cJSON_AddBoolToObject(item, "showlbl", app_settings_save[1].showlbl);
-    cJSON_AddStringToObject(item, "lbl", app_settings_save[1].lbl);
-    cJSON_AddBoolToObject(item, "showindicator", app_settings_save[1].showindicator);
-    cJSON_AddItemToArray(root, item);
-    item = cJSON_CreateObject();
-    cJSON_AddNumberToObject(item, "widget", app_settings_save[2].widget);
-    cJSON_AddNumberToObject(item, "data", app_settings_save[2].data);
-    cJSON_AddStringToObject(item, "ext_host", app_settings_save[2].ext_host);
-    cJSON_AddNumberToObject(item, "ext_port", app_settings_save[2].ext_port);
-    cJSON_AddNumberToObject(item, "ext_interval", app_settings_save[2].ext_interval);
-    cJSON_AddNumberToObject(item, "ext_interpolation", app_settings_save[2].ext_interpolation);
-    cJSON_AddNumberToObject(item, "ext_zoom", app_settings_save[2].ext_zoom);
-    cJSON_AddBoolToObject(item, "showlbl", app_settings_save[2].showlbl);
-    cJSON_AddStringToObject(item, "lbl", app_settings_save[2].lbl);
-    cJSON_AddBoolToObject(item, "showindicator", app_settings_save[2].showindicator);
-    cJSON_AddItemToArray(root, item);
-    item = cJSON_CreateObject();
-    cJSON_AddStringToObject(item, "ip", app_settings_remote_ip);
-    cJSON_AddNumberToObject(item, "port", app_settings_remote_port);
-    cJSON_AddItemToArray(root, item);
-    strncpy(result, cJSON_PrintUnformatted(root), 2048);
-    cJSON_Delete(root);
+    cJSON_AddStringToObject(item, "ip", app_settings_save.remote_ip);
+    cJSON_AddNumberToObject(item, "port", app_settings_save.remote_port);
+    cJSON_AddStringToObject(item, "weather", app_settings_save.weather_secret);
+    cJSON_AddStringToObject(item, "city", app_settings_save.weather_city);
+    strncpy(result, cJSON_PrintUnformatted(item), 1024);
+    cJSON_Delete(item);
 }
 
 void HAL::saveAppSettings()
 {
     File file = LittleFS.open("/.cfg.bin", "w");
     file.write((uint8_t *)&app_settings_save, sizeof(app_settings_save));
-    file.write((uint8_t *)app_settings_remote_ip, 16);
-    file.write((uint8_t *)&app_settings_remote_port, 2);
-    hal.pref.putBool("12hr", hal.config_time_12hr);
     file.close();
 }
 
@@ -838,10 +780,8 @@ void HAL::loadAppSettings()
     File file = LittleFS.open("/.cfg.bin", "r");
     if (file)
     {
-        file.read((uint8_t *)&app_settings_save, sizeof(app_settings_save));
-        file.read((uint8_t *)app_settings_remote_ip, 16);
-        int sz = file.read((uint8_t *)&app_settings_remote_port, 2);
-        if (sz != 2)
+        int sz =file.read((uint8_t *)&app_settings_save, sizeof(app_settings_save));
+        if (sz != sizeof(app_settings_save))
         {
             file.close();
             goto reset;
@@ -859,8 +799,6 @@ void HAL::loadAppSettings()
         parseAppSettings(default_app_setting);
         file = LittleFS.open("/.cfg.bin", "w");
         file.write((uint8_t *)&app_settings_save, sizeof(app_settings_save));
-        file.write((uint8_t *)app_settings_remote_ip, 16);
-        file.write((uint8_t *)&app_settings_remote_port, 2);
         file.close();
     }
 }

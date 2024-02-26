@@ -11,6 +11,7 @@ public:
     void loop();
     void destroy();
 };
+
 class AppAPS : public BaseApp
 {
 public:
@@ -35,6 +36,18 @@ public:
     void loop();
     void destroy();
     void stop(); 
+};
+
+class AppWeather : public BaseApp
+{
+public:
+    void init()
+    {
+        appid = 4;
+    }
+    void setup();
+    void loop();
+    void destroy();
 };
 
 

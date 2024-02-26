@@ -83,6 +83,7 @@ void debug_USB_UART(void *p)
 AppHome appHome;
 AppAPS appAPS;
 AppGIF appGIF;
+AppWeather appWeather;
 AppSettings appSettings;
 extern void add_to_app_list(BaseApp *app);
 uint32_t RTC_DATA_ATTR last_appid = 0;
@@ -97,10 +98,12 @@ extern "C" void app_main()
     appHome.init();
     appAPS.init();
     appGIF.init();
+    appWeather.init();
     appSettings.init();
     add_to_app_list(&appHome);
     add_to_app_list(&appAPS);
     add_to_app_list(&appGIF);
+    add_to_app_list(&appWeather);
     appManagerLite.appSettings = &appSettings;
     //////////////////////
     if (last_appid == 0)
