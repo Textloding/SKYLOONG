@@ -737,7 +737,7 @@ void handleTime()
 #include <cJSON.h>
 
 static char jsonbuffer[1024];
-const char default_app_setting[] = "{\"ip\":\"192.168.1.1\",\"port\":1648,\"weather\":\"\",\"city\":\"北京\"}";
+const char default_app_setting[] = "{\"ip\":\"192.168.1.1\",\"port\":1648,\"weather\":\"\",\"city\":\"北京\",\"userdata\":\"请在网页端\n自定义文本\"}";
 
 struct app_setting app_settings_save;
 
@@ -754,6 +754,7 @@ void parseAppSettings(const char *input)
     app_settings_save.remote_port = cJSON_GetObjectItem(root, "port")->valueint;
     strncpy(app_settings_save.weather_secret, cJSON_GetObjectItem(root, "weather")->valuestring, sizeof(app_settings_save.weather_secret) - 1);
     strncpy(app_settings_save.weather_city, cJSON_GetObjectItem(root, "city")->valuestring, sizeof(app_settings_save.weather_city) - 1);
+    strncpy(app_settings_save.userdata, cJSON_GetObjectItem(root, "userdata")->valuestring, sizeof(app_settings_save.userdata) - 1);
     cJSON_Delete(root);
 }
 
@@ -764,6 +765,7 @@ void appSettingsToJson(char *result)
     cJSON_AddNumberToObject(item, "port", app_settings_save.remote_port);
     cJSON_AddStringToObject(item, "weather", app_settings_save.weather_secret);
     cJSON_AddStringToObject(item, "city", app_settings_save.weather_city);
+    cJSON_AddStringToObject(item, "userdata", app_settings_save.userdata);
     strncpy(result, cJSON_PrintUnformatted(item), 1024);
     cJSON_Delete(item);
 }

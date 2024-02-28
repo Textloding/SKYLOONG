@@ -50,6 +50,18 @@ public:
     void destroy();
 };
 
+class AppSysinfo : public BaseApp
+{
+public:
+    void init()
+    {
+        appid = 5;
+    }
+    void setup();
+    void loop();
+    void destroy();
+};
+
 
 class AppSettings : public BaseApp
 {

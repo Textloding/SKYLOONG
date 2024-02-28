@@ -84,6 +84,7 @@ AppHome appHome;
 AppAPS appAPS;
 AppGIF appGIF;
 AppWeather appWeather;
+AppSysinfo appSysinfo;
 AppSettings appSettings;
 extern void add_to_app_list(BaseApp *app);
 uint32_t RTC_DATA_ATTR last_appid = 0;
@@ -99,11 +100,13 @@ extern "C" void app_main()
     appAPS.init();
     appGIF.init();
     appWeather.init();
+    appSysinfo.init();
     appSettings.init();
     add_to_app_list(&appHome);
     add_to_app_list(&appAPS);
     add_to_app_list(&appGIF);
     add_to_app_list(&appWeather);
+    add_to_app_list(&appSysinfo);
     appManagerLite.appSettings = &appSettings;
     //////////////////////
     if (last_appid == 0)

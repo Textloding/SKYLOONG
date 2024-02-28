@@ -54,6 +54,7 @@ struct app_setting
     uint16_t remote_port;
     char weather_secret[64];
     char weather_city[64];
+    char userdata[256];
 };
 extern struct app_setting app_settings_save;
 class HAL

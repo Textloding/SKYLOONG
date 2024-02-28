@@ -345,6 +345,8 @@ bool getWeather()
 
 static uint32_t last_millis = 0;
 bool first_update = false;
+bool loadWeather = false;
+uint8_t weather_update_cnt = 0;
 void AppWeather::setup()
 {
     apikey = app_settings_save.weather_secret;
@@ -418,6 +420,21 @@ void AppWeather::setup()
     lv_obj_set_size(lbl_lifeIndex_car, 70, 20);
     lv_obj_set_style_text_align(lbl_lifeIndex_car, LV_TEXT_ALIGN_CENTER, 0);
     hal.UNLOCKLV();
+    if (loadWeather == false)
+    {
+        File f = LittleFS.open(".weather", "r");
+        if (f)
+        {
+            if (f.readBytes((char *)&weatherData, sizeof(weatherData)) == sizeof(weatherData))
+            {
+                hal.LOCKLV();
+                updateWeather();
+                hal.LOCKLV();
+            }
+            f.close();
+        }
+        loadWeather = true;
+    }
     last_millis = millis();
     GUI::toast("5秒后获取天气");
     first_update = false;
@@ -426,11 +443,11 @@ static bool connectToWiFi()
 {
     if (WiFi.status() != WL_CONNECTED)
     {
-        GUI::toast("连接WiFi");
+        GUI::toast(_tr(I18N_ID_CONNECTING));
         WiFi.begin();
         if (WiFi.waitForConnectResult() != WL_CONNECTED)
         {
-            GUI::toast("连接失败");
+            GUI::toast(_tr(I18N_ID_CONNECT_FAILED));
             return false;
         }
     }
@@ -453,6 +470,13 @@ void AppWeather::loop()
             hal.LOCKLV();
             updateWeather();
             hal.UNLOCKLV();
+            ++weather_update_cnt;
+            if (weather_update_cnt % 5 == 0)
+            {
+                File f = LittleFS.open(".weather", "w");
+                f.write((const uint8_t *)&weatherData, sizeof(weatherData));
+                f.close();
+            }
         }
     }
 }

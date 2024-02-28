@@ -151,23 +151,30 @@
                 <div class="col globalContainer alert-primary shadow-4">
                     <h5> 主机IP，用于配置硬件信息显示屏</h5>
                     <div class="form-outline" data-mdb-input-init>
-                        <input type="text" id="form_ipAddress" class="form-control" maxlength="63"/>
+                        <input type="text" id="form_ipAddress" class="form-control" maxlength="63" />
                         <label class="form-label" for="form_ipAddress">IP地址</label>
                     </div>
                     <h5> 服务端口</h5>
                     <div class="form-outline" data-mdb-input-init>
-                        <input type="number" id="form_port" class="form-control" maxlength="5"/>
+                        <input type="number" id="form_port" class="form-control" maxlength="5" />
                         <label class="form-label" for="form_port">端口</label>
+                    </div>
+                    <h5> 自定义标题</h5>
+                    <div class="form-outline" data-mdb-input-init>
+                        <textarea class="form-control" id="form_Userdata" rows="4"></textarea>
+                        <label class="form-label" for="form_Userdata">自定义标题</label>
                     </div>
                     <hr />
                     <h5> 天气API</h5>
                     <div class="form-outline" data-mdb-input-init>
-                        <input type="password" id="typePassword" class="form-control" maxlength="63"/>
+                        <input type="password" id="typePassword" class="form-control" maxlength="63" />
                         <label class="form-label" for="typePassword">心知天气API私钥</label>
                     </div>
-                    <h5>天气地点 location <a href="https://docs.seniverse.com/api/start/common.html#%E5%9C%B0%E7%82%B9-location" target="_blank">点此查看填写说明</a></h5>
+                    <h5>天气地点 location <a
+                            href="https://docs.seniverse.com/api/start/common.html#%E5%9C%B0%E7%82%B9-location"
+                            target="_blank">点此查看填写说明</a></h5>
                     <div class="form-outline" data-mdb-input-init>
-                        <input type="text" id="form_city" class="form-control" maxlength="63"/>
+                        <input type="text" id="form_city" class="form-control" maxlength="63" />
                         <label class="form-label" for="form_city">天气城市</label>
                     </div>
                     <hr />
@@ -208,10 +215,14 @@
                         document.getElementById('form_port').value = data["port"];
                         document.getElementById('typePassword').value = data["weather"];
                         document.getElementById('form_city').value = data["city"];
+                        document.getElementById('form_Userdata').value = data["userdata"];
                         document.getElementById('form_ipAddress').classList.add('active');
                         document.getElementById('form_port').classList.add('active');
-                        document.getElementById('typePassword').classList.add('active');
+                        if (document.getElementById('form_Userdata').value != "") {
+                            document.getElementById('typePassword').classList.add('active');
+                        }
                         document.getElementById('form_city').classList.add('active');
+                        document.getElementById('form_Userdata').classList.add('active');
                         displayJson(0, "已获取设置");
                     }
                 };
@@ -230,7 +241,8 @@
                     "ip": document.getElementById('form_ipAddress').value,
                     "port": Number(document.getElementById('form_port').value),
                     "weather": document.getElementById('typePassword').value,
-                    "city": document.getElementById('form_city').value
+                    "city": document.getElementById('form_city').value,
+                    "userdata": document.getElementById('form_Userdata').value
                 };
                 xhr.send(JSON.stringify(data));
             }
