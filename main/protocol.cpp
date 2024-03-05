@@ -108,6 +108,7 @@ void parasePkt(protocol_t *pkt)
         switch (data)
         {
         case 0xA0: // 进入编辑模式（右下角两个同时长按）
+        case 0xBB:
             in_setting_mode = !in_setting_mode;
             if (in_setting_mode)
                 hal.send_sysctl(EVENT_GOTO_SETTING);
