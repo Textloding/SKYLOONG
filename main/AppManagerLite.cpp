@@ -67,7 +67,7 @@ void AppManagerLite::init(const uint32_t lastAppid)
                 {
                     while(1)
                     {
-                        if (millis() - last_switch_millis > 30000)
+                        if (millis() - last_switch_millis > 5000)
                         {
                             if ((last_overflow_appid != last_appid) && (last_appid != 50))
                             {

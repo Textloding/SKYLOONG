@@ -34,19 +34,13 @@ void debug_USB_UART(void *p)
                 hal.send_sysctl(EVENT_EXIT_SETTING);
             break;
         case '\b': // BackSpace
-            //xSemaphoreGive(appManagerLite._binary_switchApp);
+            // xSemaphoreGive(appManagerLite._binary_switchApp);
             break;
         case 'a': // 方向键向左
-            if (hal.lv_has_kb == true)
                 send_data = LV_KEY_LEFT;
-            else
-                send_data = LV_KEY_PREV;
             break;
         case 'd': // 方向键向右
-            if (hal.lv_has_kb == true)
                 send_data = LV_KEY_RIGHT;
-            else
-                send_data = LV_KEY_NEXT;
             break;
         case 'w': // 方向键向上
             if (hal.lv_has_kb == true)
@@ -89,6 +83,7 @@ AppSettings appSettings;
 extern void add_to_app_list(BaseApp *app);
 uint32_t RTC_DATA_ATTR last_appid = 0;
 #include "boot_animation.h"
+#include <driver/rtc_io.h>
 extern "C" void app_main()
 {
     initArduino();
@@ -116,13 +111,15 @@ extern "C" void app_main()
     // 开机动画
     if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_UNDEFINED)
     {
-        if(hal.config_bootanimation)
+        rtc_gpio_deinit((gpio_num_t)PIN_SERIAL2_RX);
+        if (hal.config_bootanimation)
             videoPlayer.playBuffer(__boot_mpeg, sizeof(__boot_mpeg));
     }
     protocol_init();
     xTaskCreatePinnedToCore(task_lvgl_update, "lvgl_update", 1024 * 6, NULL, 1, NULL, 1);
     xTaskCreatePinnedToCore(debug_USB_UART, "debug_USB_UART", 1024 * 4, NULL, 6, NULL, 1);
-    if(DS1302_isHalted(&hal.rtc)){
+    if (DS1302_isHalted(&hal.rtc))
+    {
         DS1302_halt(&hal.rtc, false);
         GUI::toast(_tr(I18N_ID_RTC_SHUTDOWN), true, 10000);
     }

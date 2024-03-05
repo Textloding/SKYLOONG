@@ -62,6 +62,7 @@ const char *i18n_dict[][2] = {
     {"设置图片轮播间隔，视频不受影响", "Set image rolling interval"},
     {"Web服务器在后台运行", "Webserver still running"},
     {"5秒后连接WiFi", "Connecting to WiFi in 5s"},
+    {"充电中", "Charging"},
 };
 static time_t offset = 3600 * 8;
 time_t i18n::getNTPOffset()

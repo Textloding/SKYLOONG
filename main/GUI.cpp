@@ -1,8 +1,8 @@
 #include "A_Config.h"
 #include "GUI.h"
 
-#define TOAST_FADE_IN_TIME 300
-#define TOAST_FADE_OUT_TIME 300
+#define TOAST_FADE_IN_TIME 0
+#define TOAST_FADE_OUT_TIME 0
 #define TOAST_DISPLAY_TIME 2500
 #define TOAST_OPA (255)
 #define TOAST_UP_DISTANCE 16

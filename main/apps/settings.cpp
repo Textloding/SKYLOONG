@@ -415,6 +415,10 @@ void AppSettings::destroy()
     {
         GUI::toast(_tr(I18N_ID_WEBSERVER_RUNNING_BACKGROUND));
     }
+    else
+    {
+        WiFi.disconnect(true);
+    }
     hal.pref.putUInt("bright", hal._brightness);
     hal.pref.putBool("12hr", hal.config_time_12hr);
     hal.pref.putBool("s_b_a", hal.config_bootanimation);

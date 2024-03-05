@@ -140,6 +140,8 @@ void parasePkt(protocol_t *pkt)
             break;
         case 0xAE: // 菜单间切换（右下角+左上角短按）
             xSemaphoreGive(appManagerLite._binary_switchApp);
+            hal.setBrightness(hal._brightness);
+            screen_is_on = true;
             break;
         case 0xAF: // 开关屏幕（这个无论是开还是关都是一种数据，右下+左上短按）
             screen_is_on = !screen_is_on;

@@ -94,7 +94,7 @@ static void task_systemctl(void *p)
         {
             extern volatile bool _vid_stop;
             _vid_stop = true;
-            if (xSemaphoreTake(hal._mutex, 2000) == pdTRUE)
+            if (xSemaphoreTake(hal._mutex, 4000) == pdTRUE)
             {
                 if (hal.server_started == false)
                 {
@@ -449,10 +449,14 @@ void HAL::UNLOCKLV()
 {
     xSemaphoreGive(_mutex);
 }
-
+#include <esp_sleep.h>
+#include <driver/rtc_io.h>
 void HAL::goSleep()
 {
+    xSemaphoreTake(appManagerLite._mutex, 2000);
     esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_SERIAL2_RX, 0);
+    rtc_gpio_pullup_en((gpio_num_t)PIN_SERIAL2_RX);
+    rtc_gpio_hold_en((gpio_num_t)PIN_SERIAL2_RX);
     ESP_ERROR_CHECK(esp_lcd_panel_io_tx_param(io_handle, LCD_CMD_SLPIN, NULL, 0));
     delay(2);
     esp_deep_sleep_start();

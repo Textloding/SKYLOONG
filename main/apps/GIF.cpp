@@ -62,6 +62,7 @@ bool show_gif(const char *path)
         lv_obj_fade_in(gif, 1000, 0);
         return true;
     }
+    /*
     else if(strstr(path, ".gif") != NULL)
     {
         ESP_LOGI("GIF", "Playing gif %s", path);
@@ -71,6 +72,7 @@ bool show_gif(const char *path)
         lv_obj_fade_in(gif, 1000, 0);
         return true;
     }
+    */
     return false;
 }
 void update_list(const char *basePath)
@@ -128,7 +130,12 @@ void AppGIF::loop()
             if (gif_list_idx >= gif_list_size)
                 gif_list_idx = 0;
             hal.LOCKLV();
-            show_gif(gif_list.at(gif_list_idx).c_str());
+            if(show_gif(gif_list.at(gif_list_idx).c_str()) == false)
+            {
+                hal.UNLOCKLV();
+                last_roll_time = 0;
+                return;
+            }
             hal.UNLOCKLV();
         }
     }
