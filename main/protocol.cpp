@@ -100,15 +100,9 @@ void parasePkt(protocol_t *pkt)
     {
         uint8_t data = pkt->data[0];
         uint8_t send_data = 255;
-        if (in_setting_mode == false && data != 0xA0 && data != 0xAF && data != 0xAE)
-        {
-            in_setting_mode = !in_setting_mode;
-            hal.send_sysctl(EVENT_GOTO_SETTING);
-        }
         switch (data)
         {
         case 0xA0: // 进入编辑模式（右下角两个同时长按）
-        case 0xBB:
             in_setting_mode = !in_setting_mode;
             if (in_setting_mode)
                 hal.send_sysctl(EVENT_GOTO_SETTING);
@@ -116,7 +110,7 @@ void parasePkt(protocol_t *pkt)
                 hal.send_sysctl(EVENT_EXIT_SETTING);
             break;
         case 0xA1: // BackSpace
-            //xSemaphoreGive(appManagerLite._binary_switchApp);
+            // xSemaphoreGive(appManagerLite._binary_switchApp);
             break;
         case 0xA2: // 方向键向左
             send_data = LV_KEY_LEFT;
@@ -218,6 +212,7 @@ void getPkt()
     parasePkt(&pkt);
     return;
 }
+static uint32_t last_millis = 0;
 void task_protocol(void *pvParameters)
 {
     while (1)
@@ -225,8 +220,16 @@ void task_protocol(void *pvParameters)
         if (Serial2.available() == 0)
         {
             delay(50);
+            if (hal.kb_status.channel_current != 3)
+            {
+                if (millis() - last_millis > 1000 * 600)
+                {
+                    hal.goSleep();
+                }
+            }
             continue;
         }
+        last_millis = millis();
         getPkt();
         delay(1);
     }
@@ -238,4 +241,5 @@ void protocol_init()
     pinMode(PIN_SERIAL2_TX, OUTPUT);
     Serial2.begin(115200, SERIAL_8N1, PIN_SERIAL2_RX, PIN_SERIAL2_TX);
     xTaskCreatePinnedToCore(task_protocol, "task_protocol", 4096, NULL, 25, NULL, 1);
+    last_millis = millis();
 }

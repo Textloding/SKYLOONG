@@ -87,22 +87,22 @@ namespace theme_fox
         // 电池
         img_battery_frame = lv_img_create(home_appScreen);
         lv_img_set_src(img_battery_frame, &battery_frame_1);
-        lv_obj_set_pos(img_battery_frame, 190, 82);
+        lv_obj_set_pos(img_battery_frame, 195, 82);
         obj_battery_cell = lv_obj_create(home_appScreen); // 最宽38
-        lv_obj_set_pos(obj_battery_cell, 194, 85);
+        lv_obj_set_pos(obj_battery_cell, 199, 85);
         lv_obj_set_size(obj_battery_cell, 38, 10);
         lv_obj_set_style_radius(obj_battery_cell, 2, 0);
         lv_obj_clear_flag(obj_battery_cell, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_set_style_border_opa(obj_battery_cell, 0, 0);
         lv_obj_set_style_bg_color(obj_battery_cell, lv_color_hex(0xf8c163), 0);
         img_battery_charging = lv_img_create(home_appScreen);
-        lv_obj_set_pos(img_battery_charging, 180, 84);
+        lv_obj_set_pos(img_battery_charging, 185, 84);
         lv_img_set_src(img_battery_charging, &battery_charging_1);
         lv_obj_add_flag(img_battery_charging, LV_OBJ_FLAG_HIDDEN);
         lbl_battery = lv_label_create(home_appScreen);
-        lv_obj_set_pos(lbl_battery, 168, 82);
+        lv_obj_set_pos(lbl_battery, 173 - 9, 82);
         lv_obj_set_style_text_color(lbl_battery, lv_color_hex(0xf8c163), 0);
-        lv_label_set_text(lbl_battery, "--");
+        lv_label_set_text(lbl_battery, "--%");
     }
     void loop()
     {
@@ -113,21 +113,22 @@ namespace theme_fox
             {
                 lv_obj_clear_flag(img_battery_charging, LV_OBJ_FLAG_HIDDEN);
                 lv_label_set_text(lbl_battery, "");
+                lv_obj_set_width(obj_battery_cell, 38);
             }
             else
             {
                 lv_obj_add_flag(img_battery_charging, LV_OBJ_FLAG_HIDDEN);
                 if (hal.battery_pct == 100)
                 {
-                    lv_obj_set_x(lbl_battery, 168 - 5);
+                    lv_obj_set_x(lbl_battery, 173 - 9 - 5);
                 }
                 else
                 {
-                    lv_obj_set_x(lbl_battery, 168);
+                    lv_obj_set_x(lbl_battery, 173 - 9);
                 }
-                lv_label_set_text_fmt(lbl_battery, "%d", hal.battery_pct);
+                lv_label_set_text_fmt(lbl_battery, "%d%%", hal.battery_pct);
+                lv_obj_set_width(obj_battery_cell, hal.battery_pct * 38 / 100);
             }
-            lv_obj_set_width(obj_battery_cell, hal.battery_pct * 38 / 100);
         }
         if (hal.config_time_12hr)
         {
@@ -368,9 +369,9 @@ namespace theme_spartan
         lv_obj_set_style_bg_opa(obj_battery_cell, 0, 0);
         lv_obj_set_style_bg_img_src(obj_battery_cell, &battery_indicator_2, 0);
         lbl_battery = lv_label_create(home_appScreen);
-        lv_obj_set_pos(lbl_battery, 250 - 50 - 22, 58 + 5);
+        lv_obj_set_pos(lbl_battery, 250 - 50 - 22 - 9, 58 + 5);
         lv_obj_set_style_text_color(lbl_battery, lv_color_hex(0xFFFFFF), 0);
-        lv_label_set_text(lbl_battery, "98");
+        lv_label_set_text(lbl_battery, "98%");
         img_battery_bolt = lv_img_create(home_appScreen);
         lv_obj_set_pos(img_battery_bolt, 250 - 50 - 10, 58 + 5);
         lv_img_set_src(img_battery_bolt, &charge_bolt_spartan);
@@ -380,24 +381,25 @@ namespace theme_spartan
     {
         if (hal.battery_pct != 0)
         {
-            lv_obj_set_width(obj_battery_cell, hal.battery_pct * 29 / 100);
-            if (hal.battery_status == BATTERY_STATUS_NORMAL)
+            if (hal.battery_status != BATTERY_STATUS_CHARGING)
             {
                 if (hal.battery_pct == 100)
                 {
-                    lv_obj_set_x(lbl_battery, 250 - 50 - 28);
+                    lv_obj_set_x(lbl_battery, 250 - 50 - 28 - 9);
                 }
                 else
                 {
-                    lv_obj_set_x(lbl_battery, 250 - 50 - 22);
+                    lv_obj_set_x(lbl_battery, 250 - 50 - 22 - 9);
                 }
-                lv_label_set_text_fmt(lbl_battery, "%d", hal.battery_pct);
+                lv_label_set_text_fmt(lbl_battery, "%d%%", hal.battery_pct);
                 lv_obj_add_flag(img_battery_bolt, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_width(obj_battery_cell, hal.battery_pct * 29 / 100);
             }
             else
             {
                 lv_obj_clear_flag(img_battery_bolt, LV_OBJ_FLAG_HIDDEN);
                 lv_label_set_text(lbl_battery, "");
+                lv_obj_set_width(obj_battery_cell, 29);
             }
         }
         lv_img_set_src(img_2, img_2_src[hal.kb_status.channel_current]);
@@ -640,6 +642,7 @@ namespace theme_default
         {
             lv_arc_set_value(arc_battery, hal.battery_pct);
             lv_label_set_text_fmt(lbl_battery, "%d%%", hal.battery_pct);
+            lv_obj_set_style_text_font(lbl_battery, &lv_font_chinese_16, 0);
             if (hal.battery_status == BATTERY_STATUS_CHARGED)
             {
                 lv_obj_set_style_arc_color(arc_battery, lv_palette_main(LV_PALETTE_GREEN), LV_PART_INDICATOR);
@@ -648,11 +651,16 @@ namespace theme_default
             else if (hal.battery_status == BATTERY_STATUS_CHARGING)
             {
                 lv_obj_set_style_arc_color(arc_battery, lv_palette_main(LV_PALETTE_BLUE), LV_PART_INDICATOR);
-                lv_label_set_text(lbl_battery, _tr(I18N_ID_CHARGING));
+                lv_obj_set_style_text_font(lbl_battery, &lv_font_montserrat_20, 0);
+                lv_label_set_text(lbl_battery, LV_SYMBOL_CHARGE);
+                lv_arc_set_value(arc_battery, 100);
             }
             else
             {
-                lv_obj_set_style_arc_color(arc_battery, lv_palette_main(LV_PALETTE_BLUE), LV_PART_INDICATOR);
+                if(hal.battery_pct < 20)
+                    lv_obj_set_style_arc_color(arc_battery, lv_palette_main(LV_PALETTE_RED), LV_PART_INDICATOR);
+                else
+                    lv_obj_set_style_arc_color(arc_battery, lv_palette_main(LV_PALETTE_BLUE), LV_PART_INDICATOR);
             }
         }
         hal.getTime();

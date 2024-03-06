@@ -89,6 +89,7 @@ extern "C" void app_main()
     initArduino();
     psramInit();
     hal.init();
+    hal.kb_status.channel_current = 3;
     WiFiMgr.init();
     //////////////////////
     appHome.init();
