@@ -69,7 +69,7 @@ void AppManagerLite::init(const uint32_t lastAppid)
                     {
                         if (millis() - last_switch_millis > 5000)
                         {
-                            if ((last_overflow_appid != last_appid) && (last_appid != 50))
+                            if (last_overflow_appid != last_appid)
                             {
                                 last_overflow_appid = last_appid;
                                 hal.pref.putInt("last_appid", last_appid);
@@ -83,7 +83,8 @@ void AppManagerLite::switchApp(BaseApp *app)
     {
         return;
     }
-    last_appid = app->appid;
+    if(app->appid != 50)
+        last_appid = app->appid;
     if (currentApp)
         currentApp->stop();
     ESP_LOGI("AppManagerLite", "stop_req");

@@ -36,7 +36,7 @@ bool show_gif(const char *path)
             return false;
         }
         hal.UNLOCKLV();
-        if(gif_list_size > 1)
+        if (gif_list_size > 1)
             videoPlayer.video_loop = false;
         else
             videoPlayer.video_loop = true;
@@ -114,6 +114,11 @@ void AppGIF::setup()
 }
 void AppGIF::loop()
 {
+    if (gif_list.size() == 0)
+    {
+        xSemaphoreGive(appManagerLite._binary_switchApp);
+        return;
+    }
     if (_vid_stop)
     {
         _vid_stop = false;
@@ -130,7 +135,7 @@ void AppGIF::loop()
             if (gif_list_idx >= gif_list_size)
                 gif_list_idx = 0;
             hal.LOCKLV();
-            if(show_gif(gif_list.at(gif_list_idx).c_str()) == false)
+            if (show_gif(gif_list.at(gif_list_idx).c_str()) == false)
             {
                 hal.UNLOCKLV();
                 last_roll_time = 0;

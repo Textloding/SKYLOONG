@@ -134,9 +134,15 @@ void parasePkt(protocol_t *pkt)
             send_data = LV_KEY_ENTER;
             break;
         case 0xAE: // 菜单间切换（右下角+左上角短按）
-            xSemaphoreGive(appManagerLite._binary_switchApp);
-            hal.setBrightness(hal._brightness);
-            screen_is_on = true;
+            if (screen_is_on == false)
+            {
+                hal.setBrightness(hal._brightness);
+                screen_is_on = true;
+            }
+            else
+            {
+                xSemaphoreGive(appManagerLite._binary_switchApp);
+            }
             break;
         case 0xAF: // 开关屏幕（这个无论是开还是关都是一种数据，右下+左上短按）
             screen_is_on = !screen_is_on;
@@ -220,18 +226,26 @@ void task_protocol(void *pvParameters)
         if (Serial2.available() == 0)
         {
             delay(50);
-            if (hal.kb_status.channel_current != 3)
-            {
-                if (millis() - last_millis > 1000 * 600)
-                {
-                    hal.goSleep();
-                }
-            }
             continue;
         }
         last_millis = millis();
         getPkt();
         delay(1);
+    }
+}
+
+void task_powerOFF(void *pvParameters)
+{
+    while (1)
+    {
+        if (hal.kb_status.channel_current != 3)
+        {
+            if (millis() - last_millis > 1000 * 600)
+            {
+                hal.goSleep();
+            }
+        }
+        delay(1000);
     }
 }
 
