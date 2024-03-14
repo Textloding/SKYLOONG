@@ -255,5 +255,6 @@ void protocol_init()
     pinMode(PIN_SERIAL2_TX, OUTPUT);
     Serial2.begin(115200, SERIAL_8N1, PIN_SERIAL2_RX, PIN_SERIAL2_TX);
     xTaskCreatePinnedToCore(task_protocol, "task_protocol", 4096, NULL, 25, NULL, 1);
+    xTaskCreatePinnedToCore(task_powerOFF, "task_protocol", 4096, NULL, 20, NULL, 1);
     last_millis = millis();
 }
