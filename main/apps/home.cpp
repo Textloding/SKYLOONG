@@ -104,9 +104,51 @@ namespace theme_fox
         lv_obj_set_style_text_color(lbl_battery, lv_color_hex(0xf8c163), 0);
         lv_label_set_text(lbl_battery, "--%");
     }
+    void blinker()
+    {
+        // img2_state
+        if (hal.kb_status.chan_state == 1 || hal.kb_status.chan_state == 2)
+        {
+            if (toggle_connection)
+            {
+                toggle_connection = false;
+                lv_obj_add_flag(img_2, LV_OBJ_FLAG_HIDDEN);
+            }
+            else
+            {
+                toggle_connection = true;
+                lv_obj_clear_flag(img_2, LV_OBJ_FLAG_HIDDEN);
+            }
+        }
+        else
+        {
+            lv_obj_clear_flag(img_2, LV_OBJ_FLAG_HIDDEN);
+        }
+        if (hal.kb_status.chan_state & 1)
+        {
+            if (hal.kb_status.channel_current == 0)
+                lv_img_set_src(img_2, &img_rf1_1);
+            else if (hal.kb_status.channel_current == 1)
+                lv_img_set_src(img_2, &img_bt1_1);
+            else if (hal.kb_status.channel_current == 2)
+                lv_img_set_src(img_2, &img_bt2_1);
+            else if (hal.kb_status.channel_current == 3)
+                lv_img_set_src(img_2, &img_usb1_1);
+        }
+        else
+        {
+            if (hal.kb_status.channel_current == 0)
+                lv_img_set_src(img_2, &img_rf1_2);
+            else if (hal.kb_status.channel_current == 1)
+                lv_img_set_src(img_2, &img_bt1_2);
+            else if (hal.kb_status.channel_current == 2)
+                lv_img_set_src(img_2, &img_bt2_2);
+            else if (hal.kb_status.channel_current == 3)
+                lv_img_set_src(img_2, &img_usb1_2);
+        }
+    }
     void loop()
     {
-        hal.getTime();
         if (hal.battery_pct != 0)
         {
             if (hal.battery_status == BATTERY_STATUS_CHARGING)
@@ -158,65 +200,26 @@ namespace theme_fox
         else
             lv_img_set_src(img_1, &img_mac1_1);
         // img2
-        if (hal.kb_status.chan_state & 1)
-        {
-            if (hal.kb_status.channel_current == 0)
-                lv_img_set_src(img_2, &img_rf1_1);
-            else if (hal.kb_status.channel_current == 1)
-                lv_img_set_src(img_2, &img_bt1_1);
-            else if (hal.kb_status.channel_current == 2)
-                lv_img_set_src(img_2, &img_bt2_1);
-            else if (hal.kb_status.channel_current == 3)
-                lv_img_set_src(img_2, &img_usb1_1);
-        }
-        else
-        {
-            if (hal.kb_status.channel_current == 0)
-                lv_img_set_src(img_2, &img_rf1_2);
-            else if (hal.kb_status.channel_current == 1)
-                lv_img_set_src(img_2, &img_bt1_2);
-            else if (hal.kb_status.channel_current == 2)
-                lv_img_set_src(img_2, &img_bt2_2);
-            else if (hal.kb_status.channel_current == 3)
-                lv_img_set_src(img_2, &img_usb1_2);
-        }
-        // img2_state
-        if (hal.kb_status.chan_state == 1 || hal.kb_status.chan_state == 2)
-        {
-            if (toggle_connection)
-            {
-                toggle_connection = false;
-                lv_obj_add_flag(img_2, LV_OBJ_FLAG_HIDDEN);
-            }
-            else
-            {
-                toggle_connection = true;
-                lv_obj_clear_flag(img_2, LV_OBJ_FLAG_HIDDEN);
-            }
-        }
-        else
-        {
-            lv_obj_clear_flag(img_2, LV_OBJ_FLAG_HIDDEN);
-        }
+        blinker();
         // img3
-        if (hal.kb_status.winlk)
+        if (hal.kb_status.winlk && lv_img_get_src(img_3) != &img_winlock1_1)
             lv_img_set_src(img_3, &img_winlock1_1);
-        else
+        else if (!hal.kb_status.winlk && lv_img_get_src(img_3) != &img_winlock1_2)
             lv_img_set_src(img_3, &img_winlock1_2);
         // img4
-        if (hal.kb_status.capslock)
+        if (hal.kb_status.capslock && lv_img_get_src(img_4) != &img_caplock1_1)
             lv_img_set_src(img_4, &img_caplock1_1);
-        else
+        else if (!hal.kb_status.capslock && lv_img_get_src(img_4) != &img_caplock1_2)
             lv_img_set_src(img_4, &img_caplock1_2);
         // img5
-        if (hal.kb_status.scrolllock)
+        if (hal.kb_status.scrolllock && lv_img_get_src(img_5) != &img_sllock1_1)
             lv_img_set_src(img_5, &img_sllock1_1);
-        else
+        else if (!hal.kb_status.scrolllock && lv_img_get_src(img_5) != &img_sllock1_2)
             lv_img_set_src(img_5, &img_sllock1_2);
         // img6
-        if (hal.kb_status.numlock)
+        if (hal.kb_status.numlock && lv_img_get_src(img_6) != &img_numlock1_1)
             lv_img_set_src(img_6, &img_numlock1_1);
-        else
+        else if (!hal.kb_status.numlock && lv_img_get_src(img_6) != &img_numlock1_2)
             lv_img_set_src(img_6, &img_numlock1_2);
     }
 }
@@ -377,6 +380,35 @@ namespace theme_spartan
         lv_img_set_src(img_battery_bolt, &charge_bolt_spartan);
         lv_obj_add_flag(img_battery_bolt, LV_OBJ_FLAG_HIDDEN);
     }
+    void blinker()
+    {
+        lv_img_set_src(img_2, img_2_src[hal.kb_status.channel_current]);
+        if (hal.kb_status.chan_state == 1 || hal.kb_status.chan_state == 2)
+        {
+            if (toggle_connection)
+            {
+                toggle_connection = false;
+                lv_obj_add_flag(img_2, LV_OBJ_FLAG_HIDDEN);
+            }
+            else
+            {
+                toggle_connection = true;
+                lv_obj_clear_flag(img_2, LV_OBJ_FLAG_HIDDEN);
+            }
+        }
+        else
+        {
+            lv_obj_clear_flag(img_2, LV_OBJ_FLAG_HIDDEN);
+        }
+        if (hal.kb_status.chan_state == 3)
+        {
+            lv_obj_set_style_bg_color(obj_img_2, lv_palette_main(LV_PALETTE_BLUE_GREY), 0);
+        }
+        else
+        {
+            lv_obj_set_style_bg_color(obj_img_2, lv_color_hex(0x282b30), 0);
+        }
+    }
     void loop()
     {
         if (hal.battery_pct != 0)
@@ -393,7 +425,7 @@ namespace theme_spartan
                 }
                 lv_label_set_text_fmt(lbl_battery, "%d%%", hal.battery_pct);
                 lv_obj_add_flag(img_battery_bolt, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_set_width(obj_battery_cell, hal.battery_pct * 29 / 100);
+                lv_obj_set_width(obj_battery_cell, hal.battery_pct * 29 / 100);
             }
             else
             {
@@ -402,8 +434,6 @@ namespace theme_spartan
                 lv_obj_set_width(obj_battery_cell, 29);
             }
         }
-        lv_img_set_src(img_2, img_2_src[hal.kb_status.channel_current]);
-        hal.getTime();
         if (hal.config_time_12hr)
         {
             // lv_obj_clear_flag(img_am, LV_OBJ_FLAG_HIDDEN);
@@ -429,54 +459,31 @@ namespace theme_spartan
         }
         lv_label_set_text_fmt(lbl_date, "%02d/%02d", hal.datetime.month, hal.datetime.dayMonth);
         lv_label_set_text_fmt(lbl_year, "%04d", hal.datetime.year);
-        if (hal.kb_status.chan_state == 3)
-        {
-            lv_obj_set_style_bg_color(obj_img_2, lv_palette_main(LV_PALETTE_BLUE_GREY), 0);
-        }
-        else
-        {
-            lv_obj_set_style_bg_color(obj_img_2, lv_color_hex(0x282b30), 0);
-        }
-        if (hal.kb_status.chan_state == 1 || hal.kb_status.chan_state == 2)
-        {
-            if (toggle_connection)
-            {
-                toggle_connection = false;
-                lv_obj_add_flag(img_2, LV_OBJ_FLAG_HIDDEN);
-            }
-            else
-            {
-                toggle_connection = true;
-                lv_obj_clear_flag(img_2, LV_OBJ_FLAG_HIDDEN);
-            }
-        }
-        else
-        {
-            lv_obj_clear_flag(img_2, LV_OBJ_FLAG_HIDDEN);
-        }
-        if (hal.kb_status.capslock)
+        blinker();
+        if (hal.kb_status.capslock && lv_obj_get_style_bg_color(obj_img_4, 0).full != lv_palette_main(LV_PALETTE_BLUE_GREY).full)
             lv_obj_set_style_bg_color(obj_img_4, lv_palette_main(LV_PALETTE_BLUE_GREY), 0);
-        else
+        else if (!hal.kb_status.capslock && lv_obj_get_style_bg_color(obj_img_4, 0).full != lv_color_hex(0x282b30).full)
             lv_obj_set_style_bg_color(obj_img_4, lv_color_hex(0x282b30), 0);
 
-        if (hal.kb_status.numlock)
+        if (hal.kb_status.numlock && lv_obj_get_style_bg_color(obj_img_6, 0).full != lv_palette_main(LV_PALETTE_BLUE_GREY).full)
             lv_obj_set_style_bg_color(obj_img_6, lv_palette_main(LV_PALETTE_BLUE_GREY), 0);
-        else
+        else if (!hal.kb_status.numlock && lv_obj_get_style_bg_color(obj_img_6, 0).full != lv_color_hex(0x282b30).full)
             lv_obj_set_style_bg_color(obj_img_6, lv_color_hex(0x282b30), 0);
 
-        if (hal.kb_status.scrolllock)
+        if (hal.kb_status.scrolllock && lv_obj_get_style_bg_color(obj_img_5, 0).full != lv_palette_main(LV_PALETTE_BLUE_GREY).full)
             lv_obj_set_style_bg_color(obj_img_5, lv_palette_main(LV_PALETTE_BLUE_GREY), 0);
-        else
+        else if (!hal.kb_status.scrolllock && lv_obj_get_style_bg_color(obj_img_5, 0).full != lv_color_hex(0x282b30).full)
             lv_obj_set_style_bg_color(obj_img_5, lv_color_hex(0x282b30), 0);
-        if (hal.kb_status.system == 1)
+        if (hal.kb_status.system == 1 && lv_img_get_src(img_1) != &img_win)
             lv_img_set_src(img_1, &img_win);
-        else
+        else if (hal.kb_status.system == 0 && lv_img_get_src(img_1) != &img_mac)
             lv_img_set_src(img_1, &img_mac);
-        if (hal.kb_status.winlk)
+        if (hal.kb_status.winlk && lv_obj_get_style_bg_color(obj_img_3, 0).full != lv_palette_main(LV_PALETTE_BLUE_GREY).full)
             lv_obj_set_style_bg_color(obj_img_3, lv_palette_main(LV_PALETTE_BLUE_GREY), 0);
-        else
+        else if (!hal.kb_status.winlk && lv_obj_get_style_bg_color(obj_img_3, 0).full != lv_color_hex(0x282b30).full)
             lv_obj_set_style_bg_color(obj_img_3, lv_color_hex(0x282b30), 0);
     }
+
 } // namespace theme_spartan
 namespace theme_default
 {
@@ -635,7 +642,50 @@ namespace theme_default
         lv_img_set_src(img_6, &img_numlock);
         lv_obj_center(img_6);
     }
-
+    void blinker()
+    {
+        if (hal.kb_status.chan_state == 1 || hal.kb_status.chan_state == 2)
+        {
+            if (toggle_connection)
+            {
+                toggle_connection = false;
+                lv_obj_add_flag(img_2, LV_OBJ_FLAG_HIDDEN);
+            }
+            else
+            {
+                toggle_connection = true;
+                lv_obj_clear_flag(img_2, LV_OBJ_FLAG_HIDDEN);
+            }
+        }
+        else
+        {
+            lv_obj_clear_flag(img_2, LV_OBJ_FLAG_HIDDEN);
+        }
+        if (hal.kb_status.chan_state == 1)
+        {
+            lv_obj_clear_state(obj_img_2, LV_STATE_USER_2);
+            lv_obj_add_state(obj_img_2, LV_STATE_USER_1);
+        }
+        else if (hal.kb_status.chan_state == 3)
+        {
+            // 已连接
+            lv_obj_clear_state(obj_img_2, LV_STATE_USER_1);
+            lv_obj_add_state(obj_img_2, LV_STATE_USER_2);
+        }
+        else
+        {
+            lv_obj_clear_state(obj_img_2, LV_STATE_USER_1);
+            lv_obj_clear_state(obj_img_2, LV_STATE_USER_2);
+        }
+        if (hal.kb_status.channel_current == 0)
+            lv_img_set_src(img_2, &img_rf);
+        else if (hal.kb_status.channel_current == 1)
+            lv_img_set_src(img_2, &img_bt1);
+        else if (hal.kb_status.channel_current == 2)
+            lv_img_set_src(img_2, &img_bt2);
+        else if (hal.kb_status.channel_current == 3)
+            lv_img_set_src(img_2, &img_usb);
+    }
     void loop()
     {
         if (hal.battery_pct != 0)
@@ -657,13 +707,12 @@ namespace theme_default
             }
             else
             {
-                if(hal.battery_pct < 20)
+                if (hal.battery_pct < 20)
                     lv_obj_set_style_arc_color(arc_battery, lv_palette_main(LV_PALETTE_RED), LV_PART_INDICATOR);
                 else
                     lv_obj_set_style_arc_color(arc_battery, lv_palette_main(LV_PALETTE_BLUE), LV_PART_INDICATOR);
             }
         }
-        hal.getTime();
         if (hal.config_time_12hr)
         {
             int hour = hal.datetime.hour;
@@ -691,72 +740,34 @@ namespace theme_default
             lv_img_set_src(img_1, &img_win);
         else
             lv_img_set_src(img_1, &img_mac);
-        if (hal.kb_status.chan_state == 1)
-        {
-            lv_obj_clear_state(obj_img_2, LV_STATE_USER_2);
-            lv_obj_add_state(obj_img_2, LV_STATE_USER_1);
-        }
-        else if (hal.kb_status.chan_state == 3)
-        {
-            // 已连接
-            lv_obj_clear_state(obj_img_2, LV_STATE_USER_1);
-            lv_obj_add_state(obj_img_2, LV_STATE_USER_2);
-        }
-        else
-        {
-            lv_obj_clear_state(obj_img_2, LV_STATE_USER_1);
-            lv_obj_clear_state(obj_img_2, LV_STATE_USER_2);
-        }
-        if (hal.kb_status.chan_state == 1 || hal.kb_status.chan_state == 2)
-        {
-            if (toggle_connection)
-            {
-                toggle_connection = false;
-                lv_obj_add_flag(img_2, LV_OBJ_FLAG_HIDDEN);
-            }
-            else
-            {
-                toggle_connection = true;
-                lv_obj_clear_flag(img_2, LV_OBJ_FLAG_HIDDEN);
-            }
-        }
-        else
-        {
-            lv_obj_clear_flag(img_2, LV_OBJ_FLAG_HIDDEN);
-        }
-        if (hal.kb_status.channel_current == 0)
-            lv_img_set_src(img_2, &img_rf);
-        else if (hal.kb_status.channel_current == 1)
-            lv_img_set_src(img_2, &img_bt1);
-        else if (hal.kb_status.channel_current == 2)
-            lv_img_set_src(img_2, &img_bt2);
-        else if (hal.kb_status.channel_current == 3)
-            lv_img_set_src(img_2, &img_usb);
-
-        if (hal.kb_status.winlk)
+        blinker();
+        if (hal.kb_status.winlk && lv_obj_has_state(obj_img_3, LV_STATE_USER_1) == false)
             lv_obj_add_state(obj_img_3, LV_STATE_USER_1);
-        else
+        else if (hal.kb_status.winlk == false && lv_obj_has_state(obj_img_3, LV_STATE_USER_1))
             lv_obj_clear_state(obj_img_3, LV_STATE_USER_1);
 
-        if (hal.kb_status.capslock)
+        if (hal.kb_status.capslock && lv_obj_has_state(obj_img_4, LV_STATE_USER_1) == false)
             lv_obj_add_state(obj_img_4, LV_STATE_USER_1);
-        else
+        else if (hal.kb_status.capslock == false && lv_obj_has_state(obj_img_4, LV_STATE_USER_1))
             lv_obj_clear_state(obj_img_4, LV_STATE_USER_1);
 
-        if (hal.kb_status.scrolllock)
+        if (hal.kb_status.scrolllock && lv_obj_has_state(obj_img_5, LV_STATE_USER_1) == false)
             lv_obj_add_state(obj_img_5, LV_STATE_USER_1);
-        else
+        else if (hal.kb_status.scrolllock == false && lv_obj_has_state(obj_img_5, LV_STATE_USER_1))
             lv_obj_clear_state(obj_img_5, LV_STATE_USER_1);
 
-        if (hal.kb_status.numlock)
+        if (hal.kb_status.numlock && lv_obj_has_state(obj_img_6, LV_STATE_USER_1) == false)
             lv_obj_add_state(obj_img_6, LV_STATE_USER_1);
-        else
+        else if (hal.kb_status.numlock == false && lv_obj_has_state(obj_img_6, LV_STATE_USER_1))
             lv_obj_clear_state(obj_img_6, LV_STATE_USER_1);
     }
+
 } // namespace theme_default
 
+uint8_t last_minute = -1;
 void AppHome::setup()
 {
+    last_minute = -1;
     hal.LOCKLV();
     if (hal.config_theme == 2)
         theme_fox::setup(_appScreen);
@@ -766,18 +777,36 @@ void AppHome::setup()
         theme_default::setup(_appScreen);
     hal.UNLOCKLV();
 }
-
+bool last_is_blinking = false;
+extern SemaphoreHandle_t status_changed;
 void AppHome::loop()
 {
-    hal.LOCKLV();
-    if (hal.config_theme == 2)
-        theme_fox::loop();
-    else if (hal.config_theme == 1)
-        theme_spartan::loop();
-    else
-        theme_default::loop();
-    hal.UNLOCKLV();
-    vTaskDelay(560);
+    hal.getTime();
+    if (hal.datetime.minute != last_minute || xSemaphoreTake(status_changed, 500) == pdTRUE)
+    {
+        last_minute = hal.datetime.minute;
+        hal.LOCKLV();
+        if (hal.config_theme == 2)
+            theme_fox::loop();
+        else if (hal.config_theme == 1)
+            theme_spartan::loop();
+        else
+            theme_default::loop();
+        hal.UNLOCKLV();
+        return;
+    }
+    if (hal.kb_status.chan_state == 1 || hal.kb_status.chan_state == 2)
+    {
+        hal.LOCKLV();
+        if (hal.config_theme == 2)
+            theme_fox::blinker();
+        else if (hal.config_theme == 1)
+            theme_spartan::blinker();
+        else
+            theme_default::blinker();
+        hal.UNLOCKLV();
+    }
+    delay(100);
 }
 
 void AppHome::destroy()

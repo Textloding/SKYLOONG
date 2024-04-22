@@ -39,9 +39,9 @@ static uint8_t getcrc(protocol_t *buff)
 }
 static uint8_t getByte()
 {
-    while (Serial2.available() == 0)
-        delay(10);
-    char c = Serial2.read();
+    char c;
+    while (Serial2.readBytes(&c, 1) == 0)
+        ;
     return c;
 }
 void sendPkt(protocol_t *pkt)
@@ -59,7 +59,27 @@ void sendPkt(protocol_t *pkt)
     Serial2.write(crc);
     Serial2.flush();
 }
-
+SemaphoreHandle_t status_changed;
+static kb_status_t last_kbstatus;
+static battery_status_t battery_status;
+static uint8_t battery_pct = 0;
+static bool checkChanged()
+{
+    if (memcmp(&last_kbstatus, &hal.kb_status, sizeof(kb_status_t)) != 0)
+    {
+        last_kbstatus = hal.kb_status;
+        xSemaphoreGive(status_changed);
+        return true;
+    }
+    if(battery_status != hal.battery_status || battery_pct != hal.battery_pct)
+    {
+        battery_status = hal.battery_status;
+        battery_pct = hal.battery_pct;
+        xSemaphoreGive(status_changed);
+        return true;
+    }
+    return false;
+}
 void parasePkt(protocol_t *pkt)
 {
     static protocol_t pkt_send;
@@ -82,7 +102,8 @@ void parasePkt(protocol_t *pkt)
     {
         kb_status_t *kb_status = (kb_status_t *)pkt->data;
         memcpy(&hal.kb_status, kb_status, sizeof(kb_status_t));
-        hal.send_sysctl(EVENT_KB_STATUS_CHANGED, 0);
+        if(checkChanged())
+            hal.send_sysctl(EVENT_KB_STATUS_CHANGED, 0);
         pkt_send.len = 1 + 2;
         sendPkt(&pkt_send);
         break;
@@ -178,6 +199,7 @@ void parasePkt(protocol_t *pkt)
         hal.battery_status = kb_battery->status;
         pkt_send.len = 2 + pkt->len;
         memcpy(pkt_send.data + 2, pkt->data, pkt->len - 1);
+        checkChanged();
         sendPkt(&pkt_send);
         break;
     }
@@ -190,7 +212,7 @@ void getPkt()
     static protocol_t pkt;
     memset(&pkt, 0, sizeof(protocol_t));
     while (getByte() != PROTOCOL_STX)
-        delay(10);
+        delay(5);
     // 此时已经收到了STX
     uint16_t tmp = getByte();
     tmp = tmp << 8;
@@ -223,14 +245,8 @@ void task_protocol(void *pvParameters)
 {
     while (1)
     {
-        if (Serial2.available() == 0)
-        {
-            delay(50);
-            continue;
-        }
-        last_millis = millis();
         getPkt();
-        delay(1);
+        last_millis = millis();
     }
 }
 
@@ -251,10 +267,11 @@ void task_powerOFF(void *pvParameters)
 
 void protocol_init()
 {
+    status_changed = xSemaphoreCreateBinary();
     pinMode(PIN_SERIAL2_RX, INPUT_PULLUP);
     pinMode(PIN_SERIAL2_TX, OUTPUT);
-    Serial2.begin(115200, SERIAL_8N1, PIN_SERIAL2_RX, PIN_SERIAL2_TX);
-    xTaskCreatePinnedToCore(task_protocol, "task_protocol", 4096, NULL, 25, NULL, 1);
-    xTaskCreatePinnedToCore(task_powerOFF, "task_protocol", 4096, NULL, 20, NULL, 1);
+    Serial2.begin(115200, SERIAL_8N1, PIN_SERIAL2_RX, PIN_SERIAL2_TX, false, 1000);
+    xTaskCreatePinnedToCore(task_protocol, "task_protocol", 4096, NULL, 30, NULL, 1);
+    xTaskCreatePinnedToCore(task_powerOFF, "task_poweroff", 4096, NULL, 20, NULL, 1);
     last_millis = millis();
 }
