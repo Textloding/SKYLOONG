@@ -101,6 +101,7 @@ void AppSettings::setup()
 {
     hal.LOCKLV();
     lv_obj_t *o;
+    lv_group_set_wrap(lv_group_get_default(), false);
     lv_obj_set_flex_flow(_appScreen, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(_appScreen, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_text_font(_appScreen, &lv_font_chinese_16, 0);

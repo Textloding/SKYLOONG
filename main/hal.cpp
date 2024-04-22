@@ -786,7 +786,7 @@ void HAL::loadAppSettings()
     File file = LittleFS.open("/.cfg.bin", "r");
     if (file)
     {
-        int sz =file.read((uint8_t *)&app_settings_save, sizeof(app_settings_save));
+        int sz = file.read((uint8_t *)&app_settings_save, sizeof(app_settings_save));
         if (sz != sizeof(app_settings_save))
         {
             file.close();
@@ -833,11 +833,25 @@ void handleJson()
 
 void HAL::start_webserver()
 {
-    if(webserver_task != NULL)
+    if (webserver_task != NULL)
         return;
+    hal.server_started = true;
     if (WiFi.getMode() == WIFI_OFF)
     {
-        WiFi.softAP("GKScreen");
+        WiFi.mode(WIFI_STA);
+        if (WiFi.psk() == "")
+        {
+            WiFi.softAP("GKScreen");
+        }
+        else
+        {
+            GUI::toast(_tr(I18N_ID_CONNECTING));
+            WiFi.begin();
+            if (WiFi.waitForConnectResult(5000) == WL_CONNECTED)
+            {
+                WiFi.softAP("GKScreen");
+            }
+        }
     }
     MDNS.begin("gkscreen");
     server.on("/list", HTTP_GET, handleFileList);
@@ -873,7 +887,6 @@ void HAL::start_webserver()
 
     server.begin();
     ESP_LOGI("SERVER", "HTTP server started");
-    hal.server_started = true;
     GUI::toast(_tr(I18N_ID_SERVER_STARTED));
     xTaskCreatePinnedToCore([](void *p)
                             {
@@ -884,7 +897,7 @@ void HAL::start_webserver()
 
 void HAL::stop_webserver()
 {
-    if(webserver_task == NULL)
+    if (webserver_task == NULL)
         return;
     server.stop();
     if (WiFi.getMode() == WIFI_AP)
