@@ -63,6 +63,9 @@ const char *i18n_dict[][2] = {
     {"Web服务器在后台运行", "Webserver still running"},
     {"5秒后连接WiFi", "Connecting to WiFi in 5s"},
     {"充电中", "Charging"},
+    {"退出", "Exit Settings"},
+    {"", ""},
+    {"退出", "Exit"},
 };
 static time_t offset = 3600 * 8;
 time_t i18n::getNTPOffset()

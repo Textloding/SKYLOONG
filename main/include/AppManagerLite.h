@@ -11,7 +11,7 @@ public:
     virtual void setup() = 0;
     virtual void loop() = 0;
     virtual void destroy() = 0; // 销毁当前App，注意应该在此处释放LVGL定时器
-    virtual void stop(){};            // 停止loop中正在运行的循环
+    virtual void stop(){};      // 停止loop中正在运行的循环
 };
 extern BaseApp *appList[50];
 extern int appListLen;
@@ -40,17 +40,21 @@ public:
             }
         }
         i++;
-        if(i >= appListLen) i = 0;
+        if (i >= appListLen)
+            i = 0;
         switchApp(appList[i]);
     }
     void switchSetting()
     {
+        if (currentApp->appid == 50)
+            return;
         lastAppBeforeSetting = currentApp;
         switchApp(50);
     }
     void exitSetting()
     {
-        switchApp(lastAppBeforeSetting);
+        if (currentApp->appid == 50)
+            switchApp(lastAppBeforeSetting);
     }
     void loop();
     SemaphoreHandle_t _mutex = NULL;

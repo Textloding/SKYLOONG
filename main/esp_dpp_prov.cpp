@@ -71,16 +71,47 @@ void cancel_connect()
     xSemaphoreGive(manual_config_sem);
 }
 #include <WiFi.h>
+#include <vector>
+struct my_wifi_info_t {
+    String ssid;
+    int rssi;
+};
+LV_IMG_DECLARE(wifi_1);
+LV_IMG_DECLARE(wifi_2);
+LV_IMG_DECLARE(wifi_3);
+LV_IMG_DECLARE(wifi_4);
 static void WiFiScanDone(lv_obj_t *box, int n)
 {
+    struct my_wifi_info_t tmp;
+    std::vector<struct my_wifi_info_t> wifi_list;
+    for(int i = 0; i < n; ++i)
+    {
+        tmp.ssid = WiFi.SSID(i);
+        tmp.rssi = WiFi.RSSI(i);
+        wifi_list.push_back(tmp);
+    }
+    std::sort(wifi_list.begin(), wifi_list.end(), [](const struct my_wifi_info_t &a, const struct my_wifi_info_t &b)
+    {
+        return a.rssi > b.rssi;
+    });
     for (int i = 0; i < n; ++i)
     {
         lv_obj_t *btn = lv_btn_create(box);
         lv_obj_set_size(btn, lv_pct(100), 50);
         lv_obj_t *label = lv_label_create(btn);
         lv_obj_set_style_text_font(label, &lv_font_chinese_16, 0);
-        lv_label_set_text(label, WiFi.SSID(i).c_str());
+        lv_label_set_text(label, wifi_list[i].ssid.c_str());
         lv_obj_center(label);
+        lv_obj_t *img_rssi = lv_img_create(btn);
+        if (wifi_list[i].rssi > -50)
+            lv_img_set_src(img_rssi, &wifi_4);
+        else if (wifi_list[i].rssi > -65)
+            lv_img_set_src(img_rssi, &wifi_3);
+        else if (wifi_list[i].rssi > -75)
+            lv_img_set_src(img_rssi, &wifi_2);
+        else
+            lv_img_set_src(img_rssi, &wifi_1);
+        lv_obj_align(img_rssi, LV_ALIGN_LEFT_MID, 2, 0);
         lv_obj_add_event_cb(
             btn, [](lv_event_t *e)
             {
@@ -141,6 +172,8 @@ static void WiFiScanDone(lv_obj_t *box, int n)
                 lv_obj_pop_up(kb, 30, 300, 300); },
             LV_EVENT_CLICKED, NULL);
     }
+    wifi_list.clear();
+    WiFi.scanDelete();
 }
 void load_scr_manual()
 {

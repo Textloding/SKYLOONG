@@ -71,7 +71,7 @@ static bool checkChanged()
         xSemaphoreGive(status_changed);
         return true;
     }
-    if(battery_status != hal.battery_status || battery_pct != hal.battery_pct)
+    if (battery_status != hal.battery_status || battery_pct != hal.battery_pct)
     {
         battery_status = hal.battery_status;
         battery_pct = hal.battery_pct;
@@ -80,6 +80,7 @@ static bool checkChanged()
     }
     return false;
 }
+
 void parasePkt(protocol_t *pkt)
 {
     static protocol_t pkt_send;
@@ -102,7 +103,7 @@ void parasePkt(protocol_t *pkt)
     {
         kb_status_t *kb_status = (kb_status_t *)pkt->data;
         memcpy(&hal.kb_status, kb_status, sizeof(kb_status_t));
-        if(checkChanged())
+        if (checkChanged())
             hal.send_sysctl(EVENT_KB_STATUS_CHANGED, 0);
         pkt_send.len = 1 + 2;
         sendPkt(&pkt_send);
@@ -182,6 +183,7 @@ void parasePkt(protocol_t *pkt)
         sendPkt(&pkt_send);
         break;
     case PROTOCOL_TYPE_PARAM:
+        in_setting_mode = false;
         hal.send_sysctl(EVENT_GOSLEEP);
         pkt_send.len = 2 + pkt->len;
         memcpy(pkt_send.data + 2, pkt->data, pkt->len - 1);
@@ -241,12 +243,20 @@ void getPkt()
     return;
 }
 static uint32_t last_millis = 0;
+bool stop_protocol = false;
 void task_protocol(void *pvParameters)
 {
     while (1)
     {
         getPkt();
         last_millis = millis();
+        if(stop_protocol)
+        {
+            in_setting_mode = false;
+            stop_protocol = false;
+            delay(3000);
+            Serial2.flush(false);
+        }
     }
 }
 

@@ -847,8 +847,10 @@ void HAL::start_webserver()
         {
             GUI::toast(_tr(I18N_ID_CONNECTING));
             WiFi.begin();
-            if (WiFi.waitForConnectResult(5000) == WL_CONNECTED)
+            if (WiFi.waitForConnectResult(5000) != WL_CONNECTED)
             {
+                GUI::toast(_tr(I18N_ID_CONNECT_FAILED));
+                WiFi.mode(WIFI_AP);
                 WiFi.softAP("GKScreen");
             }
         }
@@ -909,4 +911,10 @@ void HAL::stop_webserver()
     vTaskDelete(webserver_task);
     webserver_task = NULL;
     GUI::toast(_tr(I18N_ID_SERVER_STOPPED));
+}
+extern bool stop_protocol;
+void HAL::forceExitSettings()
+{
+    stop_protocol = true;
+    hal.send_sysctl(EVENT_EXIT_SETTING, 0);
 }

@@ -97,6 +97,7 @@ static uint32_t factory_reset_millis_last = 0;
 static lv_obj_t *ota_update_btn = NULL;
 static lv_obj_t *factory_reset_btn = NULL;
 static lv_obj_t *btn_server = NULL;
+lv_obj_t *exit_btn = NULL;
 void AppSettings::setup()
 {
     hal.LOCKLV();
@@ -226,6 +227,14 @@ void AppSettings::setup()
                 }
             } });
     lv_obj_add_state(factory_reset_btn, LV_STATE_CHECKED);
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    exit_btn = create_settings_button(_appScreen, _tr(I18N_ID_EXIT_TITLE), _tr(I18N_ID_EXIT_DESC), _tr(I18N_ID_EXIT), [](lv_event_t *e)
+                                               {
+            if (e->code == LV_EVENT_CLICKED)
+            {
+                hal.forceExitSettings();
+            } });
+    lv_obj_add_state(exit_btn, LV_STATE_CHECKED);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     o = lv_label_create(_appScreen);
     lv_label_set_text(o, FIRMWARE_VERSION);

@@ -163,6 +163,7 @@ bool WiFiManager::requireWiFi(bool forceChoose)
             char passwd[64];
             hal.LOCKLV();
             group = lv_group_create();
+            lv_group_set_wrap(group, false);
             lv_group_set_default(group);
             lv_indev_set_group(indev_keypad, group);
             lv_obj_t *scr_store = lv_scr_act();

@@ -90,6 +90,7 @@ public:
     void start_webserver();
     TaskHandle_t webserver_task;
     void stop_webserver();
+    void forceExitSettings();
     QueueHandle_t _queue;
     QueueHandle_t _queue_kb;
     Preferences pref;
