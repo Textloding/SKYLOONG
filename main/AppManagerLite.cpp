@@ -33,7 +33,7 @@ void task_app_loop(void *p)
         vTaskDelay(10);
     }
 }
-static uint32_t last_switch_millis = 0;
+static uint32_t last_switch_millis = 0xFFFFFFFF;
 static uint8_t last_overflow_appid = 1;     // 上次保存的appid
 void task_app_switch(void *p)
 {

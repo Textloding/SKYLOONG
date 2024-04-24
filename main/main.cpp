@@ -37,10 +37,10 @@ void debug_USB_UART(void *p)
             // xSemaphoreGive(appManagerLite._binary_switchApp);
             break;
         case 'a': // 方向键向左
-                send_data = LV_KEY_LEFT;
+            send_data = LV_KEY_LEFT;
             break;
         case 'd': // 方向键向右
-                send_data = LV_KEY_RIGHT;
+            send_data = LV_KEY_RIGHT;
             break;
         case 'w': // 方向键向上
             if (hal.lv_has_kb == true)
@@ -89,6 +89,7 @@ extern "C" void app_main()
     initArduino();
     psramInit();
     hal.init();
+    hal.getTime();
     hal.kb_status.channel_current = 0;
     WiFiMgr.init();
     //////////////////////
@@ -99,10 +100,14 @@ extern "C" void app_main()
     appSysinfo.init();
     appSettings.init();
     add_to_app_list(&appHome);
-    add_to_app_list(&appAPS);
-    add_to_app_list(&appGIF);
-    add_to_app_list(&appWeather);
-    add_to_app_list(&appSysinfo);
+    if (hal.pref.getBool("aps_enable", true))
+        add_to_app_list(&appAPS);
+    if (hal.pref.getBool("gif_enable", true))
+        add_to_app_list(&appGIF);
+    if (hal.pref.getBool("weather_enable", true))
+        add_to_app_list(&appWeather);
+    if (hal.pref.getBool("sysinfo_enable", true))
+        add_to_app_list(&appSysinfo);
     appManagerLite.appSettings = &appSettings;
     //////////////////////
     if (last_appid == 0)
@@ -119,11 +124,6 @@ extern "C" void app_main()
     protocol_init();
     xTaskCreatePinnedToCore(task_lvgl_update, "lvgl_update", 1024 * 6, NULL, 35, NULL, 1);
     xTaskCreatePinnedToCore(debug_USB_UART, "debug_USB_UART", 1024 * 4, NULL, 6, NULL, 1);
-    if (DS1302_isHalted(&hal.rtc))
-    {
-        DS1302_halt(&hal.rtc, false);
-        GUI::toast(_tr(I18N_ID_RTC_SHUTDOWN), true, 10000);
-    }
     appManagerLite.init(last_appid);
     vTaskDelete(NULL);
     vTaskDelay(portMAX_DELAY);

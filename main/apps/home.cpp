@@ -775,6 +775,18 @@ void AppHome::setup()
         theme_spartan::setup(_appScreen);
     else
         theme_default::setup(_appScreen);
+    if (hal.config_theme == 2)
+        theme_fox::loop();
+    else if (hal.config_theme == 1)
+        theme_spartan::loop();
+    else
+        theme_default::loop();
+    if (hal.config_theme == 2)
+        theme_fox::blinker();
+    else if (hal.config_theme == 1)
+        theme_spartan::blinker();
+    else
+        theme_default::blinker();
     hal.UNLOCKLV();
 }
 bool last_is_blinking = false;

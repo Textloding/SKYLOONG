@@ -46,8 +46,12 @@ bool DS1302_begin(DS1302_Dev *dev, uint8_t clkPin, uint8_t ioPin, uint8_t cePin)
     gpio_set_level(dev->cePin, 0);
 
     gpio_set_direction(dev->clkPin, GPIO_MODE_OUTPUT);
-    gpio_set_direction(dev->ioPin, GPIO_MODE_OUTPUT);
+    gpio_set_direction(dev->ioPin, GPIO_MODE_INPUT_OUTPUT);
     gpio_set_direction(dev->cePin, GPIO_MODE_OUTPUT);
+
+    gpio_pullup_en(dev->clkPin);
+    gpio_pullup_en(dev->ioPin);
+    gpio_pullup_en(dev->cePin);
 
     // Enable RTC clock
     // DS1302_halt(dev, false);

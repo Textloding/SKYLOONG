@@ -49,6 +49,13 @@ static void keypad_read(lv_indev_drv_t *indev_drv, lv_indev_data_t *data)
 }
 static void task_systemctl(void *p)
 {
+    if (DS1302_isHalted(&hal.rtc))
+    {
+        DS1302_writeProtect(&hal.rtc, false);
+        DS1302_halt(&hal.rtc, false);
+        // hal.setTime(2024, 4, 23, 12, 34, 56);
+        GUI::toast(_tr(I18N_ID_RTC_SHUTDOWN), true, 10000);
+    }
     while (1)
     {
         sysctl_event_t event;
@@ -233,7 +240,7 @@ void demo()
 
 void HAL::init()
 {
-    memset(&datetime, 0xff, sizeof(DS1302_DateTime));
+    memset(&datetime, 0, sizeof(DS1302_DateTime));
     WiFi.setHostname("GKScreen");
     pinMode(PIN_DISPLAY_PWR, OUTPUT);
     digitalWrite(PIN_DISPLAY_PWR, HIGH);
@@ -242,7 +249,7 @@ void HAL::init()
     ledcWrite(7, 0);
     demo();
     DS1302_begin(&rtc, PIN_RTC_SCLK, PIN_RTC_SDIO, PIN_RTC_RST);
-    DS1302_writeClockRegister(&rtc, DS1302_REG_TC, 0xA6);
+    DS1302_writeClockRegister(&rtc, DS1302_REG_TC, 0xA5);
     if (LittleFS.begin(false) == false)
     {
         LittleFS.format();
@@ -334,6 +341,8 @@ uint8_t HAL::getDoW(uint16_t iYear, uint8_t iMonth, uint8_t iDay)
 void HAL::setTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second)
 {
     DS1302_DateTime dt;
+    DS1302_writeProtect(&rtc, false);
+    DS1302_halt(&rtc, false);
     dt.second = second;
     dt.minute = minute;
     dt.hour = hour;
@@ -837,11 +846,11 @@ void HAL::start_webserver()
     if (webserver_task != NULL)
         return;
     hal.server_started = true;
-    if (WiFi.getMode() == WIFI_OFF)
+    if (WiFi.getMode() == WIFI_OFF || (WiFi.getMode() == WIFI_STA && WiFi.isConnected() == false))
     {
         WiFi.mode(WIFI_STA);
         GUI::toast(_tr(I18N_ID_CONNECTING));
-        if (WiFiMgr.tryConnectLast() == false)
+        if (WiFiMgr.requireWiFi() == false)
         {
             GUI::toast(_tr(I18N_ID_CONNECT_FAILED));
             WiFi.mode(WIFI_AP);

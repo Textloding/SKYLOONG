@@ -32,7 +32,7 @@
 #define EXAMPLE_DPP_DEVICE_INFO 0
 #endif
 
-//static const char *TAG = "wifi dpp-enrollee";
+// static const char *TAG = "wifi dpp-enrollee";
 wifi_config_t s_dpp_wifi_config;
 
 ////static int s_retry_num = 0;
@@ -72,7 +72,8 @@ void cancel_connect()
 }
 #include <WiFi.h>
 #include <vector>
-struct my_wifi_info_t {
+struct my_wifi_info_t
+{
     String ssid;
     int rssi;
     wifi_auth_mode_t auth;
@@ -86,7 +87,7 @@ static void WiFiScanDone(lv_obj_t *box, int n)
 {
     struct my_wifi_info_t tmp;
     std::vector<struct my_wifi_info_t> wifi_list;
-    for(int i = 0; i < n; ++i)
+    for (int i = 0; i < n; ++i)
     {
         tmp.ssid = WiFi.SSID(i);
         tmp.rssi = WiFi.RSSI(i);
@@ -94,9 +95,7 @@ static void WiFiScanDone(lv_obj_t *box, int n)
         wifi_list.push_back(tmp);
     }
     std::sort(wifi_list.begin(), wifi_list.end(), [](const struct my_wifi_info_t &a, const struct my_wifi_info_t &b)
-    {
-        return a.rssi > b.rssi;
-    });
+              { return a.rssi > b.rssi; });
     for (int i = 0; i < n; ++i)
     {
         lv_obj_t *btn = lv_btn_create(box);
@@ -115,7 +114,7 @@ static void WiFiScanDone(lv_obj_t *box, int n)
         lv_obj_set_style_text_font(label, &lv_font_chinese_16, 0);
         lv_label_set_text(label, wifi_list[i].ssid.c_str());
         lv_obj_align_to(label, img_rssi, LV_ALIGN_OUT_RIGHT_MID, 3, 0);
-        if(wifi_list[i].auth != WIFI_AUTH_OPEN)
+        if (wifi_list[i].auth != WIFI_AUTH_OPEN)
         {
             lv_obj_t *img_lock = lv_img_create(btn);
             lv_img_set_src(img_lock, &wifilock);
@@ -186,17 +185,19 @@ static void WiFiScanDone(lv_obj_t *box, int n)
                 lv_obj_pop_up(box_passwd);
                 lv_obj_pop_up(kb, 30, 300, 300); },
             LV_EVENT_CLICKED, NULL);
-            lv_obj_add_event_cb(btn, [](lv_event_t *e)
+        lv_obj_add_event_cb(
+            btn, [](lv_event_t *e)
             {
                 if (lv_indev_get_key(lv_indev_get_act()) == LV_KEY_ESC)
                 {
                     hal.lv_has_kb = false;
                     cancel_connect();
-                }
-            }, LV_EVENT_KEY, NULL);
-            lv_obj_add_event_cb(btn, [](lv_event_t *e){
-                lv_obj_scroll_to_view(lv_event_get_target(e), LV_ANIM_OFF);
-            }, LV_EVENT_FOCUSED, NULL);
+                } },
+            LV_EVENT_KEY, NULL);
+        lv_obj_add_event_cb(
+            btn, [](lv_event_t *e)
+            { lv_obj_scroll_to_view(lv_event_get_target(e), LV_ANIM_OFF); },
+            LV_EVENT_FOCUSED, NULL);
     }
     wifi_list.clear();
     WiFi.scanDelete();
@@ -500,7 +501,16 @@ int esp_dpp_start(char *ssid, char *password)
     load_scr_manual();
     hal.UNLOCKLV();
     vTaskDelay(500);
-    xSemaphoreTake(manual_config_sem, portMAX_DELAY);
+    while (1)
+    {
+        if (xSemaphoreTake(manual_config_sem, 100))
+            break;
+        if (hal.setting_mode == false)
+        {
+            cancel_connect();
+            break;
+        }
+    }
     if (manual_config_ssid != NULL)
     {
         WiFi.begin(manual_config_ssid, manual_config_password);

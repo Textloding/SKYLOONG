@@ -93,6 +93,7 @@ static bool ntp_req = false;
 static bool rechoose_wifi = false;
 static bool update_req = false;
 static int factory_reset_count = 20;
+static bool reboot_needed = false;
 static uint32_t factory_reset_millis_last = 0;
 static lv_obj_t *ota_update_btn = NULL;
 static lv_obj_t *factory_reset_btn = NULL;
@@ -135,6 +136,7 @@ void AppSettings::setup()
         lv_obj_add_state(o, LV_STATE_CHECKED);
     else
         lv_obj_clear_state(o, LV_STATE_CHECKED);
+    lv_obj_clear_state(o, LV_STATE_CHECKED);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     btn_server = create_settings_button(_appScreen, _tr(I18N_ID_START_WEBSERVER), _tr(I18N_ID_START_WEBSERVER_DESC), _tr(I18N_ID_START), [](lv_event_t *e)
                                         {
@@ -224,7 +226,7 @@ void AppSettings::setup()
         lv_dropdown_set_selected(o, t);
     }
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    ota_update_btn = create_settings_button(_appScreen, "OTA", "进行OTA更新", "检查更新", [](lv_event_t *e)
+    ota_update_btn = create_settings_button(_appScreen, _tr(I18N_ID_FIRMWARE_VERSION), FIRMWARE_VERSION, _tr(I18N_ID_CHECK_UPDATE), [](lv_event_t *e)
                                             {
         if (e->code == LV_EVENT_CLICKED)
         {
@@ -262,13 +264,62 @@ void AppSettings::setup()
             lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     lv_obj_add_state(exit_btn, LV_STATE_CHECKED);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    o = lv_label_create(_appScreen);
-    lv_label_set_text(o, FIRMWARE_VERSION);
-    lv_obj_set_style_text_color(o, lv_palette_main(LV_PALETTE_GREY), 0);
+
+    o = create_settings_switch(_appScreen, _tr(I18N_ID_ENABLE_APS_APP), _tr(I18N_ID_ENABLE_APS_APP_DESC), [](lv_event_t *e)
+                               {
+        if (e->code == LV_EVENT_VALUE_CHANGED){
+            reboot_needed = true;
+            hal.pref.putBool("aps_enable", lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED));
+        }
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
+    if (hal.pref.getBool("aps_enable", true))
+        lv_obj_add_state(o, LV_STATE_CHECKED);
+    else
+        lv_obj_clear_state(o, LV_STATE_CHECKED);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //lv_obj_set_scroll_snap_y(_appScreen, LV_SCROLL_SNAP_CENTER);
-    // uint8_t key = LV_KEY_NEXT;
-    // xQueueSend(hal._queue_kb, &key, 0);
+    o = create_settings_switch(_appScreen, _tr(I18N_ID_ENABLE_GIF_APP), _tr(I18N_ID_ENABLE_GIF_APP_DESC), [](lv_event_t *e)
+                               {
+        if (e->code == LV_EVENT_VALUE_CHANGED){
+            reboot_needed = true;
+            hal.pref.putBool("gif_enable", lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED));
+        }
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
+    if (hal.pref.getBool("gif_enable", true))
+        lv_obj_add_state(o, LV_STATE_CHECKED);
+    else
+        lv_obj_clear_state(o, LV_STATE_CHECKED);
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    o = create_settings_switch(_appScreen, _tr(I18N_ID_ENABLE_WEATHER_APP), _tr(I18N_ID_ENABLE_WEATHER_APP_DESC), [](lv_event_t *e)
+                               {
+        if (e->code == LV_EVENT_VALUE_CHANGED){
+            reboot_needed = true;
+            hal.pref.putBool("weather_enable", lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED));
+        }
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
+    if (hal.pref.getBool("weather_enable", true))
+        lv_obj_add_state(o, LV_STATE_CHECKED);
+    else
+        lv_obj_clear_state(o, LV_STATE_CHECKED);
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    o = create_settings_switch(_appScreen, _tr(I18N_ID_ENABLE_PERF_APP), _tr(I18N_ID_ENABLE_PERF_APP_DESC), [](lv_event_t *e)
+                               {
+        if (e->code == LV_EVENT_VALUE_CHANGED){
+            reboot_needed = true;
+            hal.pref.putBool("sysinfo_enable", lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED));
+        }
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
+    if (hal.pref.getBool("sysinfo_enable", true))
+        lv_obj_add_state(o, LV_STATE_CHECKED);
+    else
+        lv_obj_clear_state(o, LV_STATE_CHECKED);
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // lv_obj_set_scroll_snap_y(_appScreen, LV_SCROLL_SNAP_CENTER);
+    //  uint8_t key = LV_KEY_NEXT;
+    //  xQueueSend(hal._queue_kb, &key, 0);
     hal.UNLOCKLV();
     // delay(65); // 等待按键事件响应
     // hal.LOCKLV();
@@ -351,7 +402,7 @@ void AppSettings::loop()
                 scr_update_ui = lv_obj_create(NULL);
                 lv_obj_set_style_text_font(scr_update_ui, &lv_font_chinese_16, 0);
                 lbl_update_info = lv_label_create(scr_update_ui);
-                lv_label_set_text(lbl_update_info, "正在更新...\n如需取消更新，请在进度达到95%之前\n关闭设备电源");
+                lv_label_set_text(lbl_update_info, _tr(I18N_ID_UPDATING));
                 lv_obj_set_width(lbl_update_info, lv_pct(80));
                 lv_obj_align(lbl_update_info, LV_ALIGN_TOP_MID, 0, 20);
                 lv_obj_set_style_text_align(lbl_update_info, LV_TEXT_ALIGN_CENTER, 0);
@@ -363,21 +414,21 @@ void AppSettings::loop()
                 lv_bar_set_value(progress_update, 0, LV_ANIM_OFF);
                 lv_bar_set_range(progress_update, 0, 100);
                 lbl_update_progress = lv_label_create(scr_update_ui);
-                lv_label_set_text(lbl_update_progress, "准备中");
+                lv_label_set_text(lbl_update_progress, _tr(I18N_ID_PREPARE_UPDATE));
                 lv_obj_align(lbl_update_progress, LV_ALIGN_BOTTOM_MID, 0, -30);
                 lv_obj_set_style_text_align(lbl_update_progress, LV_TEXT_ALIGN_CENTER, 0);
                 lv_scr_load_anim(scr_update_ui, LV_SCR_LOAD_ANIM_NONE, 0, 0, true);
                 httpUpdate.onStart([]
-                                   { lv_label_set_text_fmt(lbl_update_progress, "OTA更新已启动"); });
+                                   { lv_label_set_text_fmt(lbl_update_progress, _tr(I18N_ID_UPDATE_INITIALIZED)); });
                 httpUpdate.onEnd([]
-                                 { lv_label_set_text_fmt(lbl_update_progress, "OTA更新完成"); vTaskDelay(2000); });
+                                 { lv_label_set_text_fmt(lbl_update_progress, _tr(I18N_ID_UPDATE_SUCCESS)); vTaskDelay(2000); });
                 httpUpdate.onProgress([](int cur, int total)
                                       {
                     lv_bar_set_value(progress_update, (int)(cur * 100 / total), LV_ANIM_OFF);
                     lv_label_set_text_fmt(lbl_update_progress, "%d%%", (int)(cur * 100 / total)); });
                 httpUpdate.onError([](int err)
                                    {
-                    GUI::toast("OTA更新失败");
+                    GUI::toast(_tr(I18N_ID_UPDATE_FAILED));
                     ESP_LOGE("OTA", "HTTP update failed with error %d", err);
                     vTaskDelay(5000);
                     ESP.restart(); });
@@ -421,23 +472,23 @@ void AppSettings::loop()
                             ESP_LOGI("OTA", "New version %d", update_version_int);
                             ESP_LOGI("OTA", "%s", update_version_str.c_str());
                             ESP_LOGI("OTA", "Start updating firmware from %s", update_bin_url.c_str());
-                            GUI::toast("发现新版本");
+                            GUI::toast(_tr(I18N_ID_NEW_VERSION));
                             lv_obj_add_state(ota_update_btn, LV_STATE_CHECKED);
-                            lv_label_set_text(lv_obj_get_child(ota_update_btn, 0), "立即更新");
+                            lv_label_set_text(lv_obj_get_child(ota_update_btn, 0), _tr(I18N_ID_UPDATE_IMMEDIATELY));
                         }
                         else
                         {
-                            GUI::toast("已经是最新版本");
+                            GUI::toast(_tr(I18N_ID_NO_UPDATE));
                         }
                     }
                     else
                     {
-                        GUI::toast("内部错误");
+                        GUI::toast(_tr(I18N_ID_INTERNAL_ERR));
                     }
                 }
                 else
                 {
-                    GUI::toast("无法连接服务器");
+                    GUI::toast(_tr(I18N_ID_CANNOT_CONNECT_TO_SERVER));
                 }
                 http.end();
             }
@@ -463,4 +514,6 @@ void AppSettings::destroy()
     hal.pref.putInt("theme", hal.config_theme);
     hal.pref.putUInt("lang", i18n::getLanguage());
     hal.pref.putInt("ntp", i18n::getNTPOffset());
+    if(reboot_needed)
+    ESP.restart();
 }

@@ -159,6 +159,7 @@ bool WiFiManager::requireWiFi(bool forceChoose)
         }
         else
         {
+            hal.pref.putBool("wifi_succ", false);
         choose:
             char ssid[64];
             char passwd[64];
@@ -187,7 +188,6 @@ bool WiFiManager::requireWiFi(bool forceChoose)
             }
             else
             {
-                hal.pref.putBool("wifi_succ", false);
                 return false;
             }
         }
@@ -197,7 +197,6 @@ bool WiFiManager::requireWiFi(bool forceChoose)
         hal.pref.putBool("wifi_succ", true);
         return true;
     }
-    hal.pref.putBool("wifi_succ", false);
     return false;
 }
 
