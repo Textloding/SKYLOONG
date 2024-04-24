@@ -110,12 +110,16 @@ void AppSettings::setup()
     o = create_settings_button(_appScreen, _tr(I18N_ID_RECHOOSE_WIFI), _tr(I18N_ID_RECHOOSE_WIFI_DESC), _tr(I18N_ID_RECHOOSE), [](lv_event_t *e)
                                {
         if (e->code == LV_EVENT_CLICKED)
-            rechoose_wifi = true; });
+            rechoose_wifi = true; 
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     o = create_settings_switch(_appScreen, _tr(I18N_ID_BOOT_ANIMATION), _tr(I18N_ID_BOOT_ANIMATION_DESC), [](lv_event_t *e)
                                {
-            if (e->code == LV_EVENT_VALUE_CHANGED)
-                hal.config_bootanimation = lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED); });
+        if (e->code == LV_EVENT_VALUE_CHANGED)
+            hal.config_bootanimation = lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED);
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     if (hal.config_bootanimation)
         lv_obj_add_state(o, LV_STATE_CHECKED);
     else
@@ -123,8 +127,10 @@ void AppSettings::setup()
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     o = create_settings_switch(_appScreen, _tr(I18N_ID_12HR), _tr(I18N_ID_12HR_DESC), [](lv_event_t *e)
                                {
-            if (e->code == LV_EVENT_VALUE_CHANGED)
-                hal.config_time_12hr = lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED); });
+        if (e->code == LV_EVENT_VALUE_CHANGED)
+            hal.config_time_12hr = lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED);
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     if (hal.config_time_12hr)
         lv_obj_add_state(o, LV_STATE_CHECKED);
     else
@@ -144,7 +150,9 @@ void AppSettings::setup()
                 lv_label_set_text(lv_obj_get_child(lv_event_get_target(e), 0), _tr(I18N_ID_START));
                 hal.send_sysctl(EVENT_SERVERCTL, 0);
             }
-        } });
+        }
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     lv_obj_add_flag(btn_server, LV_OBJ_FLAG_CHECKABLE);
     if (hal.server_started)
     {
@@ -153,50 +161,62 @@ void AppSettings::setup()
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     create_settings_button(_appScreen, _tr(I18N_ID_SYNC_TIME), _tr(I18N_ID_SYNC_TIME_DESC), _tr(I18N_ID_SYNC), [](lv_event_t *e)
                            {
-            if (e->code == LV_EVENT_CLICKED)
-                ntp_req = true; });
+        if (e->code == LV_EVENT_CLICKED)
+            ntp_req = true;
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     create_settings_slider(_appScreen, _tr(I18N_ID_BRIGHTNESS), [](lv_event_t *e)
                            {
-            if (e->code == LV_EVENT_VALUE_CHANGED)
-                hal.setBrightness(lv_slider_get_value((lv_obj_t*)lv_event_get_target(e))); 
-            if(e->code == LV_EVENT_SCREEN_LOADED)
-            {
-                lv_slider_set_value((lv_obj_t*)lv_event_get_target(e), hal._brightness, LV_ANIM_OFF);
-            } });
+        if (e->code == LV_EVENT_VALUE_CHANGED)
+            hal.setBrightness(lv_slider_get_value((lv_obj_t*)lv_event_get_target(e))); 
+        if(e->code == LV_EVENT_SCREEN_LOADED)
+        {
+            lv_slider_set_value((lv_obj_t*)lv_event_get_target(e), hal._brightness, LV_ANIM_OFF);
+        }
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     o = create_settings_list(_appScreen, _tr(I18N_ID_THEME), _tr(I18N_ID_CHANGE_THEME), _tr(I18N_ID_THEME_LIST), [](lv_event_t *e)
                              {
-                if (e->code == LV_EVENT_VALUE_CHANGED)
-                {
-                    hal.config_theme = lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e));
-                } });
+        if (e->code == LV_EVENT_VALUE_CHANGED)
+        {
+            hal.config_theme = lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e));
+        }
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     lv_dropdown_set_selected(o, hal.config_theme);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     o = create_settings_list(_appScreen, _tr(I18N_ID_ROLL_TIME), _tr(I18N_ID_ROLL_TIME_DESC), "2s\n3s\n4s\n5s\n6s\n7s\n8s\n9s\n10s\n11s\n12s\n13s\n14s\n15s", [](lv_event_t *e)
                              {
-                if (e->code == LV_EVENT_VALUE_CHANGED)
-                {
-                    hal.config_time_roll = (lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e)) + 2) * 1000;
-                } });
+        if (e->code == LV_EVENT_VALUE_CHANGED)
+        {
+            hal.config_time_roll = (lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e)) + 2) * 1000;
+        }
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     lv_dropdown_set_selected(o, hal.config_time_roll / 1000 - 2);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     o = create_settings_list(_appScreen, "Language", "修改语言", "中文\nEnglish", [](lv_event_t *e)
                              {
-            if (e->code == LV_EVENT_VALUE_CHANGED)
-                i18n::setLanguage(lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e))); });
+        if (e->code == LV_EVENT_VALUE_CHANGED)
+            i18n::setLanguage(lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e)));
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     lv_dropdown_set_selected(o, i18n::getLanguage());
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     o = create_settings_list(_appScreen, _tr(I18N_ID_TIMEZONE), _tr(I18N_ID_TIMEZONE_DESC), "UTC-12\nUTC-11\nUTC-10\nUTC-9\nUTC-8\nUTC-7\nUTC-6\nUTC-5\nUTC-4\nUTC-3\nUTC-2\nUTC-1\nUTC+0\nUTC+1\nUTC+2\nUTC+3\nUTC+4\nUTC+5\nUTC+6\nUTC+7\nUTC+8\nUTC+9\nUTC+10\nUTC+11\nUTC+12", [](lv_event_t *e)
                              {
 
-            if (e->code == LV_EVENT_VALUE_CHANGED)
-            {
-                long t = lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e));
-                t -= 12;
-                t *= 3600;
-                i18n::setNTPOffset(t);
-            } });
+        if (e->code == LV_EVENT_VALUE_CHANGED)
+        {
+            long t = lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e));
+            t -= 12;
+            t *= 3600;
+            i18n::setNTPOffset(t);
+        }
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     {
         long t = i18n::getNTPOffset();
         t /= 3600;
@@ -206,41 +226,47 @@ void AppSettings::setup()
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ota_update_btn = create_settings_button(_appScreen, "OTA", "进行OTA更新", "检查更新", [](lv_event_t *e)
                                             {
-            if (e->code == LV_EVENT_CLICKED)
-            {
-                update_req = true;
-            } });
+        if (e->code == LV_EVENT_CLICKED)
+        {
+            update_req = true;
+        }
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     factory_reset_btn = create_settings_button(_appScreen, _tr(I18N_ID_FACTORY_RESET), _tr(I18N_ID_FACTORY_RESET_DESC), _tr(I18N_ID_FACTORY_RESET_BTN), [](lv_event_t *e)
                                                {
-            if (e->code == LV_EVENT_CLICKED)
+        if (e->code == LV_EVENT_CLICKED)
+        {
+            factory_reset_millis_last = millis();
+            factory_reset_count--;
+            if(factory_reset_count == 0)
             {
-                factory_reset_millis_last = millis();
-                factory_reset_count--;
-                if(factory_reset_count == 0)
-                {
-                    lv_label_set_text(lv_obj_get_child(factory_reset_btn, 0), _tr(I18N_ID_FACTORY_RESETTING));
-                }
-                else if(factory_reset_count > 0)
-                {
-                    lv_label_set_text_fmt(lv_obj_get_child(factory_reset_btn, 0), _tr(I18N_ID_FACTORY_RESETTING_COUNT), factory_reset_count);
-                }
-            } });
+                lv_label_set_text(lv_obj_get_child(factory_reset_btn, 0), _tr(I18N_ID_FACTORY_RESETTING));
+            }
+            else if(factory_reset_count > 0)
+            {
+                lv_label_set_text_fmt(lv_obj_get_child(factory_reset_btn, 0), _tr(I18N_ID_FACTORY_RESETTING_COUNT), factory_reset_count);
+            }
+        }
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     lv_obj_add_state(factory_reset_btn, LV_STATE_CHECKED);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     exit_btn = create_settings_button(_appScreen, _tr(I18N_ID_EXIT_TITLE), _tr(I18N_ID_EXIT_DESC), _tr(I18N_ID_EXIT), [](lv_event_t *e)
-                                               {
+                                      {
             if (e->code == LV_EVENT_CLICKED)
             {
                 hal.forceExitSettings();
-            } });
+            } 
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     lv_obj_add_state(exit_btn, LV_STATE_CHECKED);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     o = lv_label_create(_appScreen);
     lv_label_set_text(o, FIRMWARE_VERSION);
     lv_obj_set_style_text_color(o, lv_palette_main(LV_PALETTE_GREY), 0);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    lv_obj_set_scroll_snap_y(_appScreen, LV_SCROLL_SNAP_CENTER);
+    //lv_obj_set_scroll_snap_y(_appScreen, LV_SCROLL_SNAP_CENTER);
     // uint8_t key = LV_KEY_NEXT;
     // xQueueSend(hal._queue_kb, &key, 0);
     hal.UNLOCKLV();
@@ -284,6 +310,7 @@ void AppSettings::loop()
     }
     if (rechoose_wifi)
     {
+        WiFi.disconnect(true);
         WiFiMgr.requireWiFi(true);
         rechoose_wifi = false;
     }
@@ -339,7 +366,7 @@ void AppSettings::loop()
                 lv_label_set_text(lbl_update_progress, "准备中");
                 lv_obj_align(lbl_update_progress, LV_ALIGN_BOTTOM_MID, 0, -30);
                 lv_obj_set_style_text_align(lbl_update_progress, LV_TEXT_ALIGN_CENTER, 0);
-                lv_scr_load_anim(scr_update_ui, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, true);
+                lv_scr_load_anim(scr_update_ui, LV_SCR_LOAD_ANIM_NONE, 0, 0, true);
                 httpUpdate.onStart([]
                                    { lv_label_set_text_fmt(lbl_update_progress, "OTA更新已启动"); });
                 httpUpdate.onEnd([]

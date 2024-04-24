@@ -57,6 +57,7 @@ struct app_setting
     char userdata[256];
 };
 extern struct app_setting app_settings_save;
+
 class HAL
 {
 public:

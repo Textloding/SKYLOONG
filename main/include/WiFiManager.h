@@ -30,5 +30,6 @@ public:
         WiFi.disconnect(true);
         WiFi.mode(WIFI_OFF);
     };
+    bool tryConnectLast();
 };
 extern WiFiManager WiFiMgr;

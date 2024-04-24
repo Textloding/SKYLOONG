@@ -233,6 +233,7 @@ void demo()
 
 void HAL::init()
 {
+    memset(&datetime, 0xff, sizeof(DS1302_DateTime));
     WiFi.setHostname("GKScreen");
     pinMode(PIN_DISPLAY_PWR, OUTPUT);
     digitalWrite(PIN_DISPLAY_PWR, HIGH);
@@ -754,7 +755,7 @@ void parseAppSettings(const char *input)
         cJSON_Delete(root);
         root = cJSON_Parse(default_app_setting);
     }
-    strncpy(app_settings_save.remote_ip, cJSON_GetObjectItem(root, "ip")->valuestring, sizeof(app_settings_save.remote_ip));
+    strncpy(app_settings_save.remote_ip, cJSON_GetObjectItem(root, "ip")->valuestring, sizeof(app_settings_save.remote_ip) - 1);
     app_settings_save.remote_port = cJSON_GetObjectItem(root, "port")->valueint;
     strncpy(app_settings_save.weather_secret, cJSON_GetObjectItem(root, "weather")->valuestring, sizeof(app_settings_save.weather_secret) - 1);
     strncpy(app_settings_save.weather_city, cJSON_GetObjectItem(root, "city")->valuestring, sizeof(app_settings_save.weather_city) - 1);
@@ -839,20 +840,12 @@ void HAL::start_webserver()
     if (WiFi.getMode() == WIFI_OFF)
     {
         WiFi.mode(WIFI_STA);
-        if (WiFi.psk() == "")
+        GUI::toast(_tr(I18N_ID_CONNECTING));
+        if (WiFiMgr.tryConnectLast() == false)
         {
+            GUI::toast(_tr(I18N_ID_CONNECT_FAILED));
+            WiFi.mode(WIFI_AP);
             WiFi.softAP("GKScreen");
-        }
-        else
-        {
-            GUI::toast(_tr(I18N_ID_CONNECTING));
-            WiFi.begin();
-            if (WiFi.waitForConnectResult(5000) != WL_CONNECTED)
-            {
-                GUI::toast(_tr(I18N_ID_CONNECT_FAILED));
-                WiFi.mode(WIFI_AP);
-                WiFi.softAP("GKScreen");
-            }
         }
     }
     MDNS.begin("gkscreen");

@@ -133,6 +133,7 @@ void parasePkt(protocol_t *pkt)
             break;
         case 0xA1: // BackSpace
             // xSemaphoreGive(appManagerLite._binary_switchApp);
+            send_data = LV_KEY_ESC;
             break;
         case 0xA2: // 方向键向左
             send_data = LV_KEY_LEFT;
@@ -209,7 +210,7 @@ void parasePkt(protocol_t *pkt)
         break;
     }
 }
-void getPkt()
+bool getPkt()
 {
     static protocol_t pkt;
     memset(&pkt, 0, sizeof(protocol_t));
@@ -217,8 +218,16 @@ void getPkt()
         delay(5);
     // 此时已经收到了STX
     uint16_t tmp = getByte();
+    if (tmp != 0x00)
+    {
+        return false;
+    }
     tmp = tmp << 8;
     tmp |= getByte();
+    if (tmp > 8)
+    {
+        return false;
+    }
     pkt.len = tmp;
     pkt.type = getByte();
     if (pkt.len > 0)
@@ -229,18 +238,18 @@ void getPkt()
     if (getByte() != PROTOCOL_ETX)
     {
         free(pkt.data);
-        return;
+        return false;
     }
     pkt.crc = getByte();
     if (pkt.crc != getcrc(&pkt))
     {
         free(pkt.data);
-        return;
+        return false;
     }
     Serial2.write(PROTOCOL_ACK);
     Serial2.flush();
     parasePkt(&pkt);
-    return;
+    return true;
 }
 static uint32_t last_millis = 0;
 bool stop_protocol = false;
@@ -248,9 +257,9 @@ void task_protocol(void *pvParameters)
 {
     while (1)
     {
-        getPkt();
-        last_millis = millis();
-        if(stop_protocol)
+        if (getPkt())
+            last_millis = millis();
+        if (stop_protocol)
         {
             in_setting_mode = false;
             stop_protocol = false;
