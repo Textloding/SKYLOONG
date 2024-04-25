@@ -116,7 +116,7 @@ extern "C" void app_main()
     }
     // 开机动画
     
-    if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_UNDEFINED && esp_reset_reason() == ESP_RST_POWERON)
+    if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_UNDEFINED && esp_reset_reason() != ESP_RST_SW)
     {
         rtc_gpio_deinit((gpio_num_t)PIN_SERIAL2_RX);
         if (hal.config_bootanimation)
