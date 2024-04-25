@@ -4,7 +4,7 @@ typedef struct protocol_t
 {
     uint16_t len;
     uint8_t type;
-    uint8_t *data;
+    uint8_t data[128];
     uint8_t crc;
 } protocol_t;
 
@@ -84,8 +84,6 @@ static bool checkChanged()
 void parasePkt(protocol_t *pkt)
 {
     static protocol_t pkt_send;
-    if (pkt_send.data == NULL)
-        pkt_send.data = (uint8_t *)malloc(128);
     pkt_send.type = pkt->type;
     memset(pkt_send.data, 0, 128);
     switch (pkt->type)
@@ -213,11 +211,6 @@ void parasePkt(protocol_t *pkt)
 bool getPkt()
 {
     static protocol_t pkt;
-    if(pkt.data)
-    {
-        free(pkt.data);
-        pkt.data = NULL;
-    }
     memset(&pkt, 0, sizeof(protocol_t));
     while (getByte() != PROTOCOL_STX)
         delay(5);
@@ -237,18 +230,15 @@ bool getPkt()
     pkt.type = getByte();
     if (pkt.len > 0)
     {
-        pkt.data = (uint8_t *)malloc(pkt.len);
         Serial2.readBytes(pkt.data, pkt.len - 1);
     }
     if (getByte() != PROTOCOL_ETX)
     {
-        free(pkt.data);
         return false;
     }
     pkt.crc = getByte();
     if (pkt.crc != getcrc(&pkt))
     {
-        free(pkt.data);
         return false;
     }
     Serial2.write(PROTOCOL_ACK);
@@ -268,7 +258,7 @@ void task_protocol(void *pvParameters)
         {
             in_setting_mode = false;
             stop_protocol = false;
-            delay(3000);
+            delay(4000);
             Serial2.flush(false);
         }
     }

@@ -751,7 +751,7 @@ void handleTime()
 #include <cJSON.h>
 
 static char jsonbuffer[1024];
-const char default_app_setting[] = "{\"ip\":\"192.168.1.1\",\"port\":1648,\"weather\":\"\",\"city\":\"北京\",\"userdata\":\"请在网页端\n自定义文本\"}";
+const char default_app_setting[] = "{\"ip\":\"192.168.1.1\",\"port\":1648,\"weather\":\"SoC098cCa8Ih-GWTb\",\"city\":\"北京\",\"userdata\":\"请在网页端\n自定义文本\"}";
 
 struct app_setting app_settings_save;
 
