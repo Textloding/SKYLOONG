@@ -447,11 +447,11 @@ static bool connectToWiFi()
         WiFi.begin();
         if (WiFi.waitForConnectResult() != WL_CONNECTED)
         {
-            hal.pref.putBool("wifi_succ", false);
+            //hal.pref.putBool("wifi_succ", false);
             GUI::toast(_tr(I18N_ID_CONNECT_FAILED));
             return false;
         }
-        hal.pref.putBool("wifi_succ", true);
+        //hal.pref.putBool("wifi_succ", true);
     }
     return true;
 }

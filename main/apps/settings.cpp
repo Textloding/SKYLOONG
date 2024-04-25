@@ -89,6 +89,7 @@ void create_settings_slider(lv_obj_t *_appScreen, const char *title, lv_event_cb
     lv_slider_set_value(slider, hal._brightness, LV_ANIM_OFF);
     lv_obj_add_event_cb(slider, cb, LV_EVENT_ALL, NULL);
 }
+static bool server_req = false;
 static bool ntp_req = false;
 static bool rechoose_wifi = false;
 static bool update_req = false;
@@ -144,8 +145,8 @@ void AppSettings::setup()
         {
             if(lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED))
             {
-                lv_label_set_text(lv_obj_get_child(lv_event_get_target(e), 0), _tr(I18N_ID_STOP));
-                hal.send_sysctl(EVENT_SERVERCTL, 1);
+                lv_obj_add_state(btn_server, LV_STATE_DISABLED);
+                server_req = true;
             }
             else
             {
@@ -226,44 +227,6 @@ void AppSettings::setup()
         lv_dropdown_set_selected(o, t);
     }
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    ota_update_btn = create_settings_button(_appScreen, _tr(I18N_ID_FIRMWARE_VERSION), FIRMWARE_VERSION, _tr(I18N_ID_CHECK_UPDATE), [](lv_event_t *e)
-                                            {
-        if (e->code == LV_EVENT_CLICKED)
-        {
-            update_req = true;
-        }
-        if (e->code == LV_EVENT_FOCUSED)
-            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    factory_reset_btn = create_settings_button(_appScreen, _tr(I18N_ID_FACTORY_RESET), _tr(I18N_ID_FACTORY_RESET_DESC), _tr(I18N_ID_FACTORY_RESET_BTN), [](lv_event_t *e)
-                                               {
-        if (e->code == LV_EVENT_CLICKED)
-        {
-            factory_reset_millis_last = millis();
-            factory_reset_count--;
-            if(factory_reset_count == 0)
-            {
-                lv_label_set_text(lv_obj_get_child(factory_reset_btn, 0), _tr(I18N_ID_FACTORY_RESETTING));
-            }
-            else if(factory_reset_count > 0)
-            {
-                lv_label_set_text_fmt(lv_obj_get_child(factory_reset_btn, 0), _tr(I18N_ID_FACTORY_RESETTING_COUNT), factory_reset_count);
-            }
-        }
-        if (e->code == LV_EVENT_FOCUSED)
-            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
-    lv_obj_add_state(factory_reset_btn, LV_STATE_CHECKED);
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    exit_btn = create_settings_button(_appScreen, _tr(I18N_ID_EXIT_TITLE), _tr(I18N_ID_EXIT_DESC), _tr(I18N_ID_EXIT), [](lv_event_t *e)
-                                      {
-            if (e->code == LV_EVENT_CLICKED)
-            {
-                hal.forceExitSettings();
-            } 
-        if (e->code == LV_EVENT_FOCUSED)
-            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
-    lv_obj_add_state(exit_btn, LV_STATE_CHECKED);
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     o = create_settings_switch(_appScreen, _tr(I18N_ID_ENABLE_APS_APP), _tr(I18N_ID_ENABLE_APS_APP_DESC), [](lv_event_t *e)
                                {
@@ -317,6 +280,44 @@ void AppSettings::setup()
     else
         lv_obj_clear_state(o, LV_STATE_CHECKED);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ota_update_btn = create_settings_button(_appScreen, _tr(I18N_ID_FIRMWARE_VERSION), FIRMWARE_VERSION, _tr(I18N_ID_CHECK_UPDATE), [](lv_event_t *e)
+                                            {
+        if (e->code == LV_EVENT_CLICKED)
+        {
+            update_req = true;
+        }
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    factory_reset_btn = create_settings_button(_appScreen, _tr(I18N_ID_FACTORY_RESET), _tr(I18N_ID_FACTORY_RESET_DESC), _tr(I18N_ID_FACTORY_RESET_BTN), [](lv_event_t *e)
+                                               {
+        if (e->code == LV_EVENT_CLICKED)
+        {
+            factory_reset_millis_last = millis();
+            factory_reset_count--;
+            if(factory_reset_count == 0)
+            {
+                lv_label_set_text(lv_obj_get_child(factory_reset_btn, 0), _tr(I18N_ID_FACTORY_RESETTING));
+            }
+            else if(factory_reset_count > 0)
+            {
+                lv_label_set_text_fmt(lv_obj_get_child(factory_reset_btn, 0), _tr(I18N_ID_FACTORY_RESETTING_COUNT), factory_reset_count);
+            }
+        }
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
+    lv_obj_add_state(factory_reset_btn, LV_STATE_CHECKED);
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    exit_btn = create_settings_button(_appScreen, _tr(I18N_ID_EXIT_TITLE), _tr(I18N_ID_EXIT_DESC), _tr(I18N_ID_EXIT), [](lv_event_t *e)
+                                      {
+            if (e->code == LV_EVENT_CLICKED)
+            {
+                hal.forceExitSettings();
+            } 
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
+    lv_obj_add_state(exit_btn, LV_STATE_CHECKED);
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // lv_obj_set_scroll_snap_y(_appScreen, LV_SCROLL_SNAP_CENTER);
     //  uint8_t key = LV_KEY_NEXT;
     //  xQueueSend(hal._queue_kb, &key, 0);
@@ -351,8 +352,10 @@ void AppSettings::loop()
         {
             if (WiFi.getMode() == WIFI_AP)
                 lv_label_set_text(lv_obj_get_child(btn_server, 0), "192.168.4.1");
-            else
+            else if(WiFi.getMode() == WIFI_STA && WiFi.status() == WL_CONNECTED)
                 lv_label_set_text(lv_obj_get_child(btn_server, 0), WiFi.localIP().toString().c_str());
+            else
+                lv_label_set_text(lv_obj_get_child(btn_server, 0), _tr(I18N_ID_STOP));
         }
         else
         {
@@ -364,6 +367,13 @@ void AppSettings::loop()
         WiFi.disconnect(true);
         WiFiMgr.requireWiFi(true);
         rechoose_wifi = false;
+    }
+    if (server_req)
+    {
+        WiFiMgr.requireWiFi();
+        hal.send_sysctl(EVENT_SERVERCTL, 1);
+        lv_obj_clear_state(btn_server, LV_STATE_DISABLED);
+        server_req = false;
     }
     if (ntp_req)
     {

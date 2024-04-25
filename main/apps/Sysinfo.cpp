@@ -146,7 +146,7 @@ void AppSysinfo::loop()
         GUI::toast(_tr(I18N_ID_CONNECTING));
         if (WiFi.waitForConnectResult() == WL_CONNECTED)
         {
-            hal.pref.putBool("wifi_succ", true);
+            //hal.pref.putBool("wifi_succ", true);
             tcp_started = true;
             TCPConnect(tcpClient, app_settings_save.remote_ip, app_settings_save.remote_port, tcp_started);
             if (tcp_started)
@@ -154,7 +154,7 @@ void AppSysinfo::loop()
         }
         else
         {
-            hal.pref.putBool("wifi_succ", false);
+            //hal.pref.putBool("wifi_succ", false);
             lv_label_set_text(lbl_userdata, "Disconnected");
             GUI::toast(_tr(I18N_ID_CONNECT_FAILED));
         }

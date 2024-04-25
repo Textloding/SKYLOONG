@@ -213,6 +213,11 @@ void parasePkt(protocol_t *pkt)
 bool getPkt()
 {
     static protocol_t pkt;
+    if(pkt.data)
+    {
+        free(pkt.data);
+        pkt.data = NULL;
+    }
     memset(&pkt, 0, sizeof(protocol_t));
     while (getByte() != PROTOCOL_STX)
         delay(5);
@@ -224,7 +229,7 @@ bool getPkt()
     }
     tmp = tmp << 8;
     tmp |= getByte();
-    if (tmp > 8)
+    if (tmp > 16)
     {
         return false;
     }

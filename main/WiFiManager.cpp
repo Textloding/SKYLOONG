@@ -154,12 +154,12 @@ bool WiFiManager::requireWiFi(bool forceChoose)
         if (WiFi.waitForConnectResult(5000) == WL_CONNECTED)
         {
             GUI::toast(_tr(I18N_ID_CONNECTED));
-            hal.pref.putBool("wifi_succ", true);
+            //hal.pref.putBool("wifi_succ", true);
             return true;
         }
         else
         {
-            hal.pref.putBool("wifi_succ", false);
+            //hal.pref.putBool("wifi_succ", false);
         choose:
             char ssid[64];
             char passwd[64];
@@ -183,7 +183,7 @@ bool WiFiManager::requireWiFi(bool forceChoose)
                 if (WiFiCount == WIFI_SAVE_MAX)
                     GUI::toast(_tr(I18N_ID_WIFI_LIST_FULL));
                 add(ssid, passwd);
-                hal.pref.putBool("wifi_succ", true);
+                //hal.pref.putBool("wifi_succ", true);
                 return true;
             }
             else
@@ -194,7 +194,7 @@ bool WiFiManager::requireWiFi(bool forceChoose)
     }
     else
     {
-        hal.pref.putBool("wifi_succ", true);
+        //hal.pref.putBool("wifi_succ", true);
         return true;
     }
     return false;
@@ -204,13 +204,13 @@ bool WiFiManager::tryConnectLast()
 {
     if (WiFi.isConnected())
         return true;
-    bool wifi_succ = hal.pref.getBool("wifi_succ", false);
+    bool wifi_succ = true;//hal.pref.getBool("wifi_succ", false);
     if (wifi_succ == false)
         return false;
     WiFi.begin();
     if (WiFi.waitForConnectResult(5000) != WL_CONNECTED)
     {
-        hal.pref.putBool("wifi_succ", false);
+        //hal.pref.putBool("wifi_succ", false);
         return false;
     }
     return true;

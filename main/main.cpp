@@ -115,14 +115,15 @@ extern "C" void app_main()
         last_appid = hal.pref.getInt("last_appid", 1);
     }
     // 开机动画
-    if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_UNDEFINED)
+    
+    if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_UNDEFINED && esp_reset_reason() == ESP_RST_POWERON)
     {
         rtc_gpio_deinit((gpio_num_t)PIN_SERIAL2_RX);
         if (hal.config_bootanimation)
             videoPlayer.playBuffer(__boot_mpeg, sizeof(__boot_mpeg));
     }
     protocol_init();
-    xTaskCreatePinnedToCore(task_lvgl_update, "lvgl_update", 1024 * 6, NULL, 35, NULL, 1);
+    xTaskCreatePinnedToCore(task_lvgl_update, "lvgl_update", 1024 * 6, NULL, 2, NULL, 1);
     xTaskCreatePinnedToCore(debug_USB_UART, "debug_USB_UART", 1024 * 4, NULL, 6, NULL, 1);
     appManagerLite.init(last_appid);
     vTaskDelete(NULL);

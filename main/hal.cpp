@@ -477,7 +477,7 @@ void HAL::send_sysctl(system_event_type_t type, uint8_t data)
     sysctl_event_t event;
     event.type = type;
     event.data = data;
-    xQueueSend(_queue, &event, portMAX_DELAY);
+    xQueueSend(_queue, &event, 20);
 }
 #include <stdio.h>
 #include <stdlib.h>
@@ -848,14 +848,8 @@ void HAL::start_webserver()
     hal.server_started = true;
     if (WiFi.getMode() == WIFI_OFF || (WiFi.getMode() == WIFI_STA && WiFi.isConnected() == false))
     {
-        WiFi.mode(WIFI_STA);
-        GUI::toast(_tr(I18N_ID_CONNECTING));
-        if (WiFiMgr.requireWiFi() == false)
-        {
-            GUI::toast(_tr(I18N_ID_CONNECT_FAILED));
-            WiFi.mode(WIFI_AP);
-            WiFi.softAP("GKScreen");
-        }
+        WiFi.mode(WIFI_AP);
+        WiFi.softAP("GKScreen");
     }
     MDNS.begin("gkscreen");
     server.on("/list", HTTP_GET, handleFileList);
