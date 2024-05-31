@@ -19,7 +19,7 @@ typedef struct protocol_t
 #define PROTOCOL_TYPE_PARAM 0xA0
 #define PROTOCOL_TYPE_TIME 0x1E
 #define PROTOCOL_TYPE_BATTERY 0x1F
-static bool screen_is_on = true;
+bool RTC_DATA_ATTR screen_is_on = true;
 static bool in_setting_mode = false;
 static uint8_t getcrc(protocol_t *buff)
 {
@@ -258,7 +258,7 @@ void task_protocol(void *pvParameters)
         {
             in_setting_mode = false;
             stop_protocol = false;
-            delay(4000);
+            delay(5000);
             Serial2.flush(false);
         }
     }

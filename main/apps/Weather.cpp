@@ -445,7 +445,7 @@ static bool connectToWiFi()
     {
         GUI::toast(_tr(I18N_ID_CONNECTING));
         WiFi.begin();
-        if (WiFi.waitForConnectResult() != WL_CONNECTED)
+        if (WiFi.waitForConnectResult(6000) != WL_CONNECTED)
         {
             //hal.pref.putBool("wifi_succ", false);
             GUI::toast(_tr(I18N_ID_CONNECT_FAILED));

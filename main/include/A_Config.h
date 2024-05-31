@@ -51,7 +51,7 @@
 #include <esp_lcd_panel_commands.h>
 #include <esp_lcd_panel_ops.h>
 extern esp_lcd_panel_handle_t panel_handle;
-
+extern bool RTC_DATA_ATTR screen_is_on;
 /**
  * @brief 开始DPP配网并等待
  * @result

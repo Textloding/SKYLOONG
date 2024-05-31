@@ -352,7 +352,7 @@ void AppSettings::loop()
         {
             if (WiFi.getMode() == WIFI_AP)
                 lv_label_set_text(lv_obj_get_child(btn_server, 0), "192.168.4.1");
-            else if(WiFi.getMode() == WIFI_STA && WiFi.status() == WL_CONNECTED)
+            else if (WiFi.getMode() == WIFI_STA && WiFi.status() == WL_CONNECTED)
                 lv_label_set_text(lv_obj_get_child(btn_server, 0), WiFi.localIP().toString().c_str());
             else
                 lv_label_set_text(lv_obj_get_child(btn_server, 0), _tr(I18N_ID_STOP));
@@ -397,9 +397,11 @@ void AppSettings::loop()
     }
     if (factory_reset_count <= 0)
     {
+        hal.forceExitSettings();
         hal.LOCKLV();
         nvs_flash_erase();
         LittleFS.format();
+        delay(1000);
         ESP.restart();
     }
     if (update_req)
@@ -524,6 +526,10 @@ void AppSettings::destroy()
     hal.pref.putInt("theme", hal.config_theme);
     hal.pref.putUInt("lang", i18n::getLanguage());
     hal.pref.putInt("ntp", i18n::getNTPOffset());
-    if(reboot_needed)
-    ESP.restart();
+    if (reboot_needed)
+    {
+        hal.forceExitSettings();
+        delay(2000);
+        ESP.restart();
+    }
 }

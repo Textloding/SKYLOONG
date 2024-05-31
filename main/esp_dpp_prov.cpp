@@ -69,6 +69,7 @@ void cancel_connect()
 {
     manual_config_ssid = NULL;
     xSemaphoreGive(manual_config_sem);
+    hal.lv_has_kb = false;
 }
 #include <WiFi.h>
 #include <vector>
