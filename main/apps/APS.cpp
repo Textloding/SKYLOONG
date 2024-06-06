@@ -24,7 +24,7 @@ void set_aps(int aps)
     lv_label_set_text_fmt(lbl_aps, "%d", aps);
     lv_label_set_text_fmt(lbl_apm, "%d", key_total * 60 / time_cnt);
     lv_label_set_text_fmt(lbl_keyN, "%d", key_total);
-    if (time_cnt < 10)
+    if (time_cnt < 30)
         lv_chart_set_update_mode(chart_aps, LV_CHART_UPDATE_MODE_CIRCULAR);
     else
         lv_chart_set_update_mode(chart_aps, LV_CHART_UPDATE_MODE_SHIFT);
@@ -39,14 +39,14 @@ void AppAPS::setup()
     lbl_aps = lv_label_create(_appScreen);
     lv_label_set_text(lbl_aps, "0");
     lv_obj_set_style_text_align(lbl_aps, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(lbl_aps, 251, 70);
+    lv_obj_set_pos(lbl_aps, 251, 80);
     lv_obj_set_size(lbl_aps, 50, 22);
     lv_obj_set_style_text_color(lbl_aps, lv_color_black(), 0);
 
     lbl_apm = lv_label_create(_appScreen);
     lv_label_set_text(lbl_apm, "0");
     lv_obj_set_style_text_align(lbl_apm, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(lbl_apm, 251, 126);
+    lv_obj_set_pos(lbl_apm, 251, 132);
     lv_obj_set_size(lbl_apm, 50, 22);
     lv_obj_set_style_text_color(lbl_apm, lv_color_black(), 0);
 
@@ -61,10 +61,11 @@ void AppAPS::setup()
     lv_obj_set_style_bg_opa(chart_aps, LV_OPA_0, 0);
     lv_obj_set_style_border_opa(chart_aps, LV_OPA_0, 0);
     lv_obj_set_style_line_opa(chart_aps, LV_OPA_0, 0);
-    lv_obj_set_pos(chart_aps, 39, 52);
-    lv_obj_set_size(chart_aps, 193, 151);
+    lv_obj_set_pos(chart_aps, 25, 54);
+    lv_obj_set_size(chart_aps, 206, 162);
     lv_chart_set_type(chart_aps, LV_CHART_TYPE_LINE);
     ser1 = lv_chart_add_series(chart_aps, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
+    lv_chart_set_point_count(chart_aps, 30);
     lv_obj_set_style_pad_all(chart_aps, 0, 0);
     lv_chart_set_range(chart_aps, LV_CHART_AXIS_PRIMARY_Y, 0, 247);
     hal.UNLOCKLV();
