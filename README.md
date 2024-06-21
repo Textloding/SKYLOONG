@@ -49,15 +49,14 @@ To start using ESP-IDF on **GK87_screen module**, install the following software
 8. Now the setup wizard window will be shown with several setup options: **Express**, **Advanced** or **Use Existing Setup**.
 > **NOTE**: **Use Existing Setup** setup mode option is only shown if:
 >
-> - `esp-idf.json` is found in the current `idf.toolsPath` (MacOS/Linux users) or `idf.toolsPathWin` (Windows users). This file is generated when you install ESP-IDF with the [ESP-IDF Windows Installer](https://github.com/espressif/idf-installer) or using [IDF-ENV](https://github.com/espressif/idf-env).
-> - ESP-IDF is found in `idf.espIdfPath` or `idf.espIdfPathWin`, `IDF_PATH` environment variable, `$HOME/esp/esp-idf` on MacOS/Linux and `%USERPROFILE%\esp\esp-idf` or `%USERPROFILE%\Desktop\esp-idf` in Windows.
-> - ESP-IDF Tools and ESP-IDF Python virtual environment for the previous ESP-IDF are found in `idf.toolsPath` or`idf.toolsPathWin`, `IDF_TOOLS_PATH` environment variable, `$HOME\.espressif` on MacOS/Linux and `%USERPROFILE%\.espressif` on Windows.
+> - `esp-idf.json` is found in the current `idf.toolsPath` . This file is generated when you install ESP-IDF with the [IDF-ENV](https://github.com/espressif/idf-env).
+> - ESP-IDF is found in `idf.espIdfPath` , `IDF_PATH` environment variable `$HOME/esp/esp-idf` on MacOS/Linux
+> - ESP-IDF Tools and ESP-IDF Python virtual environment for the previous ESP-IDF are found in `idf.toolsPath`, `IDF_TOOLS_PATH` environment variable `$HOME\.espressif` on MacOS/Linux.
 
 9. Choose **Express** for the fastest option (or **Use Existing Setup** if ESP-IDF is already installed)
 10. If you choose **Express** setup mode:
     - Pick V 4.4.7 ESP-IDF version to download (or find the ESP-IDF in your system) and the python executable to create the virtual environment.
-    - Choose the location for ESP-IDF Tools and python virtual environment (also known as `IDF_TOOLS_PATH`) which is `$HOME\.espressif` on MacOS/Linux and `%USERPROFILE%\.espressif` on Windows by default.
-      > **NOTE:** Windows users don't need to select a python executable since it is part of the setup.
+    - Choose the location for ESP-IDF Tools and python virtual environment (also known as `IDF_TOOLS_PATH`) which is `$HOME\.espressif` by default.
       > **NOTE:** Make sure that `IDF_TOOLS_PATH` doesn't have any spaces to avoid any build issues.
 
 11. The user will see a page showing the setup progress status showing ESP-IDF download progress, ESP-IDF Tools download and install progress as well as the creation of a python virtual environment.
