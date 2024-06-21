@@ -73,7 +73,7 @@ To start using ESP-IDF on **GK87_screen module**, install the following software
 
 > **NOTE**: > The advance mode allows the user to choose to use existing ESP-IDF tools by manually entering each ESP-IDF tool absolute path. Again, if chose an ESP-IDF version < 5.0, make sure each ESP-IDF tool path doesn't have any spaces, since they were no suported in previous versions..
 
-15. Now that the extension setup is finally done, check the [Basic use](./basic_use.md) to learn how to use the SDK Configuration editor, build, flash and monitor your Espressif device.
+15. Now that the extension setup is finally done, check the [Basic use](https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/tutorial/basic_use.md) to learn how to use the SDK Configuration editor, build, flash and monitor your Espressif device.
 
 > **NOTE**: Visual Studio Code has many places where to set configuration settings. This extension uses the `idf.saveScope` configuration setting to determine where to save settings, Global (User Settings), Workspace and WorkspaceFolder. Please review [vscode settings precedence](https://code.visualstudio.com/docs/getstarted/settings#_settings-precedence).
 
