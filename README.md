@@ -26,7 +26,7 @@ Hardware
 
 * An **GK87_screen module**.
 * **USB cable** - USB A / Type-C .
-* **Computer** running Linux, or macOS.
+* **Computer** running Windows, Linux, or macOS.
 
 Software
 
@@ -55,7 +55,7 @@ To start using ESP-IDF on **GK87_screen module**, install the following software
 
 9. Choose **Express** for the fastest option (or **Use Existing Setup** if ESP-IDF is already installed)
 10. If you choose **Express** setup mode:
-    - Pick V 4.4.7 ESP-IDF version to download (or find the ESP-IDF in your system) and the python executable to create the virtual environment.
+    - Pick V5.1.3 ESP-IDF version to download (or find the ESP-IDF in your system) and the python executable to create the virtual environment.
     - Choose the location for ESP-IDF Tools and python virtual environment (also known as `IDF_TOOLS_PATH`) which is `$HOME\.espressif` by default.
       > **NOTE:** Make sure that `IDF_TOOLS_PATH` doesn't have any spaces to avoid any build issues.
 

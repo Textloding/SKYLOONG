@@ -3,7 +3,6 @@ file(GLOB_RECURSE C_SOURCES "*.c")
 
 idf_component_register(
     SRCS ${CPP_SOURCES} ${C_SOURCES}
-    INCLUDE_DIRS ""
-    "include"
+    INCLUDE_DIRS "include"
 )
  

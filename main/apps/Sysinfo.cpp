@@ -36,7 +36,7 @@ static void meter_set_value(void *indic, int32_t pct)
     char buf[4];
     if (pct < 0 || pct > 99)
         pct = 99;
-    sprintf(buf, "%d", pct);
+    sprintf(buf, "%"PRIu32, pct);
     lv_label_set_text(lbl, buf);
 }
 lv_obj_t *create_meter_indic(lv_obj_t *_appScreen, lv_point_t *line_points, int16_t x, int16_t y)

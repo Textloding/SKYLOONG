@@ -33,9 +33,6 @@ void debug_USB_UART(void *p)
             else
                 hal.send_sysctl(EVENT_EXIT_SETTING);
             break;
-        case '\b': // BackSpace
-            // xSemaphoreGive(appManagerLite._binary_switchApp);
-            break;
         case 'a': // 方向键向左
             send_data = LV_KEY_LEFT;
             break;
@@ -62,8 +59,8 @@ void debug_USB_UART(void *p)
             xSemaphoreGive(appManagerLite._binary_switchApp);
             break;
         case 'o':
-            ESP_LOGW("WiFiManager", "HEAP: %d", esp_get_free_internal_heap_size());
-            ESP_LOGW("WiFiManager", "HEAP_SPI: %d", esp_get_free_heap_size());
+            ESP_LOGW("WiFiManager", "HEAP: %"PRIu32, esp_get_free_internal_heap_size());
+            ESP_LOGW("WiFiManager", "HEAP_SPI: %"PRIu32, esp_get_free_heap_size());
             break;
         default:
             break;
@@ -92,7 +89,7 @@ extern "C" void app_main()
     hal.getTime();
     hal.kb_status.channel_current = 0;
     WiFiMgr.init();
-    //////////////////////
+
     appHome.init();
     appAPS.init();
     appGIF.init();
@@ -109,7 +106,7 @@ extern "C" void app_main()
     if (hal.pref.getBool("sysinfo_enable", true))
         add_to_app_list(&appSysinfo);
     appManagerLite.appSettings = &appSettings;
-    //////////////////////
+
     if (last_appid == 0)
     {
         last_appid = hal.pref.getInt("last_appid", 1);

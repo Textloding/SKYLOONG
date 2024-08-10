@@ -29,9 +29,6 @@
  */
 bool DS1302_begin(DS1302_Dev *dev, uint8_t clkPin, uint8_t ioPin, uint8_t cePin)
 {
-    //gpio_pad_select_gpio(clkPin);
-    //gpio_pad_select_gpio(ioPin);
-    //gpio_pad_select_gpio(cePin);
     gpio_reset_pin((gpio_num_t)clkPin);
     gpio_reset_pin((gpio_num_t)ioPin);
     gpio_reset_pin((gpio_num_t)cePin);

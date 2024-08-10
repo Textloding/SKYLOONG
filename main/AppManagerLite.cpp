@@ -6,7 +6,7 @@ int appListLen = 0;
 void add_to_app_list(BaseApp *app)
 {
     appList[appListLen++] = app;
-    ESP_LOGI("AppManagerLite", "Add %u to app list", app->appid);
+    ESP_LOGI("AppManagerLite", "Add %"PRIu32" to app list", app->appid);
 }
 
 AppManagerLite appManagerLite;
@@ -22,7 +22,7 @@ BaseApp *AppManagerLite::getAppByName(const uint32_t appid)
             return appList[i];
         }
     }
-    ESP_LOGW("AppManagerLite", "App %u not found", appid);
+    ESP_LOGW("AppManagerLite", "App %"PRIu32" not found", appid);
     return NULL;
 }
 void task_app_loop(void *p)
@@ -107,7 +107,7 @@ void AppManagerLite::switchApp(BaseApp *app)
     lv_scr_load_anim(currentApp->_appScreen, LV_SCR_LOAD_ANIM_NONE, 0, 0, true);
     hal.UNLOCKLV();
     currentApp->setup();
-    ESP_LOGI("AppManagerLite", "Switch to %u", currentApp->appid);
+    ESP_LOGI("AppManagerLite", "Switch to %"PRIu32, currentApp->appid);
     xSemaphoreGive(_mutex);
 }
 

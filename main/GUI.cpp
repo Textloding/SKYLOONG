@@ -79,7 +79,6 @@ void GUI::toast(const char *str, bool lock, uint32_t delay)
     lv_obj_set_style_opa(obj_toast, 0, 0);
     lv_obj_set_style_radius(obj_toast, 30, 0);
     lv_obj_set_style_border_width(obj_toast, 0, 0);
-    //lv_obj_set_style_bg_color(obj_toast, lv_palette_lighten(LV_PALETTE_GREY, 2), 0);
     lv_obj_set_style_bg_opa(obj_toast, LV_OPA_COVER - 80, 0);
     lv_obj_t *lbl = lv_label_create(obj_toast);
     lv_label_set_text(lbl, str);

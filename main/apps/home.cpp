@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 extern "C" const lv_font_t font_main1_time;
-///////////////////////////////////////////////////////////////////////////
+
 namespace theme_fox
 {
     extern "C" const lv_img_dsc_t img_main1_bg;
@@ -81,7 +81,6 @@ namespace theme_fox
         lv_obj_set_width(lbl_date, 90);
         lv_obj_set_style_text_align(lbl_date, LV_TEXT_ALIGN_CENTER, 0);
         img_am = lv_img_create(home_appScreen);
-        // lv_img_set_src(img_am, &img_am1);
         lv_obj_set_pos(img_am, 118 + 8, 50);
         lv_obj_add_flag(img_am, LV_OBJ_FLAG_HIDDEN);
         // 电池
@@ -357,9 +356,7 @@ namespace theme_spartan
         lv_obj_set_width(lbl_year, 100);
         lv_obj_set_style_text_align(lbl_year, LV_TEXT_ALIGN_CENTER, 0);
         img_am = lv_img_create(home_appScreen);
-        // lv_img_set_src(img_am, &img_am2);
         lv_obj_set_pos(img_am, 144, 29);
-        // lv_obj_add_flag(img_am, LV_OBJ_FLAG_HIDDEN);
         img_battery_frame = lv_img_create(home_appScreen);
         lv_obj_set_pos(img_battery_frame, 250 - 50, 58 + 5);
         lv_img_set_src(img_battery_frame, &battery_frame_2);
@@ -436,7 +433,6 @@ namespace theme_spartan
         }
         if (hal.config_time_12hr)
         {
-            // lv_obj_clear_flag(img_am, LV_OBJ_FLAG_HIDDEN);
             int hour = hal.datetime.hour;
             if (hour > 12)
             {
@@ -454,7 +450,6 @@ namespace theme_spartan
         }
         else
         {
-            // lv_obj_add_flag(img_am, LV_OBJ_FLAG_HIDDEN);
             lv_label_set_text_fmt(lbl_time, "%02d:%02d", hal.datetime.hour, hal.datetime.minute);
         }
         lv_label_set_text_fmt(lbl_date, "%02d/%02d", hal.datetime.month, hal.datetime.dayMonth);

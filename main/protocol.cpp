@@ -27,12 +27,9 @@ static uint8_t getcrc(protocol_t *buff)
     crc ^= (buff->len) >> 8;
     crc ^= (buff->len) & 0xFF;
     crc ^= buff->type;
-    if (buff->data)
+    for (uint16_t i = 0; i < buff->len - 1; i++)
     {
-        for (uint16_t i = 0; i < buff->len - 1; i++)
-        {
-            crc ^= buff->data[i];
-        }
+        crc ^= buff->data[i];
     }
     crc ^= PROTOCOL_ETX;
     return crc;
@@ -51,10 +48,7 @@ void sendPkt(protocol_t *pkt)
     Serial2.write(pkt->len >> 8);
     Serial2.write(pkt->len & 0xFF);
     Serial2.write(pkt->type);
-    if (pkt->data)
-    {
-        Serial2.write(pkt->data, pkt->len - 1);
-    }
+    Serial2.write(pkt->data, pkt->len - 1);
     Serial2.write(PROTOCOL_ETX);
     Serial2.write(crc);
     Serial2.flush();
@@ -130,7 +124,6 @@ void parasePkt(protocol_t *pkt)
                 hal.send_sysctl(EVENT_EXIT_SETTING);
             break;
         case 0xA1: // BackSpace
-            // xSemaphoreGive(appManagerLite._binary_switchApp);
             send_data = LV_KEY_ESC;
             break;
         case 0xA2: // 方向键向左

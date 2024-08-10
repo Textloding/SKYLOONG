@@ -88,7 +88,7 @@ void update_list(const char *basePath)
     {
         // 构造完整的文件路径
         if (dp->d_name[0] == '.')
-            continue; //.wifi.csv
+            continue;
         strcpy(path, "C:");
         strcat(path, basePath + 9);
         strcat(path, "/");

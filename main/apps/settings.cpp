@@ -108,14 +108,14 @@ void AppSettings::setup()
     lv_obj_set_flex_flow(_appScreen, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(_appScreen, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_text_font(_appScreen, &lv_font_chinese_16, 0);
-    //////////////////////////////////////////////////////////////////////////
+
     o = create_settings_button(_appScreen, _tr(I18N_ID_RECHOOSE_WIFI), _tr(I18N_ID_RECHOOSE_WIFI_DESC), _tr(I18N_ID_RECHOOSE), [](lv_event_t *e)
                                {
         if (e->code == LV_EVENT_CLICKED)
             rechoose_wifi = true; 
         if (e->code == LV_EVENT_FOCUSED)
             lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     o = create_settings_switch(_appScreen, _tr(I18N_ID_BOOT_ANIMATION), _tr(I18N_ID_BOOT_ANIMATION_DESC), [](lv_event_t *e)
                                {
         if (e->code == LV_EVENT_VALUE_CHANGED)
@@ -126,7 +126,7 @@ void AppSettings::setup()
         lv_obj_add_state(o, LV_STATE_CHECKED);
     else
         lv_obj_clear_state(o, LV_STATE_CHECKED);
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     o = create_settings_switch(_appScreen, _tr(I18N_ID_12HR), _tr(I18N_ID_12HR_DESC), [](lv_event_t *e)
                                {
         if (e->code == LV_EVENT_VALUE_CHANGED)
@@ -138,7 +138,7 @@ void AppSettings::setup()
     else
         lv_obj_clear_state(o, LV_STATE_CHECKED);
     lv_obj_clear_state(o, LV_STATE_CHECKED);
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     btn_server = create_settings_button(_appScreen, _tr(I18N_ID_START_WEBSERVER), _tr(I18N_ID_START_WEBSERVER_DESC), _tr(I18N_ID_START), [](lv_event_t *e)
                                         {
         if (e->code == LV_EVENT_VALUE_CHANGED)
@@ -161,14 +161,14 @@ void AppSettings::setup()
     {
         lv_obj_add_state(btn_server, LV_STATE_CHECKED);
     }
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     create_settings_button(_appScreen, _tr(I18N_ID_SYNC_TIME), _tr(I18N_ID_SYNC_TIME_DESC), _tr(I18N_ID_SYNC), [](lv_event_t *e)
                            {
         if (e->code == LV_EVENT_CLICKED)
             ntp_req = true;
         if (e->code == LV_EVENT_FOCUSED)
             lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     create_settings_slider(_appScreen, _tr(I18N_ID_BRIGHTNESS), [](lv_event_t *e)
                            {
         if (e->code == LV_EVENT_VALUE_CHANGED)
@@ -179,7 +179,7 @@ void AppSettings::setup()
         }
         if (e->code == LV_EVENT_FOCUSED)
             lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     o = create_settings_list(_appScreen, _tr(I18N_ID_THEME), _tr(I18N_ID_CHANGE_THEME), _tr(I18N_ID_THEME_LIST), [](lv_event_t *e)
                              {
         if (e->code == LV_EVENT_VALUE_CHANGED)
@@ -189,7 +189,7 @@ void AppSettings::setup()
         if (e->code == LV_EVENT_FOCUSED)
             lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     lv_dropdown_set_selected(o, hal.config_theme);
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     o = create_settings_list(_appScreen, _tr(I18N_ID_ROLL_TIME), _tr(I18N_ID_ROLL_TIME_DESC), "2s\n3s\n4s\n5s\n6s\n7s\n8s\n9s\n10s\n11s\n12s\n13s\n14s\n15s", [](lv_event_t *e)
                              {
         if (e->code == LV_EVENT_VALUE_CHANGED)
@@ -199,7 +199,7 @@ void AppSettings::setup()
         if (e->code == LV_EVENT_FOCUSED)
             lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     lv_dropdown_set_selected(o, hal.config_time_roll / 1000 - 2);
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     o = create_settings_list(_appScreen, "Language", "修改语言", "中文\nEnglish", [](lv_event_t *e)
                              {
         if (e->code == LV_EVENT_VALUE_CHANGED)
@@ -207,7 +207,7 @@ void AppSettings::setup()
         if (e->code == LV_EVENT_FOCUSED)
             lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     lv_dropdown_set_selected(o, i18n::getLanguage());
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     o = create_settings_list(_appScreen, _tr(I18N_ID_TIMEZONE), _tr(I18N_ID_TIMEZONE_DESC), "UTC-12\nUTC-11\nUTC-10\nUTC-9\nUTC-8\nUTC-7\nUTC-6\nUTC-5\nUTC-4\nUTC-3\nUTC-2\nUTC-1\nUTC+0\nUTC+1\nUTC+2\nUTC+3\nUTC+4\nUTC+5\nUTC+6\nUTC+7\nUTC+8\nUTC+9\nUTC+10\nUTC+11\nUTC+12", [](lv_event_t *e)
                              {
 
@@ -226,7 +226,6 @@ void AppSettings::setup()
         t += 12;
         lv_dropdown_set_selected(o, t);
     }
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     o = create_settings_switch(_appScreen, _tr(I18N_ID_ENABLE_APS_APP), _tr(I18N_ID_ENABLE_APS_APP_DESC), [](lv_event_t *e)
                                {
@@ -240,7 +239,7 @@ void AppSettings::setup()
         lv_obj_add_state(o, LV_STATE_CHECKED);
     else
         lv_obj_clear_state(o, LV_STATE_CHECKED);
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     o = create_settings_switch(_appScreen, _tr(I18N_ID_ENABLE_GIF_APP), _tr(I18N_ID_ENABLE_GIF_APP_DESC), [](lv_event_t *e)
                                {
         if (e->code == LV_EVENT_VALUE_CHANGED){
@@ -253,7 +252,7 @@ void AppSettings::setup()
         lv_obj_add_state(o, LV_STATE_CHECKED);
     else
         lv_obj_clear_state(o, LV_STATE_CHECKED);
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     o = create_settings_switch(_appScreen, _tr(I18N_ID_ENABLE_WEATHER_APP), _tr(I18N_ID_ENABLE_WEATHER_APP_DESC), [](lv_event_t *e)
                                {
         if (e->code == LV_EVENT_VALUE_CHANGED){
@@ -266,7 +265,7 @@ void AppSettings::setup()
         lv_obj_add_state(o, LV_STATE_CHECKED);
     else
         lv_obj_clear_state(o, LV_STATE_CHECKED);
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     o = create_settings_switch(_appScreen, _tr(I18N_ID_ENABLE_PERF_APP), _tr(I18N_ID_ENABLE_PERF_APP_DESC), [](lv_event_t *e)
                                {
         if (e->code == LV_EVENT_VALUE_CHANGED){
@@ -279,7 +278,7 @@ void AppSettings::setup()
         lv_obj_add_state(o, LV_STATE_CHECKED);
     else
         lv_obj_clear_state(o, LV_STATE_CHECKED);
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     ota_update_btn = create_settings_button(_appScreen, _tr(I18N_ID_FIRMWARE_VERSION), FIRMWARE_VERSION, _tr(I18N_ID_CHECK_UPDATE), [](lv_event_t *e)
                                             {
         if (e->code == LV_EVENT_CLICKED)
@@ -288,7 +287,7 @@ void AppSettings::setup()
         }
         if (e->code == LV_EVENT_FOCUSED)
             lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     factory_reset_btn = create_settings_button(_appScreen, _tr(I18N_ID_FACTORY_RESET), _tr(I18N_ID_FACTORY_RESET_DESC), _tr(I18N_ID_FACTORY_RESET_BTN), [](lv_event_t *e)
                                                {
         if (e->code == LV_EVENT_CLICKED)
@@ -307,7 +306,7 @@ void AppSettings::setup()
         if (e->code == LV_EVENT_FOCUSED)
             lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     lv_obj_add_state(factory_reset_btn, LV_STATE_CHECKED);
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     exit_btn = create_settings_button(_appScreen, _tr(I18N_ID_EXIT_TITLE), _tr(I18N_ID_EXIT_DESC), _tr(I18N_ID_EXIT), [](lv_event_t *e)
                                       {
             if (e->code == LV_EVENT_CLICKED)
@@ -317,15 +316,8 @@ void AppSettings::setup()
         if (e->code == LV_EVENT_FOCUSED)
             lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     lv_obj_add_state(exit_btn, LV_STATE_CHECKED);
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // lv_obj_set_scroll_snap_y(_appScreen, LV_SCROLL_SNAP_CENTER);
-    //  uint8_t key = LV_KEY_NEXT;
-    //  xQueueSend(hal._queue_kb, &key, 0);
+
     hal.UNLOCKLV();
-    // delay(65); // 等待按键事件响应
-    // hal.LOCKLV();
-    // lv_obj_scroll_to_view_recursive(lv_group_get_focused(lv_group_get_default()), LV_ANIM_OFF);
-    // hal.UNLOCKLV();
 }
 
 #include "nvs_flash.h"

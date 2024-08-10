@@ -54,7 +54,6 @@ static void task_systemctl(void *p)
     {
         DS1302_writeProtect(&hal.rtc, false);
         DS1302_halt(&hal.rtc, false);
-        // hal.setTime(2024, 4, 23, 12, 34, 56);
         GUI::toast(_tr(I18N_ID_RTC_SHUTDOWN), true, 10000);
     }
     while (1)
@@ -79,7 +78,7 @@ static void task_systemctl(void *p)
         case EVENT_TOGGLE_SCREEN_ON:
             if (event.data == 0)
             {
-                ledcWrite(7, 0);
+                ledcWrite(PIN_DISPLAY_BL, 0);
             }
             else
             {
@@ -150,7 +149,7 @@ void demo()
     esp_lcd_panel_dev_config_t panel_config;
     memset(&panel_config, 0, sizeof(esp_lcd_panel_dev_config_t));
     panel_config.reset_gpio_num = PIN_DISPLAY_RST;
-    panel_config.color_space = ESP_LCD_COLOR_SPACE_RGB;
+    panel_config.rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
     panel_config.bits_per_pixel = 16;
     // Create LCD panel handle for ST7789, with the SPI IO device handle
     ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(io_handle, &panel_config, &panel_handle));
@@ -245,9 +244,8 @@ void HAL::init()
     WiFi.setHostname("GKScreen");
     pinMode(PIN_DISPLAY_PWR, OUTPUT);
     digitalWrite(PIN_DISPLAY_PWR, HIGH);
-    ledcSetup(7, 16000, 8);
-    ledcAttachPin(PIN_DISPLAY_BL, 7);
-    ledcWrite(7, 0);
+    ledcAttach(PIN_DISPLAY_BL, 16000, 8);
+    ledcWrite(PIN_DISPLAY_BL, 0);
     demo();
     DS1302_begin(&rtc, PIN_RTC_SCLK, PIN_RTC_SDIO, PIN_RTC_RST);
     DS1302_writeClockRegister(&rtc, DS1302_REG_TC, 0xA5);
@@ -406,7 +404,7 @@ static time_t getNtpTime()
             return secsSince1900 - 2208988800UL;
         }
     }
-    return 0; // return 0 if unable to get the time
+    return 0;
 }
 bool HAL::NTPSync()
 {
@@ -442,12 +440,12 @@ void HAL::setBrightness(int8_t brightness)
     if (brightness >= 0 && brightness <= 9)
     {
         _brightness = brightness;
-        ledcWrite(7, brightness_lut[brightness]);
+        ledcWrite(PIN_DISPLAY_BL, brightness_lut[brightness]);
     }
     else
     {
         ESP_LOGE("HAL", "亮度设置错误: %d", brightness);
-        ledcWrite(7, 130);
+        ledcWrite(PIN_DISPLAY_BL, 130);
     }
 }
 
@@ -601,7 +599,6 @@ void handleFileUpload()
     }
     else if (upload.status == UPLOAD_FILE_WRITE)
     {
-        // ESP_LOGI("SERVER", "handleFileUpload Data: "); ESP_LOGI("SERVER", upload.currentSize);
         if (fsUploadFile)
         {
             fsUploadFile.write(upload.buf, upload.currentSize);
