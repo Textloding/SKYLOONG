@@ -89,6 +89,7 @@ void create_settings_slider(lv_obj_t *_appScreen, const char *title, lv_event_cb
     lv_slider_set_value(slider, hal._brightness, LV_ANIM_OFF);
     lv_obj_add_event_cb(slider, cb, LV_EVENT_ALL, NULL);
 }
+
 static bool server_req = false;
 static bool ntp_req = false;
 static bool rechoose_wifi = false;
@@ -140,7 +141,7 @@ void AppSettings::setup()
     lv_obj_clear_state(o, LV_STATE_CHECKED);
 
     btn_server = create_settings_button(_appScreen, _tr(I18N_ID_START_WEBSERVER), _tr(I18N_ID_START_WEBSERVER_DESC), _tr(I18N_ID_START), [](lv_event_t *e)
-                                        {
+    {
         if (e->code == LV_EVENT_VALUE_CHANGED)
         {
             if(lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED))
@@ -235,7 +236,7 @@ void AppSettings::setup()
         }
         if (e->code == LV_EVENT_FOCUSED)
             lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
-    if (hal.pref.getBool("aps_enable", true))
+    if (hal.aps_enable)
         lv_obj_add_state(o, LV_STATE_CHECKED);
     else
         lv_obj_clear_state(o, LV_STATE_CHECKED);
@@ -312,7 +313,7 @@ void AppSettings::setup()
             if (e->code == LV_EVENT_CLICKED)
             {
                 hal.forceExitSettings();
-            } 
+            }
         if (e->code == LV_EVENT_FOCUSED)
             lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
     lv_obj_add_state(exit_btn, LV_STATE_CHECKED);

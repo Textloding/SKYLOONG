@@ -7,6 +7,7 @@ private:
 public:
     void init();
     void save();
+    uint16_t count();
     void add(const String ssid, const String pass);
     void remove(const String ssid);
     bool has(const String ssid);

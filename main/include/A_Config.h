@@ -2,6 +2,7 @@
 
 #include "Arduino.h"
 #include "WiFi.h"
+#include <DNSServer.h>
 #include <LittleFS.h>
 #include <lvgl.h>
 #include <stdio.h>

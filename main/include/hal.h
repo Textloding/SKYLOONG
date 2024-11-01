@@ -13,6 +13,9 @@ enum system_event_type_t
     EVENT_KB_STATUS_CHANGED,
     EVENT_SERVERCTL,
     EVENT_GOSLEEP,
+    EVENT_GOTO_QRCODE,
+    EVENT_EXIT_QRCODE,
+    EVENT_HOME_REFRESH,
 };
 typedef struct sysctl_event_t
 {
@@ -69,12 +72,22 @@ public:
     uint8_t APM = 0;
     bool APMChanged = false;
     bool setting_mode = false;              // 当前是否进入了设置模式
+    bool qrcode_mode = false;               // 当前是否进入了二维码模式
     bool lv_has_kb = false;                 // 是否当前显示了键盘控件，用于选择发送key的类型
     bool server_started = false;            // 是否已经启动了网页服务器
+    bool weather_update = false;
+    bool sysinfo_update = false;
     bool config_time_12hr = false;
     bool config_bootanimation = true;
     uint8_t config_theme = 0;
+    bool aps_enable = true;
+    bool gif_enable = true;
+    bool jpg_enable = true;
+    bool weather_enable = true;
+    bool sysinfo_enable = true;
     uint32_t config_time_roll = 5000;
+    char config_jpg_mode[32];
+    char config_jpg_file[32];
     SemaphoreHandle_t _mutex;
     void init();
     uint8_t getDoW(uint16_t iYear, uint8_t iMonth, uint8_t iDay);
@@ -96,6 +109,10 @@ public:
     QueueHandle_t _queue_kb;
     Preferences pref;
     int8_t _brightness = 6;
+
+    char ssid[64];
+    char password[64];
+    bool config_wifi = false;
 
 private:
 };

@@ -760,6 +760,7 @@ namespace theme_default
 } // namespace theme_default
 
 uint8_t last_minute = -1;
+uint8_t current_theme = 0;
 void AppHome::setup()
 {
     last_minute = -1;
@@ -783,11 +784,17 @@ void AppHome::setup()
     else
         theme_default::blinker();
     hal.UNLOCKLV();
+    current_theme = hal.config_theme;
 }
 bool last_is_blinking = false;
 extern SemaphoreHandle_t status_changed;
 void AppHome::loop()
 {
+    if (current_theme != hal.config_theme) {
+        hal.send_sysctl(EVENT_HOME_REFRESH);
+        current_theme = hal.config_theme;
+        return;
+    }
     hal.getTime();
     if (hal.datetime.minute != last_minute || xSemaphoreTake(status_changed, 500) == pdTRUE)
     {

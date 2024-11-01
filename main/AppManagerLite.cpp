@@ -1,27 +1,26 @@
 #include <A_Config.h>
 #include "AppManagerLite.h"
 
-BaseApp *appList[50];
-int appListLen = 0;
-void add_to_app_list(BaseApp *app)
-{
-    appList[appListLen++] = app;
-    ESP_LOGI("AppManagerLite", "Add %"PRIu32" to app list", app->appid);
-}
-
 AppManagerLite appManagerLite;
 
 BaseApp *AppManagerLite::getAppByName(const uint32_t appid)
 {
+    if (appid == 1)
+    return appHome;
+    if (appid == 2)
+    return appAPS;
+     if (appid == 3)
+    return appGIF;
+     if (appid == 4)
+    return appJPG;
+     if (appid == 5)
+    return appWeather;
+     if (appid == 6)
+    return appSysinfo;
     if (appid == 50)
         return appSettings;
-    for (int i = 0; i < appListLen; i++)
-    {
-        if (appList[i]->appid == appid)
-        {
-            return appList[i];
-        }
-    }
+    if (appid == 100)
+        return appQRCode;
     ESP_LOGW("AppManagerLite", "App %"PRIu32" not found", appid);
     return NULL;
 }
@@ -50,7 +49,6 @@ void AppManagerLite::init(const uint32_t lastAppid)
     _binary_switchApp = xSemaphoreCreateBinary();
     xSemaphoreTake(_binary_switchApp, 0);
     BaseApp *lastApp = getAppByName(lastAppid);
-    ESP_LOGI("AppManagerLite", "App Count: %d", appListLen);
     if (lastApp != NULL)
     {
         switchApp(lastApp);

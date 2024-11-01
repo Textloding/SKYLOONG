@@ -1,7 +1,6 @@
 #include "A_Config.h"
 #include <WiFi.h>
 
-void drawDPPQRCode(const char *str);
 void task_lvgl_update(void *p)
 {
     while (1)
@@ -15,6 +14,7 @@ void task_lvgl_update(void *p)
 void debug_USB_UART(void *p)
 {
     bool in_setting_mode = false;
+    bool in_qrcode_mode = false;
     while (1)
     {
         int c = getchar();
@@ -32,6 +32,13 @@ void debug_USB_UART(void *p)
                 hal.send_sysctl(EVENT_GOTO_SETTING);
             else
                 hal.send_sysctl(EVENT_EXIT_SETTING);
+            break;
+        case 'q': // 进入二维码模式
+            in_qrcode_mode = !in_qrcode_mode;
+            if (in_qrcode_mode)
+                hal.send_sysctl(EVENT_GOTO_QRCODE);
+            else
+                hal.send_sysctl(EVENT_EXIT_QRCODE);
             break;
         case 'a': // 方向键向左
             send_data = LV_KEY_LEFT;
@@ -74,9 +81,11 @@ void debug_USB_UART(void *p)
 AppHome appHome;
 AppAPS appAPS;
 AppGIF appGIF;
+AppJPG appJPG;
 AppWeather appWeather;
 AppSysinfo appSysinfo;
 AppSettings appSettings;
+AppQRCode appQRCode;
 extern void add_to_app_list(BaseApp *app);
 uint32_t RTC_DATA_ATTR last_appid = 0;
 #include "boot_animation.h"
@@ -93,23 +102,25 @@ extern "C" void app_main()
     appHome.init();
     appAPS.init();
     appGIF.init();
+    appJPG.init();
     appWeather.init();
     appSysinfo.init();
     appSettings.init();
-    add_to_app_list(&appHome);
-    if (hal.pref.getBool("aps_enable", true))
-        add_to_app_list(&appAPS);
-    if (hal.pref.getBool("gif_enable", true))
-        add_to_app_list(&appGIF);
-    if (hal.pref.getBool("weather_enable", true))
-        add_to_app_list(&appWeather);
-    if (hal.pref.getBool("sysinfo_enable", true))
-        add_to_app_list(&appSysinfo);
+    appQRCode.init();
+    appManagerLite.appHome = &appHome;
+    appManagerLite.appAPS = &appAPS;
+    appManagerLite.appGIF = &appGIF;
+    appManagerLite.appJPG = &appJPG;
+    appManagerLite.appWeather = &appWeather;
+    appManagerLite.appSysinfo = &appSysinfo;
     appManagerLite.appSettings = &appSettings;
+    appManagerLite.appQRCode = &appQRCode;
 
-    if (last_appid == 0)
-    {
+    if (last_appid == 0) {
         last_appid = hal.pref.getInt("last_appid", 1);
+    }
+    if (last_appid == 100) {
+        last_appid = 1;
     }
     // 开机动画
     
@@ -122,7 +133,12 @@ extern "C" void app_main()
     protocol_init();
     xTaskCreatePinnedToCore(task_lvgl_update, "lvgl_update", 1024 * 6, NULL, 2, NULL, 1);
     xTaskCreatePinnedToCore(debug_USB_UART, "debug_USB_UART", 1024 * 4, NULL, 6, NULL, 1);
-    appManagerLite.init(last_appid);
+    if (WiFiMgr.count() > 0) {
+        appManagerLite.init(last_appid);
+    } else {
+        appManagerLite.init(100);
+    }
+
     vTaskDelete(NULL);
     vTaskDelay(portMAX_DELAY);
 }

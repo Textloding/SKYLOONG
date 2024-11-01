@@ -31,7 +31,20 @@ public:
     {
         appid = 3;
     }
-    void listFilesRecursively(char *basePath);
+    void setup();
+    void loop();
+    void destroy();
+    void stop(); 
+};
+
+
+class AppJPG : public BaseApp
+{
+public:
+    void init()
+    {
+        appid = 4;
+    }
     void setup();
     void loop();
     void destroy();
@@ -43,7 +56,7 @@ class AppWeather : public BaseApp
 public:
     void init()
     {
-        appid = 4;
+        appid = 5;
     }
     void setup();
     void loop();
@@ -55,13 +68,12 @@ class AppSysinfo : public BaseApp
 public:
     void init()
     {
-        appid = 5;
+        appid = 6;
     }
     void setup();
     void loop();
     void destroy();
 };
-
 
 class AppSettings : public BaseApp
 {
@@ -69,6 +81,17 @@ public:
     void init()
     {
         appid = 50;
+    }
+    void setup();
+    void loop();
+    void destroy();
+};
+
+class AppQRCode : public BaseApp {
+public:
+    void init()
+    {
+        appid = 100;
     }
     void setup();
     void loop();

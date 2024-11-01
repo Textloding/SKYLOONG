@@ -76,6 +76,7 @@ void AppSysinfo::setup()
     hal.UNLOCKLV();
     enter_millis = millis();
     GUI::toast(_tr(I18N_ID_CONNECT_TO_WIFI_IN_5S));
+    hal.sysinfo_update = true;
 }
 struct tcp_client_data
 {
@@ -94,8 +95,10 @@ static bool handleTCPClient(WiFiClient &wifi)
         if (len > 0)
         {
             wifi.readBytes((char *)&s_tcp_client_data, sizeof(s_tcp_client_data));
+			hal.LOCKLV();
             meter_set_value(line_indicator_cpu, s_tcp_client_data.cpu_pct * 100);
             meter_set_value(line_indicator_ram, s_tcp_client_data.mem_pct * 100);
+			hal.UNLOCKLV();
             wifi.write(0x01);
         }
         return true;
@@ -103,6 +106,7 @@ static bool handleTCPClient(WiFiClient &wifi)
     else
         return false;
 }
+
 void TCPConnect(WiFiClient &wifi, const char *ip, const uint16_t port, bool &tcp_started)
 {
     if (tcp_started)
@@ -120,6 +124,7 @@ void TCPConnect(WiFiClient &wifi, const char *ip, const uint16_t port, bool &tcp
         }
     }
 }
+
 void TCPDisconnect(WiFiClient &wifi, bool &tcp_started)
 {
     if (tcp_started)
@@ -132,11 +137,29 @@ void TCPDisconnect(WiFiClient &wifi, bool &tcp_started)
 
 void AppSysinfo::loop()
 {
+    if (!hal.sysinfo_enable) {
+        xSemaphoreGive(appManagerLite._binary_switchApp);
+        return;
+    }
+
+    if (hal.sysinfo_update == false) {
+        hal.sysinfo_update = true;
+
+        if (tcp_started) {
+            TCPDisconnect(tcpClient, tcp_started);
+        }
+
+        enter_millis = millis() - 4000;
+    }
+
     if (tcp_started)
     {
         if (WiFi.isConnected() == false || handleTCPClient(tcpClient) == false)
         {
             TCPDisconnect(tcpClient, tcp_started);
+			hal.LOCKLV();
+            lv_label_set_text(lbl_userdata, "Disconnected"); 
+			hal.UNLOCKLV();
             GUI::toast(_tr(I18N_ID_OFFLINE_MODE));
         }
     }
@@ -146,16 +169,24 @@ void AppSysinfo::loop()
         GUI::toast(_tr(I18N_ID_CONNECTING));
         if (WiFi.waitForConnectResult() == WL_CONNECTED)
         {
-            //hal.pref.putBool("wifi_succ", true);
             tcp_started = true;
             TCPConnect(tcpClient, app_settings_save.remote_ip, app_settings_save.remote_port, tcp_started);
-            if (tcp_started)
+            if (handleTCPClient(tcpClient)) {
+                tcp_started = true;
+				hal.LOCKLV();
                 lv_label_set_text(lbl_userdata, app_settings_save.userdata);
+				hal.UNLOCKLV();
+            } else {
+				hal.LOCKLV();
+               lv_label_set_text(lbl_userdata, "Disconnected");
+			   hal.UNLOCKLV();
+            }
         }
         else
         {
-            //hal.pref.putBool("wifi_succ", false);
+			hal.LOCKLV();
             lv_label_set_text(lbl_userdata, "Disconnected");
+			hal.UNLOCKLV();
             GUI::toast(_tr(I18N_ID_CONNECT_FAILED));
         }
         enter_millis = 0;

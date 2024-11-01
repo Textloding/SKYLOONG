@@ -99,8 +99,8 @@ static void task_systemctl(void *p)
             break;
         case EVENT_GOSLEEP:
         {
-            extern volatile bool _vid_stop;
-            _vid_stop = true;
+            extern volatile bool gif_vid_stop;
+            gif_vid_stop = true;
             if (xSemaphoreTake(hal._mutex, 4000) == pdTRUE)
             {
                 if (hal.server_started == false)
@@ -119,6 +119,17 @@ static void task_systemctl(void *p)
             }
         }
         break;
+        case EVENT_GOTO_QRCODE:
+            hal.qrcode_mode = true;
+            appManagerLite.switchQRCode();
+            break;
+        case EVENT_EXIT_QRCODE:
+            hal.qrcode_mode = false;
+            appManagerLite.exitQRCode();
+            break;
+        case EVENT_HOME_REFRESH:
+            appManagerLite.switchApp(1);
+            break;
         default:
             break;
         }
@@ -241,7 +252,7 @@ void demo()
 void HAL::init()
 {
     memset(&datetime, 0, sizeof(DS1302_DateTime));
-    WiFi.setHostname("GKScreen");
+    WiFi.setHostname("SKYLOONG 3.0 Screen");
     pinMode(PIN_DISPLAY_PWR, OUTPUT);
     digitalWrite(PIN_DISPLAY_PWR, HIGH);
     ledcAttach(PIN_DISPLAY_BL, 16000, 8);
@@ -259,13 +270,21 @@ void HAL::init()
                 vTaskDelay(1000);
         }
     }
+
     loadAppSettings();
     pref.begin("settings", false);
     hal._brightness = pref.getUInt("bright", 6);
     hal.config_time_12hr = pref.getBool("12hr", false);
     hal.config_bootanimation = pref.getBool("s_b_a", true);
     hal.config_theme = pref.getInt("theme", 0);
+    hal.aps_enable = pref.getBool("aps_enable", true);
+    hal.weather_enable = pref.getBool("weather_enable", true);
+    hal.sysinfo_enable = pref.getBool("sysinfo_enable", true);
+    hal.gif_enable = pref.getBool("gif_enable", true);
+    hal.jpg_enable = pref.getBool("jpg_enable", true);
     hal.config_time_roll = pref.getInt("t_r", 5000);
+    strcpy(hal.config_jpg_mode, pref.getString("jpg_mode", "roll").c_str());
+    strcpy(hal.config_jpg_file, pref.getString("jpg_file", "").c_str());
     i18n::setLanguage(pref.getUInt("lang", 0));
     i18n::setNTPOffset(pref.getInt("ntp", 3600 * 8));
     static lv_disp_draw_buf_t draw_buf;
@@ -489,6 +508,7 @@ void HAL::send_sysctl(system_event_type_t type, uint8_t data)
 #include <ESPmDNS.h>
 
 #define FILESYSTEM LittleFS
+DNSServer dnsServer;
 WebServer server(80);
 // holds the current upload
 File fsUploadFile;
@@ -822,6 +842,8 @@ void handleJson()
     {
         parseAppSettings(server.arg("plain").c_str());
         hal.saveAppSettings();
+        hal.weather_update = false;
+        hal.sysinfo_update = false;  
         server.send(200, "text/plain", "OK");
     }
     else if (server.method() == HTTP_GET)
@@ -833,62 +855,376 @@ void handleJson()
         server.send(500, "text/plain", "ERR 500");
     }
 }
-#include "webserver/index.h"
+
 #include "webserver/favicon.h"
-#include "webserver/csss.h"
-#include "webserver/jq.h"
-#include "webserver/mdb.h"
+#include "webserver/index.h"
+#include "webserver/js.h"
+#include "webserver/ffmpeg.h"
+#include "webserver/css.h"
+#include "webserver/menu.h"
+#include "webserver/close_eye.h"
+#include "webserver/i.h"
+#include "webserver/local.h"
+#include "webserver/open_eye.h"
+#include "webserver/wifi.h"
+#include "webserver/arrow_left.h"
+#include "webserver/arrow_right.h"
+#include "webserver/cpu.h"
+#include "webserver/demo.h"
+#include "webserver/error_bg.h"
+#include "webserver/error_m.h"
+#include "webserver/ic_d.h"
+#include "webserver/ic_del.h"
+#include "webserver/image2.h"
+#include "webserver/nothing.h"
+#include "webserver/setting2.h"
+#include "webserver/spead.h"
+#include "webserver/theme1.h"
+#include "webserver/theme2.h"
+#include "webserver/theme3.h"
+#include "webserver/time_bg.h"
+#include "webserver/time_ic.h"
+#include "webserver/video2.h"
+#include "webserver/weather.h"
+#include "webserver/worker.h"
 
 void HAL::start_webserver()
 {
     if (webserver_task != NULL)
         return;
     hal.server_started = true;
+
     if (WiFi.getMode() == WIFI_OFF || (WiFi.getMode() == WIFI_STA && WiFi.isConnected() == false))
     {
         WiFi.mode(WIFI_AP);
-        WiFi.softAP("GKScreen");
+        WiFi.softAP("SKYLOONG 3.0 Screen");
     }
-    MDNS.begin("gkscreen");
+
+    MDNS.begin("SKYLOONG 3.0 Screen");
+    server.enableCORS(true);
+
+    if (WiFi.getMode() == WIFI_AP) {
+        dnsServer.start(53, "*", IPAddress(192, 168, 4, 1));
+        server.onNotFound([]() {
+            server.sendHeader("Location", "http://192.168.4.1/wifi");
+            server.send(302, "text/plain", "redirect to captive portal");
+        });
+    } else {
+        server.onNotFound([]() {
+            if (!handleFileRead(server.uri())) {
+            server.send(404, "text/plain", "FileNotFound");
+            }
+        });
+    }
+
+    server.on("/info", HTTP_GET, []() {
+        cJSON *json = cJSON_CreateObject();
+
+        if (WiFi.getMode() == WIFI_AP) {
+            cJSON_AddStringToObject(json, "mode", "AP");
+            cJSON_AddStringToObject(json, "ssid", "SKYLOONG 3.0 Screen");
+            cJSON_AddStringToObject(json, "ip", "192.168.4.1");
+        } else {
+            cJSON_AddStringToObject(json, "mode", "STA");
+            cJSON_AddStringToObject(json, "ssid", WiFi.SSID().c_str());
+            cJSON_AddStringToObject(json, "ip", WiFi.localIP().toString().c_str());
+        }
+
+        cJSON_AddNumberToObject(json, "theme", hal.config_theme);
+        cJSON_AddBoolToObject(json, "aps_enable", hal.aps_enable);
+        cJSON_AddBoolToObject(json, "weather_enable", hal.weather_enable);
+        cJSON_AddBoolToObject(json, "sysinfo_enable", hal.sysinfo_enable);
+        cJSON_AddBoolToObject(json, "gif_enable", hal.gif_enable);
+        cJSON_AddBoolToObject(json, "jpg_enable", hal.jpg_enable);
+        cJSON_AddNumberToObject(json, "time_roll", hal.config_time_roll);
+        cJSON_AddStringToObject(json, "jpg_mode", hal.config_jpg_mode);
+        cJSON_AddStringToObject(json, "jpg_file", hal.config_jpg_file);
+        long timezone = i18n::getNTPOffset();
+        timezone /= 3600;
+        cJSON_AddNumberToObject(json, "timezone", timezone);
+
+        strncpy(jsonbuffer, cJSON_PrintUnformatted(json), 1024);
+        cJSON_Delete(json);
+        server.send(200, "application/json", jsonbuffer);
+    });
+
+    server.on("/scan_networks", HTTP_GET, []() {
+        wifi_mode_t mode = WiFi.getMode();
+        int8_t result = WiFi.scanNetworks(false, false);
+        if (mode == WIFI_AP) {
+            WiFi.mode(WIFI_AP);
+        }
+
+        cJSON *json = cJSON_CreateObject();
+        cJSON *array = cJSON_AddArrayToObject(json, "networks");
+
+        if (result >= 0) {
+            for (int i = 0; i < result; ++i) {
+                cJSON *item = cJSON_CreateObject();
+                cJSON_AddStringToObject(item, "ssid", WiFi.SSID(i).c_str());
+                cJSON_AddNumberToObject(item, "rssi", WiFi.RSSI(i));
+                cJSON_AddItemToArray(array, item);
+            }
+        }
+
+        strncpy(jsonbuffer, cJSON_PrintUnformatted(json), 1024);
+        cJSON_Delete(json);
+        server.send(200, "application/json", jsonbuffer);
+    });
+
+    server.on("/config_wifi", HTTP_POST, []() {
+        if (server.hasArg("ssid") && server.hasArg("password")) {
+            strcpy(hal.ssid, server.arg("ssid").c_str());
+            strcpy(hal.password, server.arg("password").c_str());
+            hal.config_wifi = true;
+            server.send(200, "text/plain", "OK");
+        } else {
+            server.send(500, "text/plain", "ERR 500");
+        }
+    });
+
+    server.on("/config_theme", HTTP_POST, []() {
+        if (server.hasArg("theme")) {
+            hal.config_theme = server.arg("theme").toInt();
+            hal.pref.putInt("theme", hal.config_theme);
+            server.send(200, "text/plain", "OK");
+        } else {
+            server.send(500, "text/plain", "ERR 500");
+        }
+    });
+
+    server.on("/config_timezone", HTTP_POST, []() {
+        if (server.hasArg("timezone")) {
+            long timezone = server.arg("timezone").toInt();
+            if (timezone >= -12 && timezone <= 12) {
+                timezone *= 3600;
+                i18n::setNTPOffset(timezone);
+                hal.pref.putInt("ntp", timezone);
+                hal.NTPSync();
+            } else {
+               server.send(500, "text/plain", "ERR 500"); 
+            }
+
+            server.send(200, "text/plain", "OK");
+        } else {
+            server.send(500, "text/plain", "ERR 500");
+        }
+    });
+
+    server.on("/config_app_aps", HTTP_POST, []() {
+        if (server.hasArg("enable")) {
+            hal.aps_enable = server.arg("enable").toBool();
+            hal.pref.putBool("aps_enable", hal.aps_enable);
+            server.send(200, "text/plain", "OK");
+        } else {
+            server.send(500, "text/plain", "ERR 500");
+        }
+    });
+
+    server.on("/config_app_gif", HTTP_POST, []() {
+        if (server.hasArg("enable")) {
+            hal.gif_enable = server.arg("enable").toBool();
+            hal.pref.putBool("gif_enable", hal.gif_enable);
+            server.send(200, "text/plain", "OK");
+        } else {
+            server.send(500, "text/plain", "ERR 500");
+        }
+    });
+
+    server.on("/config_app_jpg", HTTP_POST, []() {
+        if (server.hasArg("enable") && server.hasArg("jpg_mode") && server.hasArg("jpg_file") && server.hasArg("time_roll")) {
+            hal.jpg_enable = server.arg("enable").toBool();
+            hal.pref.putBool("jpg_enable", hal.jpg_enable);
+            hal.config_time_roll = server.arg("time_roll").toInt();
+            hal.pref.putInt("t_r", hal.config_time_roll);
+            strcpy(hal.config_jpg_mode, server.arg("jpg_mode").c_str());
+            hal.pref.putString("jpg_mode", hal.config_jpg_mode);
+            strcpy(hal.config_jpg_file, server.arg("jpg_file").c_str());
+            hal.pref.putString("jpg_file", hal.config_jpg_file);
+            server.send(200, "text/plain", "OK");
+        } else {
+            server.send(500, "text/plain", "ERR 500");
+        }
+    });
+
+    server.on("/config_app_weather", HTTP_POST, []() {
+        if (server.hasArg("enable")) {
+            hal.weather_enable = server.arg("enable").toBool();
+            hal.pref.putBool("weather_enable", hal.weather_enable);
+            server.send(200, "text/plain", "OK");
+        } else {
+            server.send(500, "text/plain", "ERR 500");
+        }
+    });
+
+    server.on("/config_app_sysinfo", HTTP_POST, []() {
+        if (server.hasArg("enable")) {
+            hal.sysinfo_enable = server.arg("enable").toBool();
+            hal.pref.putBool("sysinfo_enable", hal.sysinfo_enable);
+            server.send(200, "text/plain", "OK");
+        } else {
+            server.send(500, "text/plain", "ERR 500");
+        }
+    });
+
     server.on("/list", HTTP_GET, handleFileList);
     server.on("/edit", HTTP_PUT, handleFileCreate);    // create file
     server.on("/edit", HTTP_DELETE, handleFileDelete); // delete file
-    server.on(
-        "/edit", HTTP_POST, []()
-        { server.send(200, "text/plain", ""); },
-        handleFileUpload);
+    server.on("/edit", HTTP_POST, []() {
+        server.send(200, "text/plain", ""); 
+    }, handleFileUpload);
 
     server.on("/time", HTTP_POST, handleTime);
-    server.on("/reboot", HTTP_POST, []()
-              {
+    server.on("/reboot", HTTP_POST, []() {
         server.send(200, "text/plain", "OK");
         delay(100);
-        ESP.restart(); });
+        ESP.restart(); 
+    });
     server.on("/config.json", handleJson);
-    server.on("/", HTTP_GET, []()
-              { server.sendHeader("Content-Encoding", "gzip", true);server.send_P(200, "text/html", (const char *)__web_index_htm_gz, sizeof(__web_index_htm_gz)); });
-    server.on("/favicon.ico", HTTP_GET, []()
-              { server.sendHeader("Content-Encoding", "gzip", true);server.send_P(200, "image/x-icon", (const char *)__web_favicon_ico_gz, sizeof(__web_favicon_ico_gz)); });
-    server.on("/css/csss.css", HTTP_GET, []()
-              { server.sendHeader("Content-Encoding", "gzip", true);server.send_P(200, "text/css", (const char *)__web_css_csss_css_gz, sizeof(__web_css_csss_css_gz)); });
-    server.on("/js/jq.js", HTTP_GET, []()
-              { server.sendHeader("Content-Encoding", "gzip", true);server.send_P(200, "application/javascript", (const char *)__web_js_jq_js_gz, sizeof(__web_js_jq_js_gz)); });
-    server.on("/js/mdb.js", HTTP_GET, []()
-              { server.sendHeader("Content-Encoding", "gzip", true);server.send_P(200, "application/javascript", (const char *)__web_js_mdb_js_gz, sizeof(__web_js_mdb_js_gz)); });
-    server.onNotFound([]()
-                      {
-    if (!handleFileRead(server.uri())) {
-      server.send(404, "text/plain", "FileNotFound");
-    } });
+
+    server.on("/favicon.ico", HTTP_GET, []() { 
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/x-icon", (const char *)__web_favicon_ico_gz, sizeof(__web_favicon_ico_gz));
+    });
+    server.on("/", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "text/html", (const char *)__web_index_html_gz, sizeof(__web_index_html_gz)); 
+    });
+    server.on("/wifi", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "text/html", (const char *)__web_index_html_gz, sizeof(__web_index_html_gz)); 
+    });
+    server.on("/index.js", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "application/javascript", (const char *)__web_index_js_gz, sizeof(__web_index_js_gz));
+    });
+    server.on("/ffmpeg.js", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "application/javascript", (const char *)__web_ffmpeg_js_gz, sizeof(__web_ffmpeg_js_gz));
+    });
+    server.on("/index.css", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "text/css", (const char *)__web_index_css_gz, sizeof(__web_index_css_gz));
+    });
+
+    server.on("/menu.jpg", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/jpeg", (const char *)__web_menu_jpg_gz, sizeof(__web_menu_jpg_gz));
+    });
+    server.on("/close_eye.svg", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/svg+xml", (const char *)__web_close_eye_svg_gz, sizeof(__web_close_eye_svg_gz));
+    });
+    server.on("/i.svg", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/svg+xml", (const char *)__web_i_svg_gz, sizeof(__web_i_svg_gz));
+    });
+    server.on("/local.svg", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/svg+xml", (const char *)__web_local_svg_gz, sizeof(__web_local_svg_gz));
+    });
+    server.on("/open_eye.svg", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/svg+xml", (const char *)__web_open_eye_svg_gz, sizeof(__web_open_eye_svg_gz));
+    });
+    server.on("/wifi.svg", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/svg+xml", (const char *)__web_wifi_svg_gz, sizeof(__web_wifi_svg_gz));
+    });
+    server.on("/arrow_left.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_arrow_left_png_gz, sizeof(__web_arrow_left_png_gz));
+    });
+    server.on("/arrow_right.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_arrow_right_png_gz, sizeof(__web_arrow_right_png_gz));
+    });
+    server.on("/cpu.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_cpu_png_gz, sizeof(__web_cpu_png_gz));
+    });
+    server.on("/demo.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_demo_png_gz, sizeof(__web_demo_png_gz));
+    });
+    server.on("/error_bg.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_error_bg_png_gz, sizeof(__web_error_bg_png_gz));
+    });
+    server.on("/error_m.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_error_m_png_gz, sizeof(__web_error_m_png_gz));
+    });
+    server.on("/ic_d.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_ic_d_png_gz, sizeof(__web_ic_d_png_gz));
+    });
+    server.on("/ic_del.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_ic_del_png_gz, sizeof(__web_ic_del_png_gz));
+    });
+    server.on("/image2.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_image2_png_gz, sizeof(__web_image2_png_gz));
+    });
+    server.on("/nothing.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_nothing_png_gz, sizeof(__web_nothing_png_gz));
+    });
+    server.on("/setting2.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_setting2_png_gz, sizeof(__web_setting2_png_gz));
+    });
+    server.on("/spead.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_spead_png_gz, sizeof(__web_spead_png_gz));
+    });
+    server.on("/theme1.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_theme1_png_gz, sizeof(__web_theme1_png_gz));
+    });
+    server.on("/theme2.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_theme2_png_gz, sizeof(__web_theme2_png_gz));
+    });
+    server.on("/theme3.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_theme3_png_gz, sizeof(__web_theme3_png_gz));
+    });
+    server.on("/time_bg.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_time_bg_png_gz, sizeof(__web_time_bg_png_gz));
+    });
+    server.on("/time_ic__.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_time_ic___png_gz, sizeof(__web_time_ic___png_gz));
+    });
+    server.on("/video2.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_video2_png_gz, sizeof(__web_video2_png_gz));
+    });
+    server.on("/weather.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_weather_png_gz, sizeof(__web_weather_png_gz));
+    });
+    server.on("/assets/worker-43d19264.js", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "application/javascript", (const char *)__web_assets_worker_43d19264_js_gz, sizeof(__web_assets_worker_43d19264_js_gz));
+    });
 
     server.begin();
     ESP_LOGI("SERVER", "HTTP server started");
     GUI::toast(_tr(I18N_ID_SERVER_STARTED));
     xTaskCreatePinnedToCore([](void *p)
-                            {
+    {
         while (1)
-        {if(hal.server_started) {server.handleClient();}vTaskDelay(5);} },
-                            "webserver", 4096, NULL, 3, &webserver_task, 1);
+        {
+            if(hal.server_started) {
+                server.handleClient();
+            }
+            vTaskDelay(5);
+        }
+    }, "webserver", 4096, NULL, 3, &webserver_task, 1);
 }
 
 void HAL::stop_webserver()

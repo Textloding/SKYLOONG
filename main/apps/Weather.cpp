@@ -344,13 +344,10 @@ bool getWeather()
 }
 
 static uint32_t last_millis = 0;
-bool first_update = false;
 bool loadWeather = false;
 uint8_t weather_update_cnt = 0;
 void AppWeather::setup()
 {
-    apikey = app_settings_save.weather_secret;
-    city = app_settings_save.weather_city;
     hal.LOCKLV();
     lv_obj_set_style_bg_img_src(_appScreen, &weather_bg, 0);
     lv_obj_set_style_text_font(_appScreen, &lv_font_chinese_16, 0);
@@ -437,7 +434,7 @@ void AppWeather::setup()
     }
     last_millis = millis();
     GUI::toast("5秒后获取天气");
-    first_update = false;
+    hal.weather_update = false;
 }
 static bool connectToWiFi()
 {
@@ -455,9 +452,16 @@ static bool connectToWiFi()
 }
 void AppWeather::loop()
 {
-    if ((first_update == false && millis() - last_millis > 5000) || (millis() - last_millis > 120000))
+    if (!hal.weather_enable) {
+        xSemaphoreGive(appManagerLite._binary_switchApp);
+        return;
+    }
+
+    if ((hal.weather_update == false && millis() - last_millis > 5000) || (millis() - last_millis > 120000))
     {
-        first_update = true;
+        apikey = app_settings_save.weather_secret;
+        city = app_settings_save.weather_city;
+        hal.weather_update = true;
         last_millis = millis();
         if (connectToWiFi() == false)
             return;

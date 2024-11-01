@@ -1,17 +1,16 @@
 #include "A_Config.h"
-lv_obj_t *gif = NULL;
-lv_obj_t *_appScreen_1 = NULL;
+lv_obj_t *_appScreen_gif = NULL;
 #include <stdio.h>
 #include <stdlib.h>
 #include <dirent.h>
 #include <string.h>
 #include <sys/stat.h>
 #include "APP_Def.hpp"
-uint32_t last_roll_time = 0;
-volatile bool _vid_stop = false;
-bool get_vid_stop()
+uint32_t last_gif_roll_time = 0;
+volatile bool gif_vid_stop = false;
+bool get_gif_vid_stop()
 {
-    return _vid_stop;
+    return gif_vid_stop;
 }
 
 #include <vector>
@@ -22,9 +21,6 @@ bool show_gif(const char *path)
 {
     if (strstr(path, ".mpeg") != NULL)
     {
-        if (gif)
-            lv_obj_del(gif);
-        gif = NULL;
         char path_new[256];
         strcpy(path_new, "/littlefs");
         strncpy(path_new + 9, path + 2, 240);
@@ -44,40 +40,14 @@ bool show_gif(const char *path)
         hal.LOCKLV();
         fclose(f);
         lv_obj_invalidate(lv_scr_act());
-        last_roll_time = 0;
+        last_gif_roll_time = 0;
         return true;
     }
-    if (gif)
-    {
-        lv_obj_fade_out(gif, 1000, 0);
-        lv_obj_del_delayed(gif, 1000);
-        gif = NULL;
-    }
-    if (strstr(path, ".jpg") != NULL || strstr(path, ".jpeg") != NULL || strstr(path, ".png") != NULL)
-    {
-        ESP_LOGI("GIF", "Playing image %s", path);
-        gif = lv_img_create(_appScreen_1);
-        lv_img_set_src(gif, path);
-        lv_obj_center(gif);
-        lv_obj_fade_in(gif, 1000, 0);
-        return true;
-    }
-    /*
-    else if(strstr(path, ".gif") != NULL)
-    {
-        ESP_LOGI("GIF", "Playing gif %s", path);
-        gif = lv_gif_create(_appScreen_1);
-        lv_gif_set_src(gif, path);
-        lv_obj_center(gif);
-        lv_obj_fade_in(gif, 1000, 0);
-        return true;
-    }
-    */
     return false;
 }
-void update_list(const char *basePath)
+void update_gif_list(const char *basePath)
 {
-    char path[1000];
+    char path[100];
     struct dirent *dp;
     DIR *dir = opendir(basePath);
     if (!dir)
@@ -86,8 +56,9 @@ void update_list(const char *basePath)
     gif_list_size = 0;
     while ((dp = readdir(dir)) != NULL)
     {
-        // 构造完整的文件路径
         if (dp->d_name[0] == '.')
+            continue;
+        if (strstr(dp->d_name, ".mpeg") == NULL)
             continue;
         strcpy(path, "C:");
         strcat(path, basePath + 9);
@@ -101,34 +72,40 @@ void update_list(const char *basePath)
 }
 void AppGIF::setup()
 {
-    _appScreen_1 = _appScreen;
-    _vid_stop = false;
+    _appScreen_gif = _appScreen;
+    gif_vid_stop = false;
     hal.LOCKLV();
     lv_obj_clear_flag(_appScreen, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_clear_flag(lv_layer_top(), LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_style_text_font(_appScreen, &lv_font_chinese_16, 0);
     lv_obj_set_style_text_font(lv_layer_top(), &lv_font_chinese_16, 0);
     hal.UNLOCKLV();
-    update_list("/littlefs");
-    last_roll_time = 0;
+    update_gif_list("/littlefs");
+    last_gif_roll_time = 0;
 }
+
 void AppGIF::loop()
 {
+    if (!hal.gif_enable) {
+        xSemaphoreGive(appManagerLite._binary_switchApp);
+        return;
+    }
+
     if (gif_list.size() == 0)
     {
         xSemaphoreGive(appManagerLite._binary_switchApp);
         return;
     }
-    if (_vid_stop)
+    if (gif_vid_stop)
     {
-        _vid_stop = false;
+        gif_vid_stop = false;
         delay(50);
         return;
     }
-    if (millis() - last_roll_time > hal.config_time_roll || last_roll_time == 0)
+    if (millis() - last_gif_roll_time > hal.config_time_roll || last_gif_roll_time == 0)
     {
         ESP_LOGI("GIF", "Rolling");
-        last_roll_time = millis();
+        last_gif_roll_time = millis();
         if (gif_list_size > 0)
         {
             gif_list_idx++;
@@ -138,7 +115,7 @@ void AppGIF::loop()
             if (show_gif(gif_list.at(gif_list_idx).c_str()) == false)
             {
                 hal.UNLOCKLV();
-                last_roll_time = 0;
+                last_gif_roll_time = 0;
                 return;
             }
             hal.UNLOCKLV();
@@ -149,11 +126,10 @@ void AppGIF::loop()
 void AppGIF::destroy()
 {
     hal.LOCKLV();
-    gif = NULL;
-    _appScreen_1 = NULL;
+    _appScreen_gif = NULL;
     hal.UNLOCKLV();
 }
 void AppGIF::stop()
 {
-    _vid_stop = true;
+    gif_vid_stop = true;
 }

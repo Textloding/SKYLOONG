@@ -919,6 +919,13 @@ long String::toInt(void) const {
   return 0;
 }
 
+bool String::toBool(void) const {
+  if (equals("true") || equals("True") || equals("1") || equals("yes") || equals("on")) {
+    return true;
+  }
+  return false;
+}
+
 float String::toFloat(void) const {
   if (buffer()) {
     return atof(buffer());

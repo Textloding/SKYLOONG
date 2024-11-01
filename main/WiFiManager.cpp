@@ -23,6 +23,10 @@ void WiFiManager::save()
     }
 }
 
+uint16_t WiFiManager::count() {
+    return WiFiCount;
+}
+
 void WiFiManager::add(const String ssid, const String pass)
 {
     for (uint16_t i = 0; i < WiFiCount; i++)

@@ -307,6 +307,7 @@ public:
 
   // parsing/conversion
   long toInt(void) const;
+  bool toBool(void) const;
   float toFloat(void) const;
   double toDouble(void) const;
 

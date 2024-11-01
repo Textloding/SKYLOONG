@@ -73,6 +73,11 @@ void AppAPS::setup()
 
 void AppAPS::loop()
 {
+    if (!hal.aps_enable) {
+        xSemaphoreGive(appManagerLite._binary_switchApp);
+        return;
+    }
+
     if (hal.APMChanged)
     {
         hal.APMChanged = false;

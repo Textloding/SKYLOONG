@@ -54,7 +54,7 @@ void my_video_callback(plm_t *plm, plm_frame_t *frame, void *user)
     ConvertYUV420SPToBGR(frame->y.data, frame->cr.data, frame->cb.data, rgb_buffer, frame->width, frame->height);
     esp_lcd_panel_draw_bitmap(panel_handle, (screenWidth - frame->width) / 2, (screenHeight - frame->height) / 2, (screenWidth + frame->width) / 2, (screenHeight + frame->height) / 2, rgb_buffer);
 }
-extern bool get_vid_stop();
+extern bool get_gif_vid_stop();
 
 void VideoPlayer::play(FILE *f)
 {
@@ -79,7 +79,7 @@ void VideoPlayer::play(FILE *f)
             delay(last_millis);
         else
             delay(1);
-        if (get_vid_stop())
+        if (get_gif_vid_stop())
             break;
     } while (!plm_has_ended(plm));
 
@@ -117,7 +117,7 @@ void VideoPlayer::playBuffer(const uint8_t *video_buffer, uint32_t buffer_size)
             delay(last_millis);
         else
             delay(1);
-        if (get_vid_stop())
+        if (get_gif_vid_stop())
             break;
     } while (!plm_has_ended(plm));
 
