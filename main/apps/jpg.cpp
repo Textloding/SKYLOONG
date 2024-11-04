@@ -71,6 +71,7 @@ void AppJPG::setup()
     update_jpg_list("/littlefs");
     last_jpg_roll_time = 0;
     hal.jpg_update = true;
+    strcpy(show_jpg_file, "");
 }
 
 void AppJPG::loop()
@@ -94,7 +95,7 @@ void AppJPG::loop()
         char path[32];
         strcpy(path, "C:/");
         strcat(path, hal.config_jpg_file);
-        if (strcmp(path,show_jpg_file) != 0) {
+        if (strcmp(path, show_jpg_file) != 0) {
         	hal.LOCKLV();
             if (show_jpg(path) == false) {
 				hal.UNLOCKLV();
