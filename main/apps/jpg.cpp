@@ -18,8 +18,8 @@ bool show_jpg(const char *path)
 {
     if (jpg)
     {
-        lv_obj_fade_out(jpg, 1000, 0);
-        lv_obj_del_delayed(jpg, 1000);
+        lv_img_cache_invalidate_src(lv_img_get_src(jpg));
+        lv_obj_del(jpg);
         jpg = NULL;
     }
     if (strstr(path, ".jpg") != NULL)
@@ -70,12 +70,18 @@ void AppJPG::setup()
     hal.UNLOCKLV();
     update_jpg_list("/littlefs");
     last_jpg_roll_time = 0;
+    hal.jpg_update = true;
 }
 
 void AppJPG::loop()
 {
     if (!hal.jpg_enable) {
         xSemaphoreGive(appManagerLite._binary_switchApp);
+        return;
+    }
+    if (hal.jpg_update == false) {
+        hal.jpg_update = true;
+        hal.send_sysctl(EVENT_JPG_REFRESH);
         return;
     }
 
@@ -123,7 +129,11 @@ void AppJPG::loop()
 void AppJPG::destroy()
 {
     hal.LOCKLV();
-    jpg = NULL;
+    if (jpg) {
+        lv_img_cache_invalidate_src(lv_img_get_src(jpg));
+        lv_obj_del(jpg);
+        jpg = NULL;
+    }
     _appScreen_jpg = NULL;
     hal.UNLOCKLV();
 }

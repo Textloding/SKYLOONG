@@ -82,12 +82,18 @@ void AppGIF::setup()
     hal.UNLOCKLV();
     update_gif_list("/littlefs");
     last_gif_roll_time = 0;
+    hal.gif_update = true;
 }
 
 void AppGIF::loop()
 {
     if (!hal.gif_enable) {
         xSemaphoreGive(appManagerLite._binary_switchApp);
+        return;
+    }
+    if (hal.gif_update == false) {
+        hal.gif_update = true;
+        hal.send_sysctl(EVENT_GIF_REFRESH);
         return;
     }
 

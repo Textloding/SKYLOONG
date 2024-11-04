@@ -130,6 +130,12 @@ static void task_systemctl(void *p)
         case EVENT_HOME_REFRESH:
             appManagerLite.switchApp(1);
             break;
+        case EVENT_GIF_REFRESH:
+            appManagerLite.switchApp(3);
+            break;
+        case EVENT_JPG_REFRESH:
+            appManagerLite.switchApp(4);
+            break;
         default:
             break;
         }
@@ -628,6 +634,10 @@ void handleFileUpload()
     {
         if (fsUploadFile)
         {
+            if (strstr(fsUploadFile.name(), ".mpeg") != NULL)
+                hal.gif_update = false;
+            if (strstr(fsUploadFile.name(), ".jpg") != NULL)
+                hal.jpg_update = false;
             fsUploadFile.close();
         }
         ESP_LOGI("SERVER", "handleFileUpload Size: %d", upload.totalSize);
@@ -650,8 +660,16 @@ void handleFileDelete()
     {
         return server.send(404, "text/plain", "FileNotFound");
     }
-    FILESYSTEM.remove(path);
-    server.send(200, "text/plain", "");
+    bool result = FILESYSTEM.remove(path);
+    if (result) {
+        server.send(200, "text/plain", "");
+        if (strstr(path.c_str(), ".mpeg") != NULL)
+            hal.gif_update = false;
+        if (strstr(path.c_str(), ".jpg") != NULL)
+            hal.jpg_update = false;
+    } else {
+        return server.send(500, "text/plain", "DELETE FAIL");  
+    }
     path = String();
 }
 

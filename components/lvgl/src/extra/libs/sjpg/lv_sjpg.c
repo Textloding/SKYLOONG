@@ -514,7 +514,6 @@ end:
                 return 78;
             }
 
-
             uint32_t rn;
             res = lv_fs_read(&lv_file, buff, 22, &rn);
             if(res != LV_FS_RES_OK || rn != 22) {

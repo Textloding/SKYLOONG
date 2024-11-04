@@ -16,6 +16,8 @@ enum system_event_type_t
     EVENT_GOTO_QRCODE,
     EVENT_EXIT_QRCODE,
     EVENT_HOME_REFRESH,
+    EVENT_GIF_REFRESH,
+    EVENT_JPG_REFRESH,
 };
 typedef struct sysctl_event_t
 {
@@ -75,6 +77,8 @@ public:
     bool qrcode_mode = false;               // 当前是否进入了二维码模式
     bool lv_has_kb = false;                 // 是否当前显示了键盘控件，用于选择发送key的类型
     bool server_started = false;            // 是否已经启动了网页服务器
+    bool gif_update = false;
+    bool jpg_update = false;
     bool weather_update = false;
     bool sysinfo_update = false;
     bool config_time_12hr = false;
