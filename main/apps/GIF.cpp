@@ -6,7 +6,6 @@ lv_obj_t *_appScreen_gif = NULL;
 #include <string.h>
 #include <sys/stat.h>
 #include "APP_Def.hpp"
-uint32_t last_gif_roll_time = 0;
 volatile bool gif_vid_stop = false;
 bool get_gif_vid_stop()
 {
@@ -28,7 +27,6 @@ bool show_gif(const char *path)
         FILE *f = fopen(path_new, "rb");
         if (f == NULL)
         {
-            hal.pref.remove("last_gif");
             return false;
         }
         hal.UNLOCKLV();
@@ -39,8 +37,6 @@ bool show_gif(const char *path)
         videoPlayer.play(f);
         hal.LOCKLV();
         fclose(f);
-        lv_obj_invalidate(lv_scr_act());
-        last_gif_roll_time = 0;
         return true;
     }
     return false;
@@ -81,7 +77,6 @@ void AppGIF::setup()
     lv_obj_set_style_text_font(lv_layer_top(), &lv_font_chinese_16, 0);
     hal.UNLOCKLV();
     update_gif_list("/littlefs");
-    last_gif_roll_time = 0;
     hal.gif_update = true;
 }
 
@@ -108,24 +103,20 @@ void AppGIF::loop()
         delay(50);
         return;
     }
-    if (millis() - last_gif_roll_time > hal.config_time_roll || last_gif_roll_time == 0)
+
+    ESP_LOGI("GIF", "Rolling");
+    if (gif_list_size > 0)
     {
-        ESP_LOGI("GIF", "Rolling");
-        last_gif_roll_time = millis();
-        if (gif_list_size > 0)
+        gif_list_idx++;
+        if (gif_list_idx >= gif_list_size)
+            gif_list_idx = 0;
+        hal.LOCKLV();
+        if (show_gif(gif_list.at(gif_list_idx).c_str()) == false)
         {
-            gif_list_idx++;
-            if (gif_list_idx >= gif_list_size)
-                gif_list_idx = 0;
-            hal.LOCKLV();
-            if (show_gif(gif_list.at(gif_list_idx).c_str()) == false)
-            {
-                hal.UNLOCKLV();
-                last_gif_roll_time = 0;
-                return;
-            }
             hal.UNLOCKLV();
+            return;
         }
+        hal.UNLOCKLV();
     }
 }
 

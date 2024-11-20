@@ -64,7 +64,6 @@ void VideoPlayer::play(FILE *f)
     rgb_buffer = (uint8_t *)ps_malloc(320 * 240 * 2);
     assert(rgb_buffer != NULL);
     memset(rgb_buffer, 0, 320 * 240 * 2);
-    esp_lcd_panel_draw_bitmap(panel_handle, 0, 0, 320, 240, rgb_buffer);
     plm_buffer_t *buffer = plm_buffer_create_with_file(f, false);
     plm_t *plm = plm_create_with_buffer(buffer, true);
     plm_set_loop(plm, video_loop);

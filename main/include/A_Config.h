@@ -32,8 +32,8 @@
 
 #define screenHeight 240
 #define screenWidth 320
-#define FIRMWARE_VERSION "SCM_V3.0.0"
-#define FIRMWARE_VERSION_INT 30000
+#define FIRMWARE_VERSION "SCM_V3.0.1"
+#define FIRMWARE_VERSION_INT 30001
 #define WIFI_SAVE_MAX 50
 
 #include "internationalization.h"
