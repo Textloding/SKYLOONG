@@ -47,7 +47,7 @@ void ConvertYUV420SPToBGR(unsigned char *yData, unsigned char *vData, unsigned c
     }
 }
 
-uint8_t *rgb_buffer;
+uint8_t *rgb_buffer = NULL;
 static uint32_t last_millis = 0;
 void my_video_callback(plm_t *plm, plm_frame_t *frame, void *user)
 {
@@ -61,7 +61,9 @@ void VideoPlayer::play(FILE *f)
 
     videoPlayer.video_loop = false;
     hal.LOCKLV();
-    rgb_buffer = (uint8_t *)ps_malloc(320 * 240 * 2);
+    if(rgb_buffer == NULL) {
+        rgb_buffer = (uint8_t *)ps_malloc(320 * 240 * 2);
+    }
     assert(rgb_buffer != NULL);
     memset(rgb_buffer, 0, 320 * 240 * 2);
     plm_buffer_t *buffer = plm_buffer_create_with_file(f, false);
@@ -83,8 +85,6 @@ void VideoPlayer::play(FILE *f)
     } while (!plm_has_ended(plm));
 
     plm_destroy(plm);
-    free(rgb_buffer);
-    rgb_buffer = NULL;
     hal.UNLOCKLV();
 }
 

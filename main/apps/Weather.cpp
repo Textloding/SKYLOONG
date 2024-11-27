@@ -424,16 +424,18 @@ void AppWeather::setup()
         {
             if (f.readBytes((char *)&weatherData, sizeof(weatherData)) == sizeof(weatherData))
             {
-                hal.LOCKLV();
-                updateWeather();
-                hal.LOCKLV();
+                loadWeather = true;
             }
             f.close();
-        }
-        loadWeather = true;
+        }  
+    }
+    if (loadWeather == true)
+    {
+        hal.LOCKLV();
+        updateWeather();
+        hal.UNLOCKLV();
     }
     last_millis = millis();
-    GUI::toast("5秒后获取天气");
     hal.weather_update = false;
 }
 static bool connectToWiFi()
@@ -474,6 +476,7 @@ void AppWeather::loop()
             hal.LOCKLV();
             updateWeather();
             hal.UNLOCKLV();
+            loadWeather = true;
             ++weather_update_cnt;
             if (weather_update_cnt % 5 == 0)
             {
