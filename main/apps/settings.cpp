@@ -22,6 +22,7 @@ lv_obj_t *create_settings_switch(lv_obj_t *parent, const char *title, const char
     lv_obj_add_event_cb(sw_btn, cb, LV_EVENT_ALL, NULL);
     return sw_btn;
 }
+
 lv_obj_t *create_settings_list(lv_obj_t *parent, const char *title, const char *str, const char *dropdown, lv_event_cb_t cb)
 {
     lv_obj_t *box = lv_obj_create(parent);
@@ -46,6 +47,7 @@ lv_obj_t *create_settings_list(lv_obj_t *parent, const char *title, const char *
     lv_obj_add_event_cb(lst, cb, LV_EVENT_ALL, NULL);
     return lst;
 }
+
 lv_obj_t *create_settings_button(lv_obj_t *parent, const char *title, const char *str, const char *btn_str, lv_event_cb_t cb)
 {
     lv_obj_t *box = lv_obj_create(parent);
@@ -72,6 +74,7 @@ lv_obj_t *create_settings_button(lv_obj_t *parent, const char *title, const char
     lv_obj_center(lbl_btn);
     return btn;
 }
+
 void create_settings_slider(lv_obj_t *_appScreen, const char *title, lv_event_cb_t cb)
 {
     lv_obj_t *box = lv_obj_create(_appScreen);
@@ -101,6 +104,7 @@ static lv_obj_t *ota_update_btn = NULL;
 static lv_obj_t *factory_reset_btn = NULL;
 static lv_obj_t *btn_server = NULL;
 lv_obj_t *exit_btn = NULL;
+
 void AppSettings::setup()
 {
     hal.LOCKLV();
@@ -254,18 +258,20 @@ void AppSettings::setup()
     else
         lv_obj_clear_state(o, LV_STATE_CHECKED);
 
-    o = create_settings_switch(_appScreen, _tr(I18N_ID_ENABLE_WEATHER_APP), _tr(I18N_ID_ENABLE_WEATHER_APP_DESC), [](lv_event_t *e)
-                               {
-        if (e->code == LV_EVENT_VALUE_CHANGED){
-            reboot_needed = true;
-            hal.pref.putBool("weather_enable", lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED));
-        }
-        if (e->code == LV_EVENT_FOCUSED)
-            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
-    if (hal.pref.getBool("weather_enable", true))
-        lv_obj_add_state(o, LV_STATE_CHECKED);
-    else
-        lv_obj_clear_state(o, LV_STATE_CHECKED);
+    if (i18n::getLanguage() == 0) {
+        o = create_settings_switch(_appScreen, _tr(I18N_ID_ENABLE_WEATHER_APP), _tr(I18N_ID_ENABLE_WEATHER_APP_DESC), [](lv_event_t *e)
+                                {
+            if (e->code == LV_EVENT_VALUE_CHANGED){
+                reboot_needed = true;
+                hal.pref.putBool("weather_enable", lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED));
+            }
+            if (e->code == LV_EVENT_FOCUSED)
+                lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
+        if (hal.pref.getBool("weather_enable", true))
+            lv_obj_add_state(o, LV_STATE_CHECKED);
+        else
+            lv_obj_clear_state(o, LV_STATE_CHECKED);
+    }
 
     o = create_settings_switch(_appScreen, _tr(I18N_ID_ENABLE_PERF_APP), _tr(I18N_ID_ENABLE_PERF_APP_DESC), [](lv_event_t *e)
                                {
@@ -372,10 +378,12 @@ void AppSettings::loop()
     {
         if (WiFiMgr.requireWiFi())
         {
-            if (hal.NTPSync())
+            if (hal.NTPSync()) {
                 GUI::toast(_tr(I18N_ID_SYNC_SUCCESS));
-            else
+                hal.time_sync = true;
+            } else {
                 GUI::toast(_tr(I18N_ID_SYNC_FAILED));
+            }
         }
         ntp_req = false;
     }
@@ -392,8 +400,15 @@ void AppSettings::loop()
     {
         hal.forceExitSettings();
         hal.LOCKLV();
+        hal.pref.end();
+        LittleFS.end();
         nvs_flash_erase();
         LittleFS.format();
+        nvs_flash_init();
+        if (LittleFS.begin(false)) {
+            hal.pref.begin("settings", false);
+            hal.pref.putUInt("lang", i18n::getLanguage());
+        }
         delay(1000);
         ESP.restart();
     }
@@ -457,7 +472,6 @@ void AppSettings::loop()
             }
             else
             {
-                // 读取远程更新信息
                 http.begin(REMOTE_UPDATE_URL);
                 int httpCode = http.GET();
                 if (httpCode == 200)

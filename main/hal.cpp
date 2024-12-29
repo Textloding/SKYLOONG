@@ -21,8 +21,10 @@ void my_disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *c
         first_refresh--;
         if (first_refresh == 0)
         {
-            if(screen_is_on == true)
+            if(screen_is_on == true) {
+                screen_is_sleep = false;
                 hal.setBrightness(hal._brightness);
+            }
             ESP_LOGW("HAL", "首次刷新完成");
             first_refresh = -1;
         }
@@ -109,6 +111,8 @@ static void task_systemctl(void *p)
                 }
                 else
                 {
+                    screen_is_sleep = true;
+                    ledcWrite(PIN_DISPLAY_BL, 0);
                     xSemaphoreGive(hal._mutex);
                 }
             }
@@ -960,7 +964,8 @@ void HAL::start_webserver()
         long timezone = i18n::getNTPOffset();
         timezone /= 3600;
         cJSON_AddNumberToObject(json, "timezone", timezone);
-
+        cJSON_AddNumberToObject(json, "language", i18n::getLanguage());
+        
         strncpy(jsonbuffer, cJSON_PrintUnformatted(json), 1024);
         cJSON_Delete(json);
         server.send(200, "application/json", jsonbuffer);
@@ -1018,7 +1023,25 @@ void HAL::start_webserver()
                 timezone *= 3600;
                 i18n::setNTPOffset(timezone);
                 hal.pref.putInt("ntp", timezone);
-                hal.NTPSync();
+                if(hal.NTPSync())
+                    hal.time_sync = true;
+            } else {
+               server.send(500, "text/plain", "ERR 500"); 
+            }
+
+            server.send(200, "text/plain", "OK");
+        } else {
+            server.send(500, "text/plain", "ERR 500");
+        }
+    });
+
+    server.on("/config_language", HTTP_POST, []() {
+        if (server.hasArg("language")) {
+            long language = server.arg("language").toInt();
+            if (language == 0 || language == 1) {
+                i18n::setLanguage(language);
+                hal.pref.putUInt("lang", language);
+                hal.lang_refresh = true;
             } else {
                server.send(500, "text/plain", "ERR 500"); 
             }
@@ -1264,5 +1287,5 @@ extern bool stop_protocol;
 void HAL::forceExitSettings()
 {
     stop_protocol = true;
-    hal.send_sysctl(EVENT_EXIT_SETTING, 0);
+    hal.send_sysctl(EVENT_EXIT_SETTING);
 }

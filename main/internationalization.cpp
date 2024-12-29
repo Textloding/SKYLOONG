@@ -86,24 +86,32 @@ const char *i18n_dict[][2] = {
     {"允许切换到天气界面", ""},
     {"性能界面使能", "Enable Performance Monitor"},
     {"允许切换到性能界面", ""},
+    {"请连接屏幕热点: %s", "Please connect screen AP: %s"},
+    {"屏幕连接网络: %s", "Connected to WiFi: %s"},
 };
+
 static time_t offset = 3600 * 8;
+
 time_t i18n::getNTPOffset()
 {
     return offset;
 }
+
 void i18n::setNTPOffset(time_t offset_seconds)
 {
     offset = offset_seconds;
 }
+
 void i18n::setLanguage(int lang_id)
 {
     current_lang_id = lang_id;
 }
+
 int i18n::getLanguage()
 {
     return current_lang_id;
 }
+
 const char *i18n::getStr(uint32_t id)
 {
     return i18n_dict[id][current_lang_id];

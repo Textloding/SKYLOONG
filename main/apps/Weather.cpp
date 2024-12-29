@@ -454,6 +454,10 @@ static bool connectToWiFi()
 }
 void AppWeather::loop()
 {
+    if (i18n::getLanguage() == 1) {
+        xSemaphoreGive(appManagerLite._binary_switchApp);
+        return;
+    }
     if (!hal.weather_enable) {
         xSemaphoreGive(appManagerLite._binary_switchApp);
         return;

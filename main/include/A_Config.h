@@ -32,8 +32,8 @@
 
 #define screenHeight 240
 #define screenWidth 320
-#define FIRMWARE_VERSION "SCM_V3.0.1"
-#define FIRMWARE_VERSION_INT 30001
+#define FIRMWARE_VERSION "SCM_V3.0.2"
+#define FIRMWARE_VERSION_INT 30002
 #define WIFI_SAVE_MAX 50
 
 #include "internationalization.h"
@@ -53,6 +53,7 @@
 #include <esp_lcd_panel_ops.h>
 extern esp_lcd_panel_handle_t panel_handle;
 extern bool RTC_DATA_ATTR screen_is_on;
+extern bool RTC_DATA_ATTR screen_is_sleep;
 /**
  * @brief 开始DPP配网并等待
  * @result

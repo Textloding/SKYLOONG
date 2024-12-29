@@ -90,8 +90,10 @@ public:
     bool weather_enable = true;
     bool sysinfo_enable = true;
     uint32_t config_time_roll = 5000;
+    bool lang_refresh = false;
     char config_jpg_mode[32];
     char config_jpg_file[32];
+    bool time_sync = true;
     SemaphoreHandle_t _mutex;
     void init();
     uint8_t getDoW(uint16_t iYear, uint8_t iMonth, uint8_t iDay);

@@ -20,6 +20,7 @@ typedef struct protocol_t
 #define PROTOCOL_TYPE_TIME 0x1E
 #define PROTOCOL_TYPE_BATTERY 0x1F
 bool RTC_DATA_ATTR screen_is_on = true;
+bool RTC_DATA_ATTR screen_is_sleep = false;
 static bool in_setting_mode = false;
 static uint8_t getcrc(protocol_t *buff)
 {
@@ -80,6 +81,14 @@ void parasePkt(protocol_t *pkt)
     static protocol_t pkt_send;
     pkt_send.type = pkt->type;
     memset(pkt_send.data, 0, 128);
+
+    if(screen_is_sleep == true)  {
+        screen_is_sleep = false;
+        if (screen_is_on == true) {
+            hal.setBrightness(hal._brightness);
+        }
+    }
+
     switch (pkt->type)
     {
     case PROTOCOL_TYPE_VERSION:
@@ -152,6 +161,7 @@ void parasePkt(protocol_t *pkt)
             {
                 hal.setBrightness(hal._brightness);
                 screen_is_on = true;
+                screen_is_sleep = false;
             }
             else
             {
@@ -160,6 +170,7 @@ void parasePkt(protocol_t *pkt)
             break;
         case 0xAF: // 开关屏幕（这个无论是开还是关都是一种数据，右下+左上短按）
             screen_is_on = !screen_is_on;
+            screen_is_sleep = false;
             hal.send_sysctl(EVENT_TOGGLE_SCREEN_ON, screen_is_on);
             break;
         default:
@@ -253,6 +264,23 @@ void task_protocol(void *pvParameters)
             stop_protocol = false;
             delay(5000);
             Serial2.flush(false);
+        }
+        if(hal.time_sync) {
+            hal.getTime();
+            if(hal.datetime.year >= 2023) {
+                protocol_t pkt_send;
+                pkt_send.type = PROTOCOL_TYPE_TIME;
+                memset(pkt_send.data, 0, 128);
+                pkt_send.data[0] = hal.datetime.year - 2023;
+                pkt_send.data[1] = hal.datetime.month;
+                pkt_send.data[2] = hal.datetime.dayMonth;
+                pkt_send.data[3] = hal.datetime.hour;
+                pkt_send.data[4] = hal.datetime.minute;
+                pkt_send.data[5] = hal.datetime.second;
+                pkt_send.len = 1 + 6;
+                sendPkt(&pkt_send);
+            }
+            hal.time_sync = false;
         }
     }
 }

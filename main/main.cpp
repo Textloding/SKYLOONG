@@ -11,6 +11,7 @@ void task_lvgl_update(void *p)
         delay(5);
     }
 }
+
 void debug_USB_UART(void *p)
 {
     bool in_setting_mode = false;
@@ -78,6 +79,7 @@ void debug_USB_UART(void *p)
         }
     }
 }
+
 AppHome appHome;
 AppAPS appAPS;
 AppGIF appGIF;
