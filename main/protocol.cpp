@@ -87,6 +87,7 @@ void parasePkt(protocol_t *pkt)
         if (screen_is_on == true) {
             hal.setBrightness(hal._brightness);
         }
+        hal.time_sync = true;
     }
 
     switch (pkt->type)

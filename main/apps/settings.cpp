@@ -222,6 +222,7 @@ void AppSettings::setup()
             t -= 12;
             t *= 3600;
             i18n::setNTPOffset(t);
+            ntp_req = true;
         }
         if (e->code == LV_EVENT_FOCUSED)
             lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });

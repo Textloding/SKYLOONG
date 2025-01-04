@@ -25,6 +25,7 @@ void my_disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *c
                 screen_is_sleep = false;
                 hal.setBrightness(hal._brightness);
             }
+            hal.time_sync = true;
             ESP_LOGW("HAL", "首次刷新完成");
             first_refresh = -1;
         }
