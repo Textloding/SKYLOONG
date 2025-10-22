@@ -1,21 +1,23 @@
 #include "A_Config.h"
+
+#include <TFT_eSPI.h>
+TFT_eSPI tft = TFT_eSPI(); 
+
 HAL hal;
-esp_lcd_panel_handle_t panel_handle = NULL;
-esp_lcd_panel_io_handle_t io_handle = NULL;
 #define DRAW_BUF_SIZE (2 * screenWidth * screenHeight)
 lv_indev_t *indev_keypad;
+
 static int first_refresh = 3;
-static inline void swapBuffer(uint16_t *buffer, uint32_t size)
-{
-    for (uint32_t i = 0; i < size; i++)
-    {
-        buffer[i] = (buffer[i] >> 8) | (buffer[i] << 8);
-    }
-}
+
 void my_disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p)
 {
-    swapBuffer((uint16_t *)color_p, (area->x2 - area->x1 + 1) * (area->y2 - area->y1 + 1));
-    esp_lcd_panel_draw_bitmap(panel_handle, area->x1, area->y1, area->x2 + 1, area->y2 + 1, (uint16_t *)&color_p->full);
+    uint32_t w = (area->x2 - area->x1 + 1);
+    uint32_t h = (area->y2 - area->y1 + 1);
+    tft.startWrite();
+    tft.setAddrWindow(area->x1, area->y1, w, h);
+    tft.pushColors((uint16_t *)&color_p->full, w * h);
+    tft.endWrite();
+
     if (first_refresh > 0)
     {
         first_refresh--;
@@ -146,129 +148,29 @@ static void task_systemctl(void *p)
         }
     }
 }
-void demo()
-{
-    spi_bus_config_t buscfg;
-    memset(&buscfg, 0, sizeof(spi_bus_config_t));
-    buscfg.mosi_io_num = PIN_DISPLAY_MOSI;
-    buscfg.miso_io_num = -1;
-    buscfg.sclk_io_num = PIN_DISPLAY_SCLK;
-    buscfg.quadwp_io_num = -1; // Quad SPI LCD driver is not yet supported
-    buscfg.quadhd_io_num = -1; // Quad SPI LCD driver is not yet supported
-    buscfg.max_transfer_sz = 320 * 240 * 2;
-    ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO)); // Enable the DMA feature
-    esp_lcd_panel_io_spi_config_t io_config;
-    memset(&io_config, 0, sizeof(esp_lcd_panel_io_spi_config_t));
-    io_config.cs_gpio_num = PIN_DISPLAY_CS;
-    io_config.dc_gpio_num = PIN_DISPLAY_DC;
-    io_config.spi_mode = 0;
-    io_config.pclk_hz = 80000000;
-    io_config.trans_queue_depth = 2;
-    io_config.lcd_cmd_bits = 8;
-    io_config.lcd_param_bits = 8;
-    // Attach the LCD to the SPI bus
-    ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI2_HOST, &io_config, &io_handle));
-    esp_lcd_panel_dev_config_t panel_config;
-    memset(&panel_config, 0, sizeof(esp_lcd_panel_dev_config_t));
-    panel_config.reset_gpio_num = PIN_DISPLAY_RST;
-    panel_config.rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
-    panel_config.bits_per_pixel = 16;
-    // Create LCD panel handle for ST7789, with the SPI IO device handle
-    ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(io_handle, &panel_config, &panel_handle));
 
-    ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_handle));
-    delay(10);
-    uint8_t data_buffer[24];
-    data_buffer[0] = 0x00;
-    esp_lcd_panel_io_tx_param(io_handle, 0x36, data_buffer, 1);
-    data_buffer[0] = 0x55;
-    esp_lcd_panel_io_tx_param(io_handle, 0x3A, data_buffer, 1);
-    esp_lcd_panel_io_tx_param(io_handle, 0x21, NULL, 0);
-    data_buffer[0] = 0x00;
-    esp_lcd_panel_io_tx_param(io_handle, 0xB0, data_buffer, 1);
-    data_buffer[0] = 0x05;
-    data_buffer[1] = 0x05;
-    data_buffer[2] = 0x00;
-    data_buffer[3] = 0x33;
-    data_buffer[4] = 0x33;
-    esp_lcd_panel_io_tx_param(io_handle, 0xB2, data_buffer, 5);
-    data_buffer[0] = 0x75;
-    esp_lcd_panel_io_tx_param(io_handle, 0xB7, data_buffer, 1);
-    data_buffer[0] = 0x22;
-    esp_lcd_panel_io_tx_param(io_handle, 0xBB, data_buffer, 1);
-    data_buffer[0] = 0x2C;
-    esp_lcd_panel_io_tx_param(io_handle, 0xC0, data_buffer, 1);
-    data_buffer[0] = 0x01;
-    esp_lcd_panel_io_tx_param(io_handle, 0xC2, data_buffer, 1);
-    data_buffer[0] = 0x13;
-    esp_lcd_panel_io_tx_param(io_handle, 0xC3, data_buffer, 1);
-    data_buffer[0] = 0x20;
-    esp_lcd_panel_io_tx_param(io_handle, 0xC4, data_buffer, 1);
-    data_buffer[0] = 0x05;
-    esp_lcd_panel_io_tx_param(io_handle, 0xC6, data_buffer, 1);
-    data_buffer[0] = 0xA4;
-    data_buffer[1] = 0xA1;
-    esp_lcd_panel_io_tx_param(io_handle, 0xD0, data_buffer, 2);
-    data_buffer[0] = 0xA1;
-    esp_lcd_panel_io_tx_param(io_handle, 0xD6, data_buffer, 1);
-    data_buffer[0] = 0xD0;
-    data_buffer[1] = 0x05;
-    data_buffer[2] = 0x0A;
-    data_buffer[3] = 0x09;
-    data_buffer[4] = 0x08;
-    data_buffer[5] = 0x05;
-    data_buffer[6] = 0x2E;
-    data_buffer[7] = 0x44;
-    data_buffer[8] = 0x45;
-    data_buffer[9] = 0x0F;
-    data_buffer[10] = 0x17;
-    data_buffer[11] = 0x16;
-    data_buffer[12] = 0x2B;
-    data_buffer[13] = 0x33;
-    esp_lcd_panel_io_tx_param(io_handle, 0xE0, data_buffer, 14);
-    data_buffer[0] = 0xD0;
-    data_buffer[1] = 0x05;
-    data_buffer[2] = 0x0A;
-    data_buffer[3] = 0x09;
-    data_buffer[4] = 0x08;
-    data_buffer[5] = 0x05;
-    data_buffer[6] = 0x2E;
-    data_buffer[7] = 0x43;
-    data_buffer[8] = 0x45;
-    data_buffer[9] = 0x0F;
-    data_buffer[10] = 0x16;
-    data_buffer[11] = 0x16;
-    data_buffer[12] = 0x2B;
-    data_buffer[13] = 0x33;
-    esp_lcd_panel_io_tx_param(io_handle, 0xE1, data_buffer, 14);
-    data_buffer[0] = 0x00;
-    data_buffer[1] = 0x00;
-    data_buffer[2] = 0x00;
-    data_buffer[3] = 0xEF;
-    esp_lcd_panel_io_tx_param(io_handle, 0x2A, data_buffer, 4);
-    data_buffer[0] = 0x00;
-    data_buffer[1] = 0x00;
-    data_buffer[2] = 0x01;
-    data_buffer[3] = 0x3F;
-    esp_lcd_panel_io_tx_param(io_handle, 0x2B, data_buffer, 4);
-    esp_lcd_panel_io_tx_param(io_handle, 0x11, NULL, 0);
-    delay(100);
-    esp_lcd_panel_io_tx_param(io_handle, 0x29, NULL, 0);
-    esp_lcd_panel_io_tx_param(io_handle, 0x2C, NULL, 0);
-    ESP_ERROR_CHECK(esp_lcd_panel_swap_xy(panel_handle, true));
-    ESP_ERROR_CHECK(esp_lcd_panel_invert_color(panel_handle, true));
-    ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel_handle, false, true));
+void lcd_init()
+{
+    pinMode(PIN_DISPLAY_PWR, OUTPUT);
+    digitalWrite(PIN_DISPLAY_PWR, LOW);
+    pinMode(PIN_DISPLAY_BL, OUTPUT);
+    ledcAttach(PIN_DISPLAY_BL, 16000, 8);
+    ledcWrite(PIN_DISPLAY_BL, 0);
+
+    delay(1000);
+
+    tft.init();
+
+    tft.setRotation(3);
+    tft.fillScreen(TFT_BLACK);
+    tft.invertDisplay(true);
 }
 
 void HAL::init()
 {
     memset(&datetime, 0, sizeof(DS1302_DateTime));
     WiFi.setHostname("SKYLOONG 3.0 Screen");
-    pinMode(PIN_DISPLAY_PWR, OUTPUT);
-    digitalWrite(PIN_DISPLAY_PWR, HIGH);
-    ledcAttach(PIN_DISPLAY_BL, 16000, 8);
-    ledcWrite(PIN_DISPLAY_BL, 0);
-    demo();
+    lcd_init();
     DS1302_begin(&rtc, PIN_RTC_SCLK, PIN_RTC_SDIO, PIN_RTC_RST);
     DS1302_writeClockRegister(&rtc, DS1302_REG_TC, 0xA5);
     if (LittleFS.begin(false) == false)
@@ -313,15 +215,12 @@ void HAL::init()
     screen_buf2 = (lv_color_t *)heap_caps_malloc(DRAW_BUF_SIZE, MALLOC_CAP_SPIRAM);
 
     lv_disp_draw_buf_init(&draw_buf, screen_buf, screen_buf2, DRAW_BUF_SIZE / 2);
-    /*Initialize the display*/
     lv_disp_drv_init(&disp_drv);
-    /*Change the following line to your display resolution*/
     disp_drv.hor_res = screenWidth;
     disp_drv.ver_res = screenHeight;
     disp_drv.flush_cb = my_disp_flush;
     disp_drv.draw_buf = &draw_buf;
     lv_disp_drv_register(&disp_drv);
-    /*Register a keypad input device*/
     lv_indev_drv_init(&indev_drv);
     indev_drv.type = LV_INDEV_TYPE_KEYPAD;
     indev_drv.read_cb = keypad_read;
@@ -496,7 +395,6 @@ void HAL::goSleep()
     esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_SERIAL2_RX, 0);
     rtc_gpio_pullup_en((gpio_num_t)PIN_SERIAL2_RX);
     rtc_gpio_hold_en((gpio_num_t)PIN_SERIAL2_RX);
-    ESP_ERROR_CHECK(esp_lcd_panel_io_tx_param(io_handle, LCD_CMD_SLPIN, NULL, 0));
     delay(2);
     esp_deep_sleep_start();
 }

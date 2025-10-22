@@ -13,19 +13,12 @@
 #include "esp_log.h"
 #include "esp_system.h"
 
-#define PIN_DISPLAY_CS 10
-#define PIN_DISPLAY_DC 11
-#define PIN_DISPLAY_RST 7
-#define PIN_DISPLAY_SCLK 9
-#define PIN_DISPLAY_MOSI 8
-#define PIN_DISPLAY_BL 14
-#define PIN_DISPLAY_FSYNC 12
+#define PIN_DISPLAY_BL 21
+#define PIN_DISPLAY_PWR 3
 
-#define PIN_DISPLAY_PWR 13
-
-#define PIN_RTC_SCLK 17
-#define PIN_RTC_SDIO 18
-#define PIN_RTC_RST 21
+#define PIN_RTC_SCLK 9
+#define PIN_RTC_SDIO 11
+#define PIN_RTC_RST 0
 
 #define PIN_SERIAL2_RX 5
 #define PIN_SERIAL2_TX 6
@@ -51,7 +44,10 @@
 #include <esp_lcd_panel_interface.h>
 #include <esp_lcd_panel_commands.h>
 #include <esp_lcd_panel_ops.h>
-extern esp_lcd_panel_handle_t panel_handle;
+
+#include <TFT_eSPI.h>
+extern TFT_eSPI tft;
+
 extern bool RTC_DATA_ATTR screen_is_on;
 extern bool RTC_DATA_ATTR screen_is_sleep;
 /**

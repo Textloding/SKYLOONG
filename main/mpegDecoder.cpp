@@ -52,7 +52,10 @@ static uint32_t last_millis = 0;
 void my_video_callback(plm_t *plm, plm_frame_t *frame, void *user)
 {
     ConvertYUV420SPToBGR(frame->y.data, frame->cr.data, frame->cb.data, rgb_buffer, frame->width, frame->height);
-    esp_lcd_panel_draw_bitmap(panel_handle, (screenWidth - frame->width) / 2, (screenHeight - frame->height) / 2, (screenWidth + frame->width) / 2, (screenHeight + frame->height) / 2, rgb_buffer);
+    tft.startWrite();
+    tft.setAddrWindow((screenWidth - frame->width) / 2, (screenHeight - frame->height) / 2, frame->width, frame->height);
+    tft.pushColors(rgb_buffer, frame->width * frame->height * 2);
+    tft.endWrite();
 }
 extern bool get_gif_vid_stop();
 
@@ -96,12 +99,7 @@ void VideoPlayer::playBuffer(const uint8_t *video_buffer, uint32_t buffer_size)
     rgb_buffer = (uint8_t *)ps_malloc(320 * 240 * 2);
     assert(rgb_buffer != NULL);
     memset(rgb_buffer, 0, 320 * 240 * 2);
-    esp_lcd_panel_draw_bitmap(panel_handle, 0, 0, 320, 240, rgb_buffer);
-    esp_lcd_panel_draw_bitmap(panel_handle, 0, 0, 320, 240, rgb_buffer);
-    esp_lcd_panel_draw_bitmap(panel_handle, 0, 0, 320, 240, rgb_buffer);
-    esp_lcd_panel_draw_bitmap(panel_handle, 0, 0, 320, 240, rgb_buffer);
-    esp_lcd_panel_draw_bitmap(panel_handle, 0, 0, 320, 240, rgb_buffer);
-    esp_lcd_panel_draw_bitmap(panel_handle, 0, 0, 320, 240, rgb_buffer);
+    tft.fillScreen(TFT_BLACK);
     plm_buffer_t *buffer = plm_buffer_create_with_memory((uint8_t *)video_buffer, buffer_size, false);
     plm_t *plm = plm_create_with_buffer(buffer, true);
     plm_set_loop(plm, video_loop);
