@@ -38,21 +38,21 @@ static uint8_t getcrc(protocol_t *buff)
 static uint8_t getByte()
 {
     char c;
-    while (Serial2.readBytes(&c, 1) == 0)
+    while (Serial1.readBytes(&c, 1) == 0)
         ;
     return c;
 }
 void sendPkt(protocol_t *pkt)
 {
     uint8_t crc = getcrc(pkt);
-    Serial2.write(PROTOCOL_STX);
-    Serial2.write(pkt->len >> 8);
-    Serial2.write(pkt->len & 0xFF);
-    Serial2.write(pkt->type);
-    Serial2.write(pkt->data, pkt->len - 1);
-    Serial2.write(PROTOCOL_ETX);
-    Serial2.write(crc);
-    Serial2.flush();
+    Serial1.write(PROTOCOL_STX);
+    Serial1.write(pkt->len >> 8);
+    Serial1.write(pkt->len & 0xFF);
+    Serial1.write(pkt->type);
+    Serial1.write(pkt->data, pkt->len - 1);
+    Serial1.write(PROTOCOL_ETX);
+    Serial1.write(crc);
+    Serial1.flush();
 }
 SemaphoreHandle_t status_changed;
 static kb_status_t last_kbstatus;
@@ -235,7 +235,7 @@ bool getPkt()
     pkt.type = getByte();
     if (pkt.len > 0)
     {
-        Serial2.readBytes(pkt.data, pkt.len - 1);
+        Serial1.readBytes(pkt.data, pkt.len - 1);
     }
     if (getByte() != PROTOCOL_ETX)
     {
@@ -246,8 +246,8 @@ bool getPkt()
     {
         return false;
     }
-    Serial2.write(PROTOCOL_ACK);
-    Serial2.flush();
+    Serial1.write(PROTOCOL_ACK);
+    Serial1.flush();
     parasePkt(&pkt);
     return true;
 }
@@ -264,7 +264,7 @@ void task_protocol(void *pvParameters)
             in_setting_mode = false;
             stop_protocol = false;
             delay(5000);
-            Serial2.flush(false);
+            Serial1.flush(false);
         }
         if(hal.time_sync) {
             hal.getTime();
@@ -304,9 +304,9 @@ void task_powerOFF(void *pvParameters)
 void protocol_init()
 {
     status_changed = xSemaphoreCreateBinary();
-    pinMode(PIN_SERIAL2_RX, INPUT_PULLUP);
-    pinMode(PIN_SERIAL2_TX, OUTPUT);
-    Serial2.begin(115200, SERIAL_8N1, PIN_SERIAL2_RX, PIN_SERIAL2_TX, false, 1000);
+    pinMode(PIN_SERIAL1_RX, INPUT_PULLUP);
+    pinMode(PIN_SERIAL1_TX, OUTPUT);
+    Serial1.begin(115200, SERIAL_8N1, PIN_SERIAL1_RX, PIN_SERIAL1_TX, false, 1000);
     xTaskCreatePinnedToCore(task_protocol, "task_protocol", 4096, NULL, 30, NULL, 1);
     xTaskCreatePinnedToCore(task_powerOFF, "task_poweroff", 4096, NULL, 20, NULL, 1);
     last_millis = millis();

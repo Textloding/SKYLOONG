@@ -20,8 +20,8 @@
 #define PIN_RTC_SDIO 11
 #define PIN_RTC_RST 0
 
-#define PIN_SERIAL2_RX 5
-#define PIN_SERIAL2_TX 6
+#define PIN_SERIAL1_RX 46
+#define PIN_SERIAL1_TX 1
 
 #define screenHeight 240
 #define screenWidth 320

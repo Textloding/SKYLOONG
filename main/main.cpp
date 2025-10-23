@@ -128,7 +128,7 @@ extern "C" void app_main()
     
     if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_UNDEFINED && esp_reset_reason() != ESP_RST_SW)
     {
-        rtc_gpio_deinit((gpio_num_t)PIN_SERIAL2_RX);
+        rtc_gpio_deinit((gpio_num_t)PIN_SERIAL1_RX);
         if (hal.config_bootanimation)
             videoPlayer.playBuffer(__boot_mpeg, sizeof(__boot_mpeg));
     }

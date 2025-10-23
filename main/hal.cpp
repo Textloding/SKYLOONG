@@ -392,9 +392,9 @@ void HAL::UNLOCKLV()
 void HAL::goSleep()
 {
     xSemaphoreTake(appManagerLite._mutex, 2000);
-    esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_SERIAL2_RX, 0);
-    rtc_gpio_pullup_en((gpio_num_t)PIN_SERIAL2_RX);
-    rtc_gpio_hold_en((gpio_num_t)PIN_SERIAL2_RX);
+    esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_SERIAL1_RX, 0);
+    rtc_gpio_pullup_en((gpio_num_t)PIN_SERIAL1_RX);
+    rtc_gpio_hold_en((gpio_num_t)PIN_SERIAL1_RX);
     delay(2);
     esp_deep_sleep_start();
 }
