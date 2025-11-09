@@ -12,6 +12,7 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_system.h"
+#include "esp_check.h"
 
 #define PIN_DISPLAY_BL 21
 #define PIN_DISPLAY_PWR 3
@@ -23,10 +24,27 @@
 #define PIN_SERIAL1_RX 46
 #define PIN_SERIAL1_TX 1
 
+#define AUDIO_AMP_CTRL 10
+
+#define AUDIO_I2S_GPIO_MCLK 7
+#define AUDIO_I2S_GPIO_WS   6
+#define AUDIO_I2S_GPIO_BCLK 2
+#define AUDIO_I2S_GPIO_DIN  4
+#define AUDIO_I2S_GPIO_DOUT 8
+
+#define AUDIO_CODEC_I2C_SDA_PIN 12
+#define AUDIO_CODEC_I2C_SCL_PIN 13
+
+#define AUDIO_RECV_BUF_SIZE (2400)
+#define AUDIO_SAMPLE_RATE (44100)
+#define AUDIO_MCLK_MULTIPLE (256)
+#define AUDIO_MCLK_FREQ_HZ (AUDIO_SAMPLE_RATE * AUDIO_MCLK_MULTIPLE)
+#define AUDIO_VOICE_VOLUME (60)
+
 #define screenHeight 240
 #define screenWidth 320
-#define FIRMWARE_VERSION "SCM_V3.0.3"
-#define FIRMWARE_VERSION_INT 30003
+#define FIRMWARE_VERSION "SCM_V4.0.0"
+#define FIRMWARE_VERSION_INT 40000
 #define WIFI_SAVE_MAX 50
 
 #include "internationalization.h"

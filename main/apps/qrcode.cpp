@@ -12,7 +12,7 @@ void AppQRCode::setup() {
     if (WiFi.getMode() == WIFI_OFF || (WiFi.getMode() == WIFI_STA && WiFi.isConnected() == false))
     {
         WiFi.mode(WIFI_AP);
-        WiFi.softAP("SKYLOONG 3.0 Screen");
+        WiFi.softAP("SKYLOONG 4.0 Screen");
     }
     hal.start_webserver();
 
@@ -24,7 +24,7 @@ void AppQRCode::setup() {
         lv_obj_set_style_text_font(lbl_prompt, &lv_font_chinese_16, false);
         lv_obj_set_style_text_color(lbl_prompt, lv_color_white(), 0);
         lv_obj_set_size(lbl_prompt, 300, 30);
-        snprintf(data, sizeof(data), _tr(I18N_ID_CONNECT_SCREEN_AP), "SKYLOONG 3.0 Screen");
+        snprintf(data, sizeof(data), _tr(I18N_ID_CONNECT_SCREEN_AP), "SKYLOONG 4.0 Screen");
         lv_label_set_text(lbl_prompt, data);
         lv_obj_set_pos(lbl_prompt, 10, 100);
     } else {
@@ -64,7 +64,7 @@ void AppQRCode::loop() {
             GUI::toast(_tr(I18N_ID_CONNECT_FAILED));
             WiFiMgr.remove(hal.ssid);
             WiFi.mode(WIFI_AP);
-            WiFi.softAP("SKYLOONG 3.0 Screen");
+            WiFi.softAP("SKYLOONG 4.0 Screen");
         }
         hal.config_wifi = false;
     }

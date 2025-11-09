@@ -1,5 +1,17 @@
 #include "A_Config.h"
 
+#include "Wire.h"
+#include "es8311.h"
+#include "ESP_I2S.h"
+#include "keytone/keytone1.h"
+#include "keytone/keytone2.h"
+#include "keytone/keytone3.h"
+
+I2SClass i2s;
+
+es8311_handle_t es_handle = nullptr;
+static char *TAG = "audio_init";
+
 #include <TFT_eSPI.h>
 TFT_eSPI tft = TFT_eSPI(); 
 
@@ -26,6 +38,7 @@ void my_disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *c
             if(screen_is_on == true) {
                 screen_is_sleep = false;
                 hal.setBrightness(hal._brightness);
+                hal.setVolume(hal._volume);
             }
             hal.time_sync = true;
             ESP_LOGW("HAL", "首次刷新完成");
@@ -84,17 +97,26 @@ static void task_systemctl(void *p)
             if (event.data == 0)
             {
                 ledcWrite(PIN_DISPLAY_BL, 0);
+                hal.setVolume(0);
             }
             else
             {
                 hal.setBrightness(hal._brightness);
+                hal.setVolume(hal._volume);
             }
             break;
         case EVENT_APM_CHANGED:
             hal.APM = event.data;
             hal.APMChanged = true;
             break;
-        case EVENT_KB_STATUS_CHANGED:
+        case EVENT_KB_KEYPRESS:
+            if (hal.config_keytone == 1) {
+                i2s.playWAV(__keytone_keytone1_wav, __keytone_keytone1_wav_len);
+            } else if (hal.config_keytone == 2) {
+                i2s.playWAV(__keytone_keytone2_wav, __keytone_keytone2_wav_len);
+            } else if (hal.config_keytone == 3) {
+                i2s.playWAV(__keytone_keytone3_wav, __keytone_keytone3_wav_len);
+            }
             break;
         case EVENT_SERVERCTL:
             if (event.data == 1)
@@ -116,6 +138,7 @@ static void task_systemctl(void *p)
                 {
                     screen_is_sleep = true;
                     ledcWrite(PIN_DISPLAY_BL, 0);
+                    hal.setVolume(0);
                     xSemaphoreGive(hal._mutex);
                 }
             }
@@ -166,11 +189,43 @@ void lcd_init()
     tft.invertDisplay(true);
 }
 
+esp_err_t audio_init()
+{
+    pinMode(AUDIO_AMP_CTRL, OUTPUT);
+    digitalWrite(AUDIO_AMP_CTRL, HIGH);
+
+    Wire.begin(AUDIO_CODEC_I2C_SDA_PIN, AUDIO_CODEC_I2C_SCL_PIN);
+
+    es_handle = es8311_create(I2C_NUM_0, ES8311_ADDRRES_0);
+    ESP_RETURN_ON_FALSE(es_handle, ESP_FAIL, TAG, "es8311 create failed");
+    const es8311_clock_config_t es_clk = {
+        .mclk_inverted = false,
+        .sclk_inverted = false,
+        .mclk_from_mclk_pin = true,
+        .mclk_frequency = AUDIO_MCLK_FREQ_HZ,
+        .sample_frequency = AUDIO_SAMPLE_RATE
+    };
+
+    ESP_ERROR_CHECK(es8311_init(es_handle, &es_clk, ES8311_RESOLUTION_16, ES8311_RESOLUTION_16));
+    ESP_RETURN_ON_ERROR(es8311_microphone_config(es_handle, false), TAG, "set es8311 microphone failed");
+
+    i2s.setPins(AUDIO_I2S_GPIO_BCLK, AUDIO_I2S_GPIO_WS, AUDIO_I2S_GPIO_DOUT, AUDIO_I2S_GPIO_DIN, AUDIO_I2S_GPIO_MCLK);
+    if (!i2s.begin(I2S_MODE_STD, AUDIO_SAMPLE_RATE, I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO, I2S_STD_SLOT_BOTH)) {
+        ESP_LOGE("HAL", "Failed to initialize I2S bus!");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
 void HAL::init()
 {
     memset(&datetime, 0, sizeof(DS1302_DateTime));
-    WiFi.setHostname("SKYLOONG 3.0 Screen");
+    WiFi.setHostname("SKYLOONG 4.0 Screen");
     lcd_init();
+
+    audio_init();
+
     DS1302_begin(&rtc, PIN_RTC_SCLK, PIN_RTC_SDIO, PIN_RTC_RST);
     DS1302_writeClockRegister(&rtc, DS1302_REG_TC, 0xA5);
     if (LittleFS.begin(false) == false)
@@ -187,9 +242,11 @@ void HAL::init()
     loadAppSettings();
     pref.begin("settings", false);
     hal._brightness = pref.getUInt("bright", 6);
+    hal._volume = pref.getUInt("volume", 6);
     hal.config_time_12hr = pref.getBool("12hr", false);
     hal.config_bootanimation = pref.getBool("s_b_a", true);
     hal.config_theme = pref.getInt("theme", 0);
+    hal.config_keytone = pref.getInt("keytone", 0);
     hal.aps_enable = pref.getBool("aps_enable", true);
     hal.weather_enable = pref.getBool("weather_enable", true);
     hal.sysinfo_enable = pref.getBool("sysinfo_enable", true);
@@ -375,6 +432,21 @@ void HAL::setBrightness(int8_t brightness)
     {
         ESP_LOGE("HAL", "亮度设置错误: %d", brightness);
         ledcWrite(PIN_DISPLAY_BL, 130);
+    }
+}
+
+void HAL::setVolume(int8_t volume)
+{
+    static uint8_t volume_lut[10] = {0, 38, 46, 53, 59, 64, 68, 71, 73, 74};
+    if (volume >= 0 && volume <= 9)
+    {
+        _volume = volume;
+        es8311_voice_volume_set(es_handle, volume_lut[volume], NULL);
+    }
+    else
+    {
+        ESP_LOGE("HAL", "音量设置错误: %d", volume);
+        es8311_voice_volume_set(es_handle, AUDIO_VOICE_VOLUME, NULL);
     }
 }
 
@@ -818,10 +890,10 @@ void HAL::start_webserver()
     if (WiFi.getMode() == WIFI_OFF || (WiFi.getMode() == WIFI_STA && WiFi.isConnected() == false))
     {
         WiFi.mode(WIFI_AP);
-        WiFi.softAP("SKYLOONG 3.0 Screen");
+        WiFi.softAP("SKYLOONG 4.0 Screen");
     }
 
-    MDNS.begin("SKYLOONG 3.0 Screen");
+    MDNS.begin("SKYLOONG 4.0 Screen");
     server.enableCORS(true);
 
     if (WiFi.getMode() == WIFI_AP) {
@@ -843,7 +915,7 @@ void HAL::start_webserver()
 
         if (WiFi.getMode() == WIFI_AP) {
             cJSON_AddStringToObject(json, "mode", "AP");
-            cJSON_AddStringToObject(json, "ssid", "SKYLOONG 3.0 Screen");
+            cJSON_AddStringToObject(json, "ssid", "SKYLOONG 4.0 Screen");
             cJSON_AddStringToObject(json, "ip", "192.168.4.1");
         } else {
             cJSON_AddStringToObject(json, "mode", "STA");

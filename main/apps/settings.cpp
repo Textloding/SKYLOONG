@@ -75,7 +75,7 @@ lv_obj_t *create_settings_button(lv_obj_t *parent, const char *title, const char
     return btn;
 }
 
-void create_settings_slider(lv_obj_t *_appScreen, const char *title, lv_event_cb_t cb)
+void create_settings_slider(lv_obj_t *_appScreen, const char *title, int32_t value, lv_event_cb_t cb)
 {
     lv_obj_t *box = lv_obj_create(_appScreen);
     lv_obj_set_size(box, lv_pct(95), lv_pct(30));
@@ -89,7 +89,7 @@ void create_settings_slider(lv_obj_t *_appScreen, const char *title, lv_event_cb
     lv_obj_set_width(slider, lv_pct(80));
     lv_obj_align(slider, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_slider_set_range(slider, 0, 9);
-    lv_slider_set_value(slider, hal._brightness, LV_ANIM_OFF);
+    lv_slider_set_value(slider, value, LV_ANIM_OFF);
     lv_obj_add_event_cb(slider, cb, LV_EVENT_ALL, NULL);
 }
 
@@ -174,8 +174,7 @@ void AppSettings::setup()
         if (e->code == LV_EVENT_FOCUSED)
             lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
 
-    create_settings_slider(_appScreen, _tr(I18N_ID_BRIGHTNESS), [](lv_event_t *e)
-                           {
+    create_settings_slider(_appScreen, _tr(I18N_ID_BRIGHTNESS), hal._brightness, [](lv_event_t *e) {
         if (e->code == LV_EVENT_VALUE_CHANGED)
             hal.setBrightness(lv_slider_get_value((lv_obj_t*)lv_event_get_target(e))); 
         if(e->code == LV_EVENT_SCREEN_LOADED)
@@ -183,17 +182,39 @@ void AppSettings::setup()
             lv_slider_set_value((lv_obj_t*)lv_event_get_target(e), hal._brightness, LV_ANIM_OFF);
         }
         if (e->code == LV_EVENT_FOCUSED)
-            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF);
+    });
 
-    o = create_settings_list(_appScreen, _tr(I18N_ID_THEME), _tr(I18N_ID_CHANGE_THEME), _tr(I18N_ID_THEME_LIST), [](lv_event_t *e)
-                             {
+    create_settings_slider(_appScreen, _tr(I18N_ID_VOLUME), hal._volume, [](lv_event_t *e) {
+        if (e->code == LV_EVENT_VALUE_CHANGED)
+            hal.setVolume(lv_slider_get_value((lv_obj_t*)lv_event_get_target(e))); 
+        if(e->code == LV_EVENT_SCREEN_LOADED)
+        {
+            lv_slider_set_value((lv_obj_t*)lv_event_get_target(e), hal._volume, LV_ANIM_OFF);
+        }
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF);
+    });
+
+    o = create_settings_list(_appScreen, _tr(I18N_ID_THEME), _tr(I18N_ID_CHANGE_THEME), _tr(I18N_ID_THEME_LIST), [](lv_event_t *e) {
         if (e->code == LV_EVENT_VALUE_CHANGED)
         {
             hal.config_theme = lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e));
         }
         if (e->code == LV_EVENT_FOCUSED)
-            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF);
+    });
     lv_dropdown_set_selected(o, hal.config_theme);
+
+    o = create_settings_list(_appScreen, _tr(I18N_ID_KEYTONE), _tr(I18N_ID_CHANGE_KEYTONE), _tr(I18N_ID_KEYTONE_LIST), [](lv_event_t *e) {
+        if (e->code == LV_EVENT_VALUE_CHANGED)
+        {
+            hal.config_keytone = lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e));
+        }
+        if (e->code == LV_EVENT_FOCUSED)
+            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF);
+    });
+    lv_dropdown_set_selected(o, hal.config_keytone);
 
     o = create_settings_list(_appScreen, _tr(I18N_ID_ROLL_TIME), _tr(I18N_ID_ROLL_TIME_DESC), "2s\n3s\n4s\n5s\n6s\n7s\n8s\n9s\n10s\n11s\n12s\n13s\n14s\n15s", [](lv_event_t *e)
                              {
@@ -528,6 +549,7 @@ void AppSettings::destroy()
         WiFi.disconnect(true);
     }
     hal.pref.putUInt("bright", hal._brightness);
+    hal.pref.putUInt("volume", hal._volume);
     hal.pref.putBool("12hr", hal.config_time_12hr);
     hal.pref.putBool("s_b_a", hal.config_bootanimation);
     hal.pref.putInt("t_r", hal.config_time_roll);

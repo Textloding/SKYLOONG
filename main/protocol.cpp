@@ -19,6 +19,7 @@ typedef struct protocol_t
 #define PROTOCOL_TYPE_PARAM 0xA0
 #define PROTOCOL_TYPE_TIME 0x1E
 #define PROTOCOL_TYPE_BATTERY 0x1F
+#define PROTOCOL_TYPE_KEYPRESS 0xF3
 bool RTC_DATA_ATTR screen_is_on = true;
 bool RTC_DATA_ATTR screen_is_sleep = false;
 static bool in_setting_mode = false;
@@ -86,6 +87,7 @@ void parasePkt(protocol_t *pkt)
         screen_is_sleep = false;
         if (screen_is_on == true) {
             hal.setBrightness(hal._brightness);
+            hal.setVolume(hal._volume);
         }
         hal.time_sync = true;
     }
@@ -161,6 +163,7 @@ void parasePkt(protocol_t *pkt)
             if (screen_is_on == false)
             {
                 hal.setBrightness(hal._brightness);
+                hal.setVolume(hal._volume);
                 screen_is_on = true;
                 screen_is_sleep = false;
             }
@@ -209,6 +212,11 @@ void parasePkt(protocol_t *pkt)
         sendPkt(&pkt_send);
         break;
     }
+    case PROTOCOL_TYPE_KEYPRESS:
+    {
+        hal.send_sysctl(EVENT_KB_KEYPRESS);
+        break;
+    }
     default:
         break;
     }
@@ -242,7 +250,7 @@ bool getPkt()
         return false;
     }
     pkt.crc = getByte();
-    if (pkt.crc != getcrc(&pkt))
+    if ((pkt.type != PROTOCOL_TYPE_KEYPRESS) && (pkt.crc != getcrc(&pkt)))
     {
         return false;
     }

@@ -5,4 +5,3 @@ idf_component_register(
     SRCS ${CPP_SOURCES} ${C_SOURCES}
     INCLUDE_DIRS "include"
 )
- 

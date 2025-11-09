@@ -88,6 +88,10 @@ const char *i18n_dict[][2] = {
     {"允许切换到性能界面", ""},
     {"请连接屏幕热点: %s", "Please connect screen AP: %s"},
     {"屏幕连接网络: %s", "Connected to WiFi: %s"},
+    {"音量调节", "Volume"},
+    {"按键音", "Keytone"},
+    {"修改按键音", "Change keytone"},
+    {"关闭\n按键音1\n按键音2\n按键音3", "Close\nKeytone1\nKeytone2\nKeytone3"},
 };
 
 static time_t offset = 3600 * 8;

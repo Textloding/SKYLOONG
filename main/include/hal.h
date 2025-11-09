@@ -11,6 +11,7 @@ enum system_event_type_t
     EVENT_TOGGLE_SCREEN_ON,
     EVENT_APM_CHANGED,
     EVENT_KB_STATUS_CHANGED,
+    EVENT_KB_KEYPRESS,
     EVENT_SERVERCTL,
     EVENT_GOSLEEP,
     EVENT_GOTO_QRCODE,
@@ -84,6 +85,7 @@ public:
     bool config_time_12hr = false;
     bool config_bootanimation = true;
     uint8_t config_theme = 0;
+    uint8_t config_keytone = 0;
     bool aps_enable = true;
     bool gif_enable = true;
     bool jpg_enable = true;
@@ -101,6 +103,7 @@ public:
     void setTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second);
     bool NTPSync();
     void setBrightness(int8_t brightness);
+    void setVolume(int8_t volume);
     void LOCKLV();
     void UNLOCKLV();
     void goSleep();
@@ -115,6 +118,7 @@ public:
     QueueHandle_t _queue_kb;
     Preferences pref;
     int8_t _brightness = 6;
+    int8_t _volume = 6;
 
     char ssid[64];
     char password[64];
