@@ -5,5 +5,8 @@
   "idf.openOcdConfigs": [
     "board/esp32s3-bridge.cfg"
   ],
-  "idf.flashType": "UART"
+  "idf.flashType": "UART",
+  "files.associations": {
+    "es8311.h": "c"
+  }
 }

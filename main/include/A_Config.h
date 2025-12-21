@@ -21,8 +21,8 @@
 #define PIN_RTC_SDIO 11
 #define PIN_RTC_RST 0
 
-#define PIN_SERIAL1_RX 46
-#define PIN_SERIAL1_TX 1
+#define PIN_SERIAL1_RX 1
+#define PIN_SERIAL1_TX 46
 
 #define AUDIO_AMP_CTRL 10
 
@@ -68,6 +68,7 @@ extern TFT_eSPI tft;
 
 extern bool RTC_DATA_ATTR screen_is_on;
 extern bool RTC_DATA_ATTR screen_is_sleep;
+extern bool RTC_DATA_ATTR audio_is_sleep;
 /**
  * @brief 开始DPP配网并等待
  * @result

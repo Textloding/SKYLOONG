@@ -86,6 +86,7 @@ public:
     bool config_bootanimation = true;
     uint8_t config_theme = 0;
     uint8_t config_keytone = 0;
+    bool keytone_play = false;
     bool aps_enable = true;
     bool gif_enable = true;
     bool jpg_enable = true;
@@ -98,6 +99,7 @@ public:
     bool time_sync = true;
     SemaphoreHandle_t _mutex;
     void init();
+    esp_err_t audio_init();
     uint8_t getDoW(uint16_t iYear, uint8_t iMonth, uint8_t iDay);
     void getTime();
     void setTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second);

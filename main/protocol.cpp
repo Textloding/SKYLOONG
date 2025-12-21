@@ -1,4 +1,8 @@
 #include "A_Config.h"
+
+#include "es8311.h"
+extern es8311_handle_t es_handle;
+
 extern lv_obj_t *ta_debug;
 typedef struct protocol_t
 {
@@ -22,6 +26,7 @@ typedef struct protocol_t
 #define PROTOCOL_TYPE_KEYPRESS 0xF3
 bool RTC_DATA_ATTR screen_is_on = true;
 bool RTC_DATA_ATTR screen_is_sleep = false;
+bool RTC_DATA_ATTR audio_is_sleep = false;
 static bool in_setting_mode = false;
 static uint8_t getcrc(protocol_t *buff)
 {
@@ -85,8 +90,11 @@ void parasePkt(protocol_t *pkt)
 
     if(screen_is_sleep == true)  {
         screen_is_sleep = false;
+        audio_is_sleep = false;
         if (screen_is_on == true) {
             hal.setBrightness(hal._brightness);
+            digitalWrite(AUDIO_AMP_CTRL, HIGH);
+            hal.audio_init();
             hal.setVolume(hal._volume);
         }
         hal.time_sync = true;
@@ -163,9 +171,12 @@ void parasePkt(protocol_t *pkt)
             if (screen_is_on == false)
             {
                 hal.setBrightness(hal._brightness);
+                digitalWrite(AUDIO_AMP_CTRL, HIGH);
+                hal.audio_init();
                 hal.setVolume(hal._volume);
                 screen_is_on = true;
                 screen_is_sleep = false;
+                audio_is_sleep = false;
             }
             else
             {
@@ -175,6 +186,7 @@ void parasePkt(protocol_t *pkt)
         case 0xAF: // 开关屏幕（这个无论是开还是关都是一种数据，右下+左上短按）
             screen_is_on = !screen_is_on;
             screen_is_sleep = false;
+            audio_is_sleep = false;
             hal.send_sysctl(EVENT_TOGGLE_SCREEN_ON, screen_is_on);
             break;
         default:
@@ -214,7 +226,9 @@ void parasePkt(protocol_t *pkt)
     }
     case PROTOCOL_TYPE_KEYPRESS:
     {
-        hal.send_sysctl(EVENT_KB_KEYPRESS);
+        if (!hal.keytone_play) {
+            hal.send_sysctl(EVENT_KB_KEYPRESS);
+        }
         break;
     }
     default:
@@ -302,7 +316,12 @@ void task_powerOFF(void *pvParameters)
         {
             if (millis() - last_millis > 1000 * 600)
             {
+                es8311_power_down(es_handle);
+                digitalWrite(AUDIO_AMP_CTRL, LOW);
                 hal.goSleep();
+                digitalWrite(AUDIO_AMP_CTRL, HIGH);
+                hal.audio_init();
+                hal.setVolume(hal._volume);
             }
         }
         delay(1000);

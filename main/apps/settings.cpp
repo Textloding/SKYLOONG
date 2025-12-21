@@ -353,7 +353,7 @@ void AppSettings::setup()
 #include <HTTPClient.h>
 #include <HTTPUpdate.h>
 #include "cJSON.h"
-#define REMOTE_UPDATE_URL "http://cloudmouse.oss-cn-beijing.aliyuncs.com/FWFile/666888%2Fupdate.json"
+#define REMOTE_UPDATE_URL "http://cloudmouse.oss-cn-beijing.aliyuncs.com/FWFile/screen_4_update.json"
 String update_bin_url = "";
 int update_version_int = 0;
 String update_version_str = "";
@@ -554,6 +554,7 @@ void AppSettings::destroy()
     hal.pref.putBool("s_b_a", hal.config_bootanimation);
     hal.pref.putInt("t_r", hal.config_time_roll);
     hal.pref.putInt("theme", hal.config_theme);
+    hal.pref.putInt("keytone", hal.config_keytone);
     hal.pref.putUInt("lang", i18n::getLanguage());
     hal.pref.putInt("ntp", i18n::getNTPOffset());
     if (reboot_needed)

@@ -429,8 +429,35 @@ void es8311_register_dump(es8311_handle_t dev)
     for (int reg = 0; reg < 0x4A; reg++) {
         uint8_t value;
         ESP_ERROR_CHECK(es8311_read_reg(dev, reg, &value));
-        printf("REG:%02x: %02x", reg, value);
+        printf("REG:%02x: %02x\n", reg, value);
     }
+}
+
+esp_err_t es8311_power_down(es8311_handle_t dev)
+{
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_DAC_REG32, 0x00), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_ADC_REG17, 0x00), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_SDPIN_REG09, 0x00), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_SDPOUT_REG0A, 0x00), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_SYSTEM_REG0E, 0x6A), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_SYSTEM_REG12, 0x02), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_SYSTEM_REG13, 0x40), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_SYSTEM_REG14, 0x10), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_SYSTEM_REG0D, 0xF9), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_ADC_REG15, 0x00), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_ADC_REG1C, 0x4C), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_DAC_REG37, 0x08), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_CLK_MANAGER_REG02, 0x10), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_RESET_REG00, 0x00), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_RESET_REG00, 0x1F), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_CLK_MANAGER_REG01, 0x30), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_CLK_MANAGER_REG01, 0x00), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_GP_REG45, 0x00), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_SYSTEM_REG0D, 0xFC), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_CLK_MANAGER_REG02, 0x00), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_SYSTEM_REG10, 0x13), TAG, "I2C read/write error");
+
+    return ESP_OK;
 }
 
 es8311_handle_t es8311_create(const i2c_port_t port, const uint16_t dev_addr)

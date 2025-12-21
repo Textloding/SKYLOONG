@@ -206,6 +206,13 @@ esp_err_t es8311_voice_fade(es8311_handle_t dev, const es8311_fade_t fade);
 esp_err_t es8311_microphone_fade(es8311_handle_t dev, const es8311_fade_t fade);
 
 /**
+ * @brief ES8311 power down
+ *
+ * @param dev ES8311 handle
+ */
+esp_err_t es8311_power_down(es8311_handle_t dev);
+
+/**
  * @brief Create ES8311 object and return its handle
  *
  * @param[in] port     I2C port number

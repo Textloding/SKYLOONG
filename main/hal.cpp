@@ -9,7 +9,7 @@
 
 I2SClass i2s;
 
-es8311_handle_t es_handle = nullptr;
+es8311_handle_t es_handle = es8311_create(I2C_NUM_0, ES8311_ADDRRES_0);
 static char *TAG = "audio_init";
 
 #include <TFT_eSPI.h>
@@ -38,6 +38,7 @@ void my_disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *c
             if(screen_is_on == true) {
                 screen_is_sleep = false;
                 hal.setBrightness(hal._brightness);
+                audio_is_sleep = false;
                 hal.setVolume(hal._volume);
             }
             hal.time_sync = true;
@@ -97,11 +98,17 @@ static void task_systemctl(void *p)
             if (event.data == 0)
             {
                 ledcWrite(PIN_DISPLAY_BL, 0);
-                hal.setVolume(0);
+                i2s.end();
+                es8311_voice_volume_set(es_handle, 0, NULL);
+                es8311_power_down(es_handle);
+                digitalWrite(AUDIO_AMP_CTRL, LOW);
+
             }
             else
             {
                 hal.setBrightness(hal._brightness);
+                digitalWrite(AUDIO_AMP_CTRL, HIGH);
+                hal.audio_init();
                 hal.setVolume(hal._volume);
             }
             break;
@@ -111,11 +118,17 @@ static void task_systemctl(void *p)
             break;
         case EVENT_KB_KEYPRESS:
             if (hal.config_keytone == 1) {
+                hal.keytone_play =  true;
                 i2s.playWAV(__keytone_keytone1_wav, __keytone_keytone1_wav_len);
+                hal.keytone_play =  false;
             } else if (hal.config_keytone == 2) {
+                hal.keytone_play =  true;
                 i2s.playWAV(__keytone_keytone2_wav, __keytone_keytone2_wav_len);
+                hal.keytone_play =  false;
             } else if (hal.config_keytone == 3) {
+                hal.keytone_play =  true;
                 i2s.playWAV(__keytone_keytone3_wav, __keytone_keytone3_wav_len);
+                hal.keytone_play =  false;
             }
             break;
         case EVENT_SERVERCTL:
@@ -132,20 +145,34 @@ static void task_systemctl(void *p)
             {
                 if (hal.server_started == false)
                 {
+                    es8311_power_down(es_handle);
+                    digitalWrite(AUDIO_AMP_CTRL, LOW);
                     hal.goSleep();
+                    digitalWrite(AUDIO_AMP_CTRL, HIGH);
+                    hal.audio_init();
+                    hal.setVolume(hal._volume);   
                 }
                 else
                 {
                     screen_is_sleep = true;
                     ledcWrite(PIN_DISPLAY_BL, 0);
-                    hal.setVolume(0);
+                    audio_is_sleep = true;
+                    i2s.end();
+                    es8311_voice_volume_set(es_handle, 0, NULL);
+                    es8311_power_down(es_handle);
+                    digitalWrite(AUDIO_AMP_CTRL, LOW);
                     xSemaphoreGive(hal._mutex);
                 }
             }
             else
             {
                 ESP_LOGE("HAL", "无法获取锁");
+                es8311_power_down(es_handle);
+                digitalWrite(AUDIO_AMP_CTRL, LOW);
                 hal.goSleep();
+                digitalWrite(AUDIO_AMP_CTRL, HIGH);
+                hal.audio_init();
+                hal.setVolume(hal._volume);
             }
         }
         break;
@@ -189,14 +216,13 @@ void lcd_init()
     tft.invertDisplay(true);
 }
 
-esp_err_t audio_init()
+esp_err_t HAL::audio_init()
 {
     pinMode(AUDIO_AMP_CTRL, OUTPUT);
     digitalWrite(AUDIO_AMP_CTRL, HIGH);
 
     Wire.begin(AUDIO_CODEC_I2C_SDA_PIN, AUDIO_CODEC_I2C_SCL_PIN);
 
-    es_handle = es8311_create(I2C_NUM_0, ES8311_ADDRRES_0);
     ESP_RETURN_ON_FALSE(es_handle, ESP_FAIL, TAG, "es8311 create failed");
     const es8311_clock_config_t es_clk = {
         .mclk_inverted = false,
@@ -205,7 +231,6 @@ esp_err_t audio_init()
         .mclk_frequency = AUDIO_MCLK_FREQ_HZ,
         .sample_frequency = AUDIO_SAMPLE_RATE
     };
-
     ESP_ERROR_CHECK(es8311_init(es_handle, &es_clk, ES8311_RESOLUTION_16, ES8311_RESOLUTION_16));
     ESP_RETURN_ON_ERROR(es8311_microphone_config(es_handle, false), TAG, "set es8311 microphone failed");
 
@@ -224,7 +249,7 @@ void HAL::init()
     WiFi.setHostname("SKYLOONG 4.0 Screen");
     lcd_init();
 
-    audio_init();
+    hal.audio_init();
 
     DS1302_begin(&rtc, PIN_RTC_SCLK, PIN_RTC_SDIO, PIN_RTC_RST);
     DS1302_writeClockRegister(&rtc, DS1302_REG_TC, 0xA5);
