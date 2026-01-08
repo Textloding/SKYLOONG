@@ -21,8 +21,8 @@
 #define PIN_RTC_SDIO 11
 #define PIN_RTC_RST 0
 
-#define PIN_SERIAL1_RX 1
-#define PIN_SERIAL1_TX 46
+#define PIN_SERIAL1_RX 17
+#define PIN_SERIAL1_TX 1
 
 #define AUDIO_AMP_CTRL 10
 

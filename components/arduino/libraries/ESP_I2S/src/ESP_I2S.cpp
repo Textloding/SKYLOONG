@@ -827,7 +827,13 @@ size_t I2SClass::write(uint8_t *buffer, size_t size) {
     return written;
   }
   while (written < size) {
+    if (_stop) {
+      break;
+    }
     bytes_sent = size - written;
+    if (bytes_sent > 1024) {
+      bytes_sent = 1024;
+    }
     esp_err_t err = i2s_channel_write(tx_chan, (char *)(buffer + written), bytes_sent, &bytes_sent, _timeout);
     setWriteError(err);
     I2S_ERROR_CHECK_RETURN(err, written);
@@ -989,6 +995,7 @@ void I2SClass::playWAV(uint8_t *data, size_t len) {
     log_e("Audio format is not PCM!");
     return;
   }
+  _stop = false;
   wav_data_chunk_t *data_chunk = &header->data_chunk;
   size_t data_offset = 0;
   while (memcmp(data_chunk->subchunk_id, "data", 4) != 0) {
@@ -1043,6 +1050,10 @@ bool I2SClass::playMP3(uint8_t *src, size_t src_len) {
   } while (true);
   MP3FreeDecoder(decoder);
   return true;
+}
+
+void I2SClass::stop() {
+  _stop = true;
 }
 
 #endif /* SOC_I2S_SUPPORTED */

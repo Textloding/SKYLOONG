@@ -243,6 +243,11 @@ esp_err_t HAL::audio_init()
     return ESP_OK;
 }
 
+void HAL::audio_stop()
+{
+    i2s.stop();
+}
+
 void HAL::init()
 {
     memset(&datetime, 0, sizeof(DS1302_DateTime));

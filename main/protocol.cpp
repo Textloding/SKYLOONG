@@ -226,6 +226,15 @@ void parasePkt(protocol_t *pkt)
     }
     case PROTOCOL_TYPE_KEYPRESS:
     {
+        if (hal.keytone_play) {
+            hal.audio_stop();
+            for (int i = 0; i < 10; i++) {
+                if (!hal.keytone_play) {
+                    break;
+                } 
+                delay(10);
+            }
+        }
         if (!hal.keytone_play) {
             hal.send_sysctl(EVENT_KB_KEYPRESS);
         }

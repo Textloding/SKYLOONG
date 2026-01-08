@@ -353,7 +353,7 @@ void AppSettings::setup()
 #include <HTTPClient.h>
 #include <HTTPUpdate.h>
 #include "cJSON.h"
-#define REMOTE_UPDATE_URL "http://cloudmouse.oss-cn-beijing.aliyuncs.com/FWFile/screen_4_update.json"
+#define REMOTE_UPDATE_URL "http://cloudmouse.oss-cn-beijing.aliyuncs.com/FWFile/screen_4/update.json"
 String update_bin_url = "";
 int update_version_int = 0;
 String update_version_str = "";

@@ -88,9 +88,13 @@ public:
   // Play short MP3 from memory
   bool playMP3(uint8_t *src, size_t src_len);
 
+  void stop();
+
 private:
   esp_err_t last_error;
   i2s_mode_t _mode;
+
+  volatile bool _stop;
 
   i2s_chan_handle_t tx_chan;
   uint32_t tx_sample_rate;
