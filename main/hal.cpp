@@ -1251,7 +1251,7 @@ void HAL::start_webserver()
     });
     server.on("/assets/worker-43d19264.js", HTTP_GET, []() {
         server.sendHeader("Content-Encoding", "gzip", true);
-        server.send_P(200, "application/javascript", (const char *)__web_assets_worker_43d19264_js_gz, sizeof(__web_assets_worker_43d19264_js_gz));
+        server.send_P(200, "application/javascript", (const char *)__web_assets_worker_224792ee_js_gz, sizeof(__web_assets_worker_224792ee_js_gz));
     });
 
     server.begin();
