@@ -298,7 +298,7 @@ void task_protocol(void *pvParameters)
         {
             in_setting_mode = false;
             stop_protocol = false;
-            delay(5000);
+            delay(1000);
             Serial1.flush(false);
         }
         if(hal.time_sync) {
