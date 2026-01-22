@@ -169,6 +169,10 @@ void AppSysinfo::loop()
         GUI::toast(_tr(I18N_ID_CONNECTING));
         if (WiFi.waitForConnectResult() == WL_CONNECTED)
         {
+            if (hal.NTPSync()) {
+                hal.time_sync = true;
+            }
+
             tcp_started = true;
             TCPConnect(tcpClient, app_settings_save.remote_ip, app_settings_save.remote_port, tcp_started);
             if (handleTCPClient(tcpClient)) {

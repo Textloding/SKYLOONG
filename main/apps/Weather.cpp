@@ -444,8 +444,11 @@ static bool connectToWiFi()
     {
         GUI::toast(_tr(I18N_ID_CONNECTING));
         WiFi.begin();
-        if (WiFi.waitForConnectResult(6000) != WL_CONNECTED)
-        {
+        if (WiFi.waitForConnectResult(6000) == WL_CONNECTED) {
+            if (hal.NTPSync()) {
+                hal.time_sync = true;
+            }
+        } else {
             GUI::toast(_tr(I18N_ID_CONNECT_FAILED));
             return false;
         }

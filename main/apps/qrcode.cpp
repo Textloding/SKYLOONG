@@ -8,7 +8,11 @@ void AppQRCode::setup() {
     char data[100];
 
     WiFi.begin();
-    WiFi.waitForConnectResult(3000);
+    if (WiFi.waitForConnectResult(3000) == WL_CONNECTED) {
+        if (hal.NTPSync()) {
+            hal.time_sync = true;
+        }
+    }
     if (WiFi.getMode() == WIFI_OFF || (WiFi.getMode() == WIFI_STA && WiFi.isConnected() == false))
     {
         WiFi.mode(WIFI_AP);
@@ -68,6 +72,9 @@ void AppQRCode::loop() {
         WiFi.begin(hal.ssid, hal.password);
         GUI::toast(_tr(I18N_ID_CONNECTING));
         if (WiFi.waitForConnectResult(4000) == WL_CONNECTED) { 
+            if (hal.NTPSync()) {
+                hal.time_sync = true;
+            }
             hal.send_sysctl(EVENT_EXIT_QRCODE);
         } else {
             GUI::toast(_tr(I18N_ID_CONNECT_FAILED));
