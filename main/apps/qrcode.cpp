@@ -56,7 +56,7 @@ void AppQRCode::setup() {
         lv_obj_set_style_text_font(lbl_url, &lv_font_chinese_16, false);
         lv_obj_set_style_text_color(lbl_url, lv_color_white(), 0);
         lv_obj_set_size(lbl_url, 300, 20);
-        snprintf(data, sizeof(data), "http://%s", WiFi.localIP().toString().c_str());
+        snprintf(data, sizeof(data), "IP: %s", WiFi.localIP().toString().c_str());
         lv_label_set_text(lbl_url, data);
         lv_obj_set_pos(lbl_url, 10, 215);
     }

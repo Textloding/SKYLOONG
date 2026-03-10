@@ -39,6 +39,12 @@ xxd -i ./web/arrow_left.png.gz ./main/include/webserver/arrow_left.h
 gzip -9kf ./web/arrow_right.png
 xxd -i ./web/arrow_right.png.gz ./main/include/webserver/arrow_right.h
 
+gzip -9kf ./web/check.png
+xxd -i ./web/check.png.gz ./main/include/webserver/check.h
+
+gzip -9kf ./web/check2.png
+xxd -i ./web/check2.png.gz ./main/include/webserver/check2.h
+
 gzip -9kf ./web/cpu.png
 xxd -i ./web/cpu.png.gz ./main/include/webserver/cpu.h
 
@@ -60,14 +66,26 @@ xxd -i ./web/ic_del.png.gz ./main/include/webserver/ic_del.h
 gzip -9kf ./web/image2.png
 xxd -i ./web/image2.png.gz ./main/include/webserver/image2.h
 
+gzip -9kf ./web/keytone.png
+xxd -i ./web/keytone.png.gz ./main/include/webserver/keytone.h
+
+gzip -9kf ./web/keytone2.png
+xxd -i ./web/keytone2.png.gz ./main/include/webserver/keytone2.h
+
 gzip -9kf ./web/nothing.png
 xxd -i ./web/nothing.png.gz ./main/include/webserver/nothing.h
+
+gzip -9kf ./web/play.png
+xxd -i ./web/play.png.gz ./main/include/webserver/play.h
 
 gzip -9kf ./web/setting2.png
 xxd -i ./web/setting2.png.gz ./main/include/webserver/setting2.h
 
 gzip -9kf ./web/spead.png
 xxd -i ./web/spead.png.gz ./main/include/webserver/spead.h
+
+gzip -9kf ./web/stop.png
+xxd -i ./web/stop.png.gz ./main/include/webserver/stop.h
 
 gzip -9kf ./web/theme1.png
 xxd -i ./web/theme1.png.gz ./main/include/webserver/theme1.h
@@ -109,6 +127,8 @@ sed -i '1i\const ' ./main/include/webserver/open_eye.h
 sed -i '1i\const ' ./main/include/webserver/wifi.h
 sed -i '1i\const ' ./main/include/webserver/arrow_left.h
 sed -i '1i\const ' ./main/include/webserver/arrow_right.h
+sed -i '1i\const ' ./main/include/webserver/check.h
+sed -i '1i\const ' ./main/include/webserver/check2.h
 sed -i '1i\const ' ./main/include/webserver/cpu.h
 sed -i '1i\const ' ./main/include/webserver/demo.h
 sed -i '1i\const ' ./main/include/webserver/error_bg.h
@@ -116,9 +136,13 @@ sed -i '1i\const ' ./main/include/webserver/error_m.h
 sed -i '1i\const ' ./main/include/webserver/ic_d.h
 sed -i '1i\const ' ./main/include/webserver/ic_del.h
 sed -i '1i\const ' ./main/include/webserver/image2.h
+sed -i '1i\const ' ./main/include/webserver/keytone.h
+sed -i '1i\const ' ./main/include/webserver/keytone2.h
 sed -i '1i\const ' ./main/include/webserver/nothing.h
+sed -i '1i\const ' ./main/include/webserver/play.h
 sed -i '1i\const ' ./main/include/webserver/setting2.h
 sed -i '1i\const ' ./main/include/webserver/spead.h
+sed -i '1i\const ' ./main/include/webserver/stop.h
 sed -i '1i\const ' ./main/include/webserver/theme1.h
 sed -i '1i\const ' ./main/include/webserver/theme2.h
 sed -i '1i\const ' ./main/include/webserver/theme3.h

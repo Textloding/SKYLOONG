@@ -8,5 +8,6 @@
   "idf.flashType": "UART",
   "files.associations": {
     "es8311.h": "c"
-  }
+  },
+  "idf.currentSetup": "d:\\esp-idf\\esp\\v5.1.4\\esp-idf"
 }

@@ -86,6 +86,7 @@ public:
     bool config_bootanimation = true;
     uint8_t config_theme = 0;
     uint8_t config_keytone = 0;
+    char config_keytone_file[32];
     volatile bool keytone_play = false;
     bool aps_enable = true;
     bool gif_enable = true;

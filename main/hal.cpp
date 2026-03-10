@@ -48,6 +48,42 @@ void my_disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *c
     }
     lv_disp_flush_ready(disp_drv);
 }
+
+const char* getFileSuffix(const char *filename) {
+    const char *dot = strrchr(filename, '.');
+    if (!dot || dot == filename) return "";
+    return dot + 1;
+}
+
+bool hasFileSuffix(const char *filename, const char *suffix) {
+    const char *file_suffix = getFileSuffix(filename);
+    return strcmp(file_suffix, suffix) == 0;
+}
+size_t sizeFile(String path) {
+  File file = LittleFS.open(path, "r", false); 
+  size_t size = file.size();
+  file.close();
+  return size;
+}
+
+uint8_t * readFile(String path) {
+  File file = LittleFS.open(path, "r", false); 
+  uint8_t *buf = (uint8_t *)malloc(file.size());
+  if (buf == NULL) {
+    file.close();
+    return NULL;
+  }
+
+  int bytesRead = file.readBytes((char *)buf, file.size());
+  if (bytesRead != file.size()) {
+    file.close();
+    return NULL;
+  }
+
+  file.close();
+  return buf;
+}
+
 static void keypad_read(lv_indev_drv_t *indev_drv, lv_indev_data_t *data)
 {
     static uint8_t last_key = 0xff;
@@ -67,6 +103,7 @@ static void keypad_read(lv_indev_drv_t *indev_drv, lv_indev_data_t *data)
     data->state = LV_INDEV_STATE_PR;
     last_key = act_key;
 }
+
 static void task_systemctl(void *p)
 {
     if (DS1302_isHalted(&hal.rtc))
@@ -129,6 +166,25 @@ static void task_systemctl(void *p)
                 hal.keytone_play =  true;
                 i2s.playWAV(__keytone_keytone3_wav, __keytone_keytone3_wav_len);
                 hal.keytone_play =  false;
+            } else if (hal.config_keytone == 4) {
+                if (strlen(hal.config_keytone_file) != 0) {
+                    char path[50] = "/";
+                    strcat(path, hal.config_keytone_file);
+
+                    uint8_t *data = readFile(path);
+                    if (data != NULL) {
+                        if (hasFileSuffix(hal.config_keytone_file, "wav")) {
+                            hal.keytone_play =  true;
+                            i2s.playWAV(data, sizeFile(path));
+                            hal.keytone_play =  false;
+                        } else if (hasFileSuffix(hal.config_keytone_file, "mp3")) {
+                            hal.keytone_play =  true;
+                            i2s.playMP3(data, sizeFile(path));
+                            hal.keytone_play =  false;
+                        }
+                        free(data);
+                    }
+                }
             }
             break;
         case EVENT_SERVERCTL:
@@ -277,6 +333,7 @@ void HAL::init()
     hal.config_bootanimation = pref.getBool("s_b_a", true);
     hal.config_theme = pref.getInt("theme", 0);
     hal.config_keytone = pref.getInt("keytone", 0);
+    strcpy(hal.config_keytone_file, pref.getString("keytone_file", "").c_str());
     hal.aps_enable = pref.getBool("aps_enable", true);
     hal.weather_enable = pref.getBool("weather_enable", true);
     hal.sysinfo_enable = pref.getBool("sysinfo_enable", true);
@@ -317,7 +374,7 @@ void HAL::init()
     lv_group_set_default(group);
     lv_indev_set_group(indev_keypad, group);
 
-    xTaskCreatePinnedToCore(task_systemctl, "task_systemctl", 4096, NULL, 3, NULL, 0);
+    xTaskCreatePinnedToCore(task_systemctl, "task_systemctl", 8192, NULL, 3, NULL, 0);
 }
 
 void HAL::getTime()
@@ -892,6 +949,8 @@ void handleJson()
 #include "webserver/wifi.h"
 #include "webserver/arrow_left.h"
 #include "webserver/arrow_right.h"
+#include "webserver/check.h"
+#include "webserver/check2.h"
 #include "webserver/cpu.h"
 #include "webserver/demo.h"
 #include "webserver/error_bg.h"
@@ -899,9 +958,13 @@ void handleJson()
 #include "webserver/ic_d.h"
 #include "webserver/ic_del.h"
 #include "webserver/image2.h"
+#include "webserver/keytone.h"
+#include "webserver/keytone2.h"
 #include "webserver/nothing.h"
+#include "webserver/play.h"
 #include "webserver/setting2.h"
 #include "webserver/spead.h"
+#include "webserver/stop.h"
 #include "webserver/theme1.h"
 #include "webserver/theme2.h"
 #include "webserver/theme3.h"
@@ -966,7 +1029,9 @@ void HAL::start_webserver()
         timezone /= 3600;
         cJSON_AddNumberToObject(json, "timezone", timezone);
         cJSON_AddNumberToObject(json, "language", i18n::getLanguage());
-        
+        cJSON_AddNumberToObject(json, "keytone", hal.config_keytone);
+        cJSON_AddStringToObject(json, "keytone_file", hal.config_keytone_file);
+
         strncpy(jsonbuffer, cJSON_PrintUnformatted(json), 1024);
         cJSON_Delete(json);
         server.send(200, "application/json", jsonbuffer);
@@ -1047,6 +1112,18 @@ void HAL::start_webserver()
                server.send(500, "text/plain", "ERR 500"); 
             }
 
+            server.send(200, "text/plain", "OK");
+        } else {
+            server.send(500, "text/plain", "ERR 500");
+        }
+    });
+
+    server.on("/config_keytone", HTTP_POST, []() {
+        if (server.hasArg("keytone") && server.hasArg("keytone_file")) {
+            hal.config_keytone = server.arg("keytone").toInt();
+            hal.pref.putInt("keytone", hal.config_keytone);
+            strcpy(hal.config_keytone_file, server.arg("keytone_file").c_str());
+            hal.pref.putString("keytone_file", hal.config_keytone_file);
             server.send(200, "text/plain", "OK");
         } else {
             server.send(500, "text/plain", "ERR 500");
@@ -1181,6 +1258,14 @@ void HAL::start_webserver()
         server.sendHeader("Content-Encoding", "gzip", true);
         server.send_P(200, "image/png", (const char *)__web_arrow_right_png_gz, sizeof(__web_arrow_right_png_gz));
     });
+    server.on("/check.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_check_png_gz, sizeof(__web_check_png_gz));
+    });
+    server.on("/check2.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_check2_png_gz, sizeof(__web_check2_png_gz));
+    });
     server.on("/cpu.png", HTTP_GET, []() {
         server.sendHeader("Content-Encoding", "gzip", true);
         server.send_P(200, "image/png", (const char *)__web_cpu_png_gz, sizeof(__web_cpu_png_gz));
@@ -1209,9 +1294,21 @@ void HAL::start_webserver()
         server.sendHeader("Content-Encoding", "gzip", true);
         server.send_P(200, "image/png", (const char *)__web_image2_png_gz, sizeof(__web_image2_png_gz));
     });
+    server.on("/keytone.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_keytone_png_gz, sizeof(__web_keytone_png_gz));
+    });
+    server.on("/keytone2.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_keytone2_png_gz, sizeof(__web_keytone2_png_gz));
+    });
     server.on("/nothing.png", HTTP_GET, []() {
         server.sendHeader("Content-Encoding", "gzip", true);
         server.send_P(200, "image/png", (const char *)__web_nothing_png_gz, sizeof(__web_nothing_png_gz));
+    });
+    server.on("/play.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_play_png_gz, sizeof(__web_play_png_gz));
     });
     server.on("/setting2.png", HTTP_GET, []() {
         server.sendHeader("Content-Encoding", "gzip", true);
@@ -1220,6 +1317,10 @@ void HAL::start_webserver()
     server.on("/spead.png", HTTP_GET, []() {
         server.sendHeader("Content-Encoding", "gzip", true);
         server.send_P(200, "image/png", (const char *)__web_spead_png_gz, sizeof(__web_spead_png_gz));
+    });
+    server.on("/stop.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_stop_png_gz, sizeof(__web_stop_png_gz));
     });
     server.on("/theme1.png", HTTP_GET, []() {
         server.sendHeader("Content-Encoding", "gzip", true);

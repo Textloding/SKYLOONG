@@ -1029,12 +1029,17 @@ bool I2SClass::playMP3(uint8_t *src, size_t src_len) {
     log_e("Could not allocate decoder");
     return false;
   }
-
+  _stop = false;
   do {
+    if (_stop) {
+      break;
+    }
+
     offset = MP3FindSyncWord(readPtr, bytesAvailable);
     if (offset < 0) {
       break;
     }
+
     readPtr += offset;
     bytesAvailable -= offset;
     err = MP3Decode(decoder, &readPtr, &bytesAvailable, outBuf, 0);
@@ -1048,6 +1053,7 @@ bool I2SClass::playMP3(uint8_t *src, size_t src_len) {
       write((uint8_t *)outBuf, (size_t)((frameInfo.bitsPerSample / 8) * frameInfo.outputSamps));
     }
   } while (true);
+
   MP3FreeDecoder(decoder);
   return true;
 }

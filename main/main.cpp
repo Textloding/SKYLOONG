@@ -70,6 +70,9 @@ void debug_USB_UART(void *p)
             ESP_LOGW("WiFiManager", "HEAP: %"PRIu32, esp_get_free_internal_heap_size());
             ESP_LOGW("WiFiManager", "HEAP_SPI: %"PRIu32, esp_get_free_heap_size());
             break;
+        case 'k':
+            hal.send_sysctl(EVENT_KB_KEYPRESS);
+            break;
         default:
             break;
         }
