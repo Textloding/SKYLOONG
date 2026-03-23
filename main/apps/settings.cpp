@@ -142,7 +142,6 @@ void AppSettings::setup()
         lv_obj_add_state(o, LV_STATE_CHECKED);
     else
         lv_obj_clear_state(o, LV_STATE_CHECKED);
-    lv_obj_clear_state(o, LV_STATE_CHECKED);
 
     btn_server = create_settings_button(_appScreen, _tr(I18N_ID_START_WEBSERVER), _tr(I18N_ID_START_WEBSERVER_DESC), _tr(I18N_ID_START), [](lv_event_t *e)
     {

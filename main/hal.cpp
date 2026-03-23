@@ -167,6 +167,7 @@ static void task_systemctl(void *p)
                 i2s.playWAV(__keytone_keytone3_wav, __keytone_keytone3_wav_len);
                 hal.keytone_play =  false;
             } else if (hal.config_keytone == 4) {
+                hal.keytone_play =  true;
                 if (strlen(hal.config_keytone_file) != 0) {
                     char path[50] = "/";
                     strcat(path, hal.config_keytone_file);
@@ -174,17 +175,14 @@ static void task_systemctl(void *p)
                     uint8_t *data = readFile(path);
                     if (data != NULL) {
                         if (hasFileSuffix(hal.config_keytone_file, "wav")) {
-                            hal.keytone_play =  true;
                             i2s.playWAV(data, sizeFile(path));
-                            hal.keytone_play =  false;
                         } else if (hasFileSuffix(hal.config_keytone_file, "mp3")) {
-                            hal.keytone_play =  true;
                             i2s.playMP3(data, sizeFile(path));
-                            hal.keytone_play =  false;
                         }
                         free(data);
                     }
                 }
+                hal.keytone_play =  false;
             }
             break;
         case EVENT_SERVERCTL:
@@ -1350,7 +1348,7 @@ void HAL::start_webserver()
         server.sendHeader("Content-Encoding", "gzip", true);
         server.send_P(200, "image/png", (const char *)__web_weather_png_gz, sizeof(__web_weather_png_gz));
     });
-    server.on("/assets/worker-43d19264.js", HTTP_GET, []() {
+    server.on("/assets/worker-224792ee.js", HTTP_GET, []() {
         server.sendHeader("Content-Encoding", "gzip", true);
         server.send_P(200, "application/javascript", (const char *)__web_assets_worker_224792ee_js_gz, sizeof(__web_assets_worker_224792ee_js_gz));
     });
