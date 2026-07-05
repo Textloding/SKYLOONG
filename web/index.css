@@ -692,6 +692,16 @@ p {
   color: var(--text);
 }
 
+.inline-note {
+  border: 1px solid rgba(125, 211, 252, .22);
+  border-radius: 14px;
+  background: rgba(125, 211, 252, .075);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+  padding: 10px 12px;
+}
+
 .dropzone {
   min-height: 180px;
   border: 1.5px dashed rgba(125, 211, 252, .36);

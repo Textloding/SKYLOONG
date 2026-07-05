@@ -1,126 +1,203 @@
-# Develop document authorization instructions
+# SKYLOONG Screen Module Firmware
 
-* If your use/modification/distribution of this development document is a business act of the company, please seek official authorization from Skyloong(http://www.skyloong.com.cn).
-* Individual enthusiasts of non-commercial activities are free to use/modify this development document.
-* If you have any questions, you can also contact: zhouziran@jikedingzhi.com
-----------------------------------------------------------------------------------------------------
+SKYLOONG keyboard screen module firmware based on ESP32-S3 and ESP-IDF 5.1.4.
 
-# ESP32_screen_module
-![esp32_screen_module](https://i.imgur.com/TjqTpUu.jpeg)
+This fork focuses on a cleaner daily-use experience: a modern web management
+console, easier Wi-Fi setup, configurable media playback, screen audio controls,
+weather city selection, and safer upload presets for the 320 x 240 screen.
 
-## Skyloong  keyboard screen module Feature
-*  Supported by esp32 chip;
-*  It can be replace by standard mechenical switch easily;
-*  Display date, time, keyboard stage, Battery level, etc; 
-*  Display your favorite pictures, GIFs, etc;
-*  Show the weather in your city and a concise living guide;
-*  Displays performance information about computers with a specified IP address in the same LAN;
-*  APS tools can help you know your typing speed.
----------------------------------------------------------------------------------------------------
+![Management overview](docs/images/console-overview.png)
 
-# Firmware Compilation Guide
+## What It Does
 
-## What You Need
+- Manage the SKYLOONG/GK87-style 320 x 240 keyboard screen from a browser.
+- Upload pictures, GIFs, videos, and custom key tones.
+- Choose video layout: full image with black bars, or fullscreen crop.
+- Toggle video sound and device volume from the management console.
+- Configure Wi-Fi from the browser and keep multiple saved networks for auto reconnect.
+- Configure weather city without exposing the weather API key in the web UI.
+- Enable or disable screen apps such as time, weather, system info, APS, pictures, and videos.
+- Flashable ESP32-S3 firmware built with ESP-IDF v5.1.4.
 
-Hardware
+## Management Console
 
-* An **GK87_screen module**.
-* **USB cable** - USB A / Type-C .
-* **Computer** running Windows, Linux, or macOS.
+The built-in web console is designed for desktop and mobile screens. It uses a
+glass-style dark interface with quick status cards, responsive navigation, and
+task-focused pages for media, display, network, and system settings.
 
-Software
+### Overview
 
-To start using ESP-IDF on **GK87_screen module**, install the following software:
+![Overview page](docs/images/console-overview.png)
 
-* **Toolchain** to compile code for GK87_screen module
-* **Build tools** - CMake and Ninja to build a full **Application** for GK87_screen module
-* **ESP-IDF** that essentially contains API (software libraries and source code) for GK87_screen module and scripts to operate the **Toolchain**
+The overview page shows device status, current IP, storage usage, saved Wi-Fi
+count, and quick actions for common tasks.
 
-# Installation
-## For Windows : 
-**Install IDE** - Install VSCode Extension as below:
-1. This branch can be compiled on Windows only.
-2. Download and install [Visual Studio Code](https://code.visualstudio.com/).
-3. Open the **Extensions** view by clicking on the Extension icon in the Activity Bar on the side of Visual Studio Code or the **View: Extensions** command (shortcut: <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>X</kbd> or <kbd>Ctrl+Shift+X</kbd>.)
-4. Search for [ESP-IDF Extension](https://marketplace.visualstudio.com/items?itemName=espressif.esp-idf-extension).
-5. Install the extension.
-6. (OPTIONAL) Press <kbd>F1</kbd> and type **ESP-IDF: Select where to Save Configuration Settings**, which can be User Settings, Workspace Settings or Workspace Folder Settings. Please take a look at [Working with multiple projects](https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/MULTI_PROJECTS.md) for more information. Default is User settings.
-7. In Visual Studio Code, select menu "View" and "Command Palette" and type [configure esp-idf extension]. After, choose the **ESP-IDF: Configure ESP-IDF Extension** option. You can also choose where to save settings in the setup wizard.
-8. Now the setup wizard window will be shown with several setup options: **Express**, **Advanced** or **Use Existing Setup**.
-> **NOTE**: **Use Existing Setup** setup mode option is only shown if:
->
-> - `esp-idf.json` is found in the current `idf.toolsPathWin` . This file is generated when you install ESP-IDF with the [ESP-IDF Windows Installer](https://github.com/espressif/idf-installer) or using[IDF-ENV](https://github.com/espressif/idf-env).
-> - ESP-IDF is found in `idf.espIdfPathWin` , `IDF_PATH` environment variable `%USERPROFILE%\esp\esp-idf` or `%USERPROFILE%\Desktop\esp-idf` in Windows.
-> - ESP-IDF Tools and ESP-IDF Python virtual environment for the previous ESP-IDF are found in `idf.toolsPathWin`, `IDF_TOOLS_PATH` environment variable `%USERPROFILE%\.espressif` on Windows.
+### Media Upload
 
-9. Choose **Express** for the fastest option (or **Use Existing Setup** if ESP-IDF is already installed)
-10. If you choose **Express** setup mode:
-    - Pick V5.1.4 ESP-IDF version to download (or find the ESP-IDF in your system) and the python executable to create the virtual environment.
-    - Choose the location for ESP-IDF Tools and python virtual environment (also known as `IDF_TOOLS_PATH`) which is `%USERPROFILE%\.espressif` by default.
-      > **NOTE:** Windows users don't need to select a python executable since it is part of the setup
-      > **NOTE:** Make sure that `IDF_TOOLS_PATH` doesn't have any spaces to avoid any build issues.
+![Media page](docs/images/console-media.png)
 
-11. The user will see a page showing the setup progress status showing ESP-IDF download progress, ESP-IDF Tools download and install progress as well as the creation of a python virtual environment.
+The media page supports image uploads, video/GIF upload, key tone upload, and
+file deletion. MP4 and GIF sources are transcoded in the browser before upload:
 
-12. (OPTIONAL) If the user have chosen the **Advanced** option, after ESP-IDF is downloaded and extracted, select to either download ESP-IDF Tools or manually provide each ESP-IDF tool absolute path and required environment variables.
-    > **NOTE:** Consider that `IDF_PATH` requires each ESP-IDF tool to be of the version described in `IDF_PATH`/tools/tools.json.
-    > If it is desired to use a different ESP-IDF tool version, check [JSON Manual Configuration](https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/SETUP.md#JSON-Manual-Configuration)
+- Output canvas: `320 x 240`, matching the physical screen.
+- Frame rate: MPEG1-compatible `24 FPS`.
+- Video: low bitrate MPEG1 with no B frames.
+- Audio: optional MP2 mono audio, or removed entirely when video sound is off.
+- Fullscreen mode fills the screen but may crop edges.
+- Complete-display mode preserves the full picture and adds black bars if needed.
 
-13. (OPTIONAL) If the user has chosen the **Advanced** mode and selected to manually provide each ESP-IDF tool absolute path, please enter the executable container directory for each binary as shown below:
-    > **NOTE:** Check [JSON Manual Configuration](https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/SETUP.md#JSON-Manual-Configuration) for more information.
+For the smoothest playback, turn off video sound before uploading large or 4K
+source files. Existing videos already stored on the screen will not be changed;
+re-upload the original source file to apply the new transcode settings.
 
-14. If everything is installed correctly, the user will see a message that all settings have been configured. You can start using the extension.
+### System Settings
 
-> **NOTE**: > The advance mode allows the user to choose to use existing ESP-IDF tools by manually entering each ESP-IDF tool absolute path. Again, if chose an ESP-IDF version < 5.0, make sure each ESP-IDF tool path doesn't have any spaces, since they were no suported in previous versions..
+![System page](docs/images/console-system.png)
 
-15. Now that the extension setup is finally done, check the [Basic use](https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/tutorial/basic_use.md) to learn how to use the SDK Configuration editor, build, flash and monitor your Espressif device.
+The system page controls volume, video sound, time zone, language, weather city,
+PC monitor target, and device reboot.
 
-> **NOTE**: Visual Studio Code has many places where to set configuration settings. This extension uses the `idf.saveScope` configuration setting to determine where to save settings, Global (User Settings), Workspace and WorkspaceFolder. Please review [vscode settings precedence](https://code.visualstudio.com/docs/getstarted/settings#_settings-precedence).
+## Flashing Firmware
 
-> **NOTE:** the setup wizard will install ESP-IDF Python packages and ESP-IDF debug adapter (`EXTENSION_PATH`/esp_debug_adapter/requirements.txt) python packages. Make sure that if using an existing python virtual environment that installing these packages doesn't affect your virtual environment. The `EXTENSION_PATH` is:
-- Windows: `%USERPROFILE%\.vscode\extensions\espressif.esp-idf-extension-VERSION`
+### Requirements
 
-# Compiling the Project
+- SKYLOONG/GK87 ESP32-S3 screen module.
+- USB data cable.
+- Windows is recommended for this branch.
+- ESP-IDF v5.1.4 installed at `%USERPROFILE%\esp\esp-idf`.
+- ESP-IDF tools installed at `%USERPROFILE%\.espressif`.
+- Git.
 
-`idf.py build`
+The screen usually appears as an Espressif USB serial/JTAG device:
 
-... will compile app, bootloader and generate a partition table based on the config.
+```text
+USB VID:PID=303A:1001
+USB serial device (COM3)
+```
 
-# Flashing the Project
+Your COM port may be different.
 
-When the build finishes, it will print a command line to use esptool.py to flash the chip. However you can also do this automatically by running:
+### Build
 
-`idf.py -p PORT flash`
+Open an ESP-IDF terminal, or run the export script before building:
 
-Replace PORT with the name of your serial port (`/dev/ttyUSB0` on Linux, or `/dev/cu.usbserial-X` on MacOS). If the `-p` option is left out, `idf.py` flash will try to flash the first available serial port.
+```bat
+cd path\to\SKYLOONG
+call "%USERPROFILE%\esp\esp-idf\export.bat"
+idf.py build
+```
 
-This will flash the entire project (app, bootloader and partition table) to a new chip. The settings for serial port flashing can be configured with `idf.py menuconfig`.
+On Windows, if the project path contains Chinese characters or is very long,
+copy the repository to a short path such as `C:\s` before building:
 
-You don't need to run `idf.py build` before running `idf.py flash`, `idf.py flash` will automatically rebuild anything which needs it.
+```powershell
+robocopy "C:\path\to\SKYLOONG" C:\s /MIR /XD .git build managed_components web_new\__pycache__ web_new\_mockfs
+cd C:\s
+cmd /d /c 'call "%USERPROFILE%\esp\esp-idf\export.bat" && idf.py build'
+```
 
-# Compiling & Flashing Only the App
+### Flash
 
-After the initial flash, you may just want to build and flash just your app, not the bootloader and partition table:
+Find the port:
 
-* `idf.py app` - build just the app.
-     
-* `idf.py app-flash` - flash just the app.
+```bat
+python -m serial.tools.list_ports -v
+```
 
-`idf.py app-flash` will automatically rebuild the app if any source files have changed.
+Flash the firmware:
 
-(In normal development there's no downside to reflashing the bootloader and partition table each time, if they haven't changed.)
+```bat
+idf.py -p COM3 flash
+```
 
-# Erasing Flash
+Replace `COM3` with your actual port. A successful flash ends with verified
+hashes and a hard reset:
 
-The `idf.py flash` target does not erase the entire flash contents. However it is sometimes useful to set the device back to a totally erased state, particularly when making partition table changes or OTA app updates. To erase the entire flash, run `idf.py erase-flash`.
+```text
+Hash of data verified.
+Leaving...
+Hard resetting via RTS pin...
+Done
+```
 
-This can be combined with other targets, ie `idf.py -p PORT erase-flash flash` will erase everything and then re-flash the new app, bootloader and partition table.
+### Common Flashing Notes
 
-# License
+- If only `COM1` is visible, the screen is not currently exposed as a flashable
+  ESP32-S3 serial device. Replug the USB cable or enter download mode.
+- Use a data cable, not a charge-only cable.
+- If flashing fails while connecting, hold the screen boot/download button if
+  your module exposes one, then retry `idf.py -p COMx flash`.
+- Do not flash to a port unless it matches the ESP32-S3 device.
+
+## Web Console Development
+
+Editable web source lives in:
+
+```text
+web_new/
+```
+
+The firmware-embedded web files live in:
+
+```text
+web/
+main/include/webserver/
+```
+
+After editing `web_new`, sync the files to `web`, then regenerate embedded
+headers:
+
+```powershell
+Copy-Item -Force web_new\index.js web\index.js
+Copy-Item -Force web_new\index.css web\index.css
+Copy-Item -Force web_new\index.html web\index.html
+& 'C:\Program Files\Git\bin\bash.exe' updateWeb.sh
+```
+
+Then rebuild and flash:
+
+```bat
+idf.py build
+idf.py -p COM3 flash
+```
+
+## Verification
+
+The `tools/` directory contains lightweight source checks used while developing
+this fork:
+
+```powershell
+node --check web_new\index.js
+node --check web\index.js
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify_web_video_transcode.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify_web_dirty_state.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify_video_pipeline.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify_wifi_pipeline.ps1
+```
+
+Recommended full check before release:
+
+```bat
+idf.py build
+idf.py -p COM3 flash
+```
+
+## Repository Layout
+
+```text
+main/                    ESP32-S3 firmware source
+main/include/webserver/  Generated embedded web assets
+web/                     Web assets embedded into firmware
+web_new/                 Editable modern management console
+components/              ESP-IDF/Arduino/LVGL/TFT/audio dependencies
+tools/                   Source verification scripts
+docs/images/             README screenshots
+```
+
+## License
 
 Project code and local modifications in this repository are released under the
 0BSD license. See [LICENSE](LICENSE).
 
 Third-party components and vendored dependencies keep their original licenses;
 check the corresponding component directories for their license files.
-

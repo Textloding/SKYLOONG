@@ -6,11 +6,11 @@ const modals = document.getElementById("modals");
 
 const SCREEN_W = 320;
 const SCREEN_H = 240;
-const VIDEO_TARGET_W = 240;
-const VIDEO_TARGET_H = 180;
+const VIDEO_TARGET_W = SCREEN_W;
+const VIDEO_TARGET_H = SCREEN_H;
 const VIDEO_TARGET_FPS = 24;
-const VIDEO_BITRATE = "260k";
-const VIDEO_MAXRATE = "360k";
+const VIDEO_BITRATE = "320k";
+const VIDEO_MAXRATE = "420k";
 const VIDEO_AUDIO_BITRATE = "32k";
 const VIDEO_AUDIO_RATE = "44100";
 const VIDEO_AUDIO_CHANNELS = "1";
@@ -545,6 +545,9 @@ function mediaVideos() {
         <div class="fit-choice">
           <button class="${fit === "contain" ? "active" : ""}" data-video-fit="contain">完整显示</button>
           <button class="${fit === "cover" ? "active" : ""}" data-video-fit="cover">铺满屏幕</button>
+        </div>
+        <div class="inline-note" data-video-tradeoff-note>
+          ${fit === "cover" ? "铺满会裁切画面边缘，但会占满 320 × 240 屏幕。" : "完整显示会保留全部画面，比例不一致时会补黑边。"}关闭声音会更流畅，适合 4K 原片或复杂动态画面。
         </div>
         <label class="toggle-row wide-toggle">
           <span><b>播放视频声音</b><small>${audio ? "上传时保留低码率单声道音轨" : "上传时移除音轨，优先保证流畅"}</small></span>
