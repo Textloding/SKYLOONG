@@ -95,6 +95,8 @@ public:
     bool sysinfo_enable = true;
     uint32_t config_time_roll = 5000;
     bool lang_refresh = false;
+    bool config_video_audio = false;
+    char config_video_fit[16];
     char config_jpg_mode[32];
     char config_jpg_file[32];
     bool time_sync = true;

@@ -7,8 +7,7 @@ static lv_point_t qrcode_line_points[] = {{63, 3}, {256, 3}, {256, 196}, {63, 19
 void AppQRCode::setup() {
     char data[100];
 
-    WiFi.begin();
-    if (WiFi.waitForConnectResult(3000) == WL_CONNECTED) {
+    if (WiFiMgr.autoConnectSaved(3000)) {
         if (hal.NTPSync()) {
             hal.time_sync = true;
         }
@@ -66,19 +65,24 @@ void AppQRCode::setup() {
 
 void AppQRCode::loop() {
     if (hal.config_wifi) {
-        WiFiMgr.add(hal.ssid, hal.password);
+        String ssid = hal.ssid;
+        String password = hal.password;
         WiFi.disconnect(true);
         WiFi.mode(WIFI_STA);
-        WiFi.begin(hal.ssid, hal.password);
+        if (password.length() == 0) {
+            WiFi.begin(ssid.c_str());
+        } else {
+            WiFi.begin(ssid.c_str(), password.c_str());
+        }
         GUI::toast(_tr(I18N_ID_CONNECTING));
         if (WiFi.waitForConnectResult(4000) == WL_CONNECTED) { 
+            WiFiMgr.add(ssid, password);
             if (hal.NTPSync()) {
                 hal.time_sync = true;
             }
             hal.send_sysctl(EVENT_EXIT_QRCODE);
         } else {
             GUI::toast(_tr(I18N_ID_CONNECT_FAILED));
-            WiFiMgr.remove(hal.ssid);
             WiFi.mode(WIFI_AP);
             WiFi.softAP("SKYLOONG 4.0 Screen");
         }

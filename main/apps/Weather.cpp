@@ -443,8 +443,7 @@ static bool connectToWiFi()
     if (WiFi.status() != WL_CONNECTED)
     {
         GUI::toast(_tr(I18N_ID_CONNECTING));
-        WiFi.begin();
-        if (WiFi.waitForConnectResult(6000) == WL_CONNECTED) {
+        if (WiFiMgr.autoConnectSaved(6000)) {
             if (hal.NTPSync()) {
                 hal.time_sync = true;
             }

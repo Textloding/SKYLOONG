@@ -270,6 +270,18 @@ void lcd_init()
     tft.invertDisplay(true);
 }
 
+static bool isVideoFitValueValid(const String &video_fit)
+{
+    return video_fit == "contain" || video_fit == "cover";
+}
+
+static void setVideoFitConfig(const String &video_fit)
+{
+    const String safe_video_fit = isVideoFitValueValid(video_fit) ? video_fit : "contain";
+    strncpy(hal.config_video_fit, safe_video_fit.c_str(), sizeof(hal.config_video_fit) - 1);
+    hal.config_video_fit[sizeof(hal.config_video_fit) - 1] = '\0';
+}
+
 esp_err_t HAL::audio_init()
 {
     pinMode(AUDIO_AMP_CTRL, OUTPUT);
@@ -338,6 +350,8 @@ void HAL::init()
     hal.gif_enable = pref.getBool("gif_enable", true);
     hal.jpg_enable = pref.getBool("jpg_enable", true);
     hal.config_time_roll = pref.getInt("t_r", 5000);
+    hal.config_video_audio = pref.getBool("video_audio", false);
+    setVideoFitConfig(pref.getString("video_fit", "contain"));
     strcpy(hal.config_jpg_mode, pref.getString("jpg_mode", "roll").c_str());
     strcpy(hal.config_jpg_file, pref.getString("jpg_file", "").c_str());
     i18n::setLanguage(pref.getUInt("lang", 0));
@@ -851,20 +865,50 @@ const char default_app_setting[] = "{\"ip\":\"192.168.1.1\",\"port\":1648,\"weat
 
 struct app_setting app_settings_save;
 
+static void copySettingString(char *dst, size_t dst_size, const char *value)
+{
+    if (dst == NULL || dst_size == 0 || value == NULL)
+        return;
+    strncpy(dst, value, dst_size - 1);
+    dst[dst_size - 1] = '\0';
+}
+
+static const char *jsonStringValue(cJSON *root, const char *key)
+{
+    cJSON *item = cJSON_GetObjectItem(root, key);
+    return (item != NULL && cJSON_IsString(item) && item->valuestring != NULL) ? item->valuestring : NULL;
+}
+
 void parseAppSettings(const char *input)
 {
     cJSON *root = cJSON_Parse(input);
-    if (root == NULL)
+    if (root == NULL || !cJSON_IsObject(root))
     {
         ESP_LOGE("APP", "JSON解析失败");
         cJSON_Delete(root);
         root = cJSON_Parse(default_app_setting);
     }
-    strncpy(app_settings_save.remote_ip, cJSON_GetObjectItem(root, "ip")->valuestring, sizeof(app_settings_save.remote_ip) - 1);
-    app_settings_save.remote_port = cJSON_GetObjectItem(root, "port")->valueint;
-    strncpy(app_settings_save.weather_secret, cJSON_GetObjectItem(root, "weather")->valuestring, sizeof(app_settings_save.weather_secret) - 1);
-    strncpy(app_settings_save.weather_city, cJSON_GetObjectItem(root, "city")->valuestring, sizeof(app_settings_save.weather_city) - 1);
-    strncpy(app_settings_save.userdata, cJSON_GetObjectItem(root, "userdata")->valuestring, sizeof(app_settings_save.userdata) - 1);
+
+    const char *ip = jsonStringValue(root, "ip");
+    if (ip != NULL && strlen(ip) > 0)
+        copySettingString(app_settings_save.remote_ip, sizeof(app_settings_save.remote_ip), ip);
+
+    cJSON *port = cJSON_GetObjectItem(root, "port");
+    if (port != NULL && cJSON_IsNumber(port) && port->valueint > 0 && port->valueint <= 65535)
+        app_settings_save.remote_port = port->valueint;
+
+    const char *weather = jsonStringValue(root, "weather");
+    if (weather != NULL && strlen(weather) > 0)
+        copySettingString(app_settings_save.weather_secret, sizeof(app_settings_save.weather_secret), weather);
+
+    const char *city = jsonStringValue(root, "city");
+    if (city != NULL && strlen(city) > 0)
+        copySettingString(app_settings_save.weather_city, sizeof(app_settings_save.weather_city), city);
+
+    const char *userdata = jsonStringValue(root, "userdata");
+    if (userdata != NULL)
+        copySettingString(app_settings_save.userdata, sizeof(app_settings_save.userdata), userdata);
+
     cJSON_Delete(root);
 }
 
@@ -873,10 +917,20 @@ void appSettingsToJson(char *result)
     cJSON *item = cJSON_CreateObject();
     cJSON_AddStringToObject(item, "ip", app_settings_save.remote_ip);
     cJSON_AddNumberToObject(item, "port", app_settings_save.remote_port);
-    cJSON_AddStringToObject(item, "weather", app_settings_save.weather_secret);
+    cJSON_AddBoolToObject(item, "weather_configured", strlen(app_settings_save.weather_secret) > 0);
     cJSON_AddStringToObject(item, "city", app_settings_save.weather_city);
     cJSON_AddStringToObject(item, "userdata", app_settings_save.userdata);
-    strncpy(result, cJSON_PrintUnformatted(item), 1024);
+    char *printed = cJSON_PrintUnformatted(item);
+    if (printed != NULL)
+    {
+        strncpy(result, printed, 1023);
+        result[1023] = '\0';
+        cJSON_free(printed);
+    }
+    else
+    {
+        result[0] = '\0';
+    }
     cJSON_Delete(item);
 }
 
@@ -918,20 +972,27 @@ void handleJson()
 {
     if (server.method() == HTTP_POST && server.hasArg("plain"))
     {
+        cJSON *root = cJSON_Parse(server.arg("plain").c_str());
+        if (root == NULL || !cJSON_IsObject(root)) {
+            cJSON_Delete(root);
+            server.send(500, "text/plain", "ERR 500");
+            return;
+        }
+        cJSON_Delete(root);
         parseAppSettings(server.arg("plain").c_str());
         hal.saveAppSettings();
         hal.weather_update = false;
         hal.sysinfo_update = false;  
         server.send(200, "text/plain", "OK");
+        return;
     }
     else if (server.method() == HTTP_GET)
     {
         appSettingsToJson(jsonbuffer);
         server.send(200, "application/json", jsonbuffer);
+        return;
     }
-    {
-        server.send(500, "text/plain", "ERR 500");
-    }
+    server.send(500, "text/plain", "ERR 500");
 }
 
 #include "webserver/favicon.h"
@@ -1020,6 +1081,12 @@ void HAL::start_webserver()
         cJSON_AddBoolToObject(json, "sysinfo_enable", hal.sysinfo_enable);
         cJSON_AddBoolToObject(json, "gif_enable", hal.gif_enable);
         cJSON_AddBoolToObject(json, "jpg_enable", hal.jpg_enable);
+        cJSON_AddBoolToObject(json, "wifi_connected", WiFi.status() == WL_CONNECTED);
+        cJSON_AddNumberToObject(json, "wifi_saved_count", WiFiMgr.count());
+        cJSON_AddNumberToObject(json, "screen_width", screenWidth);
+        cJSON_AddNumberToObject(json, "screen_height", screenHeight);
+        cJSON_AddStringToObject(json, "video_fit", hal.config_video_fit);
+        cJSON_AddBoolToObject(json, "video_audio", hal.config_video_audio);
         cJSON_AddNumberToObject(json, "time_roll", hal.config_time_roll);
         cJSON_AddStringToObject(json, "jpg_mode", hal.config_jpg_mode);
         cJSON_AddStringToObject(json, "jpg_file", hal.config_jpg_file);
@@ -1029,6 +1096,7 @@ void HAL::start_webserver()
         cJSON_AddNumberToObject(json, "language", i18n::getLanguage());
         cJSON_AddNumberToObject(json, "keytone", hal.config_keytone);
         cJSON_AddStringToObject(json, "keytone_file", hal.config_keytone_file);
+        cJSON_AddNumberToObject(json, "volume", hal._volume);
 
         strncpy(jsonbuffer, cJSON_PrintUnformatted(json), 1024);
         cJSON_Delete(json);
@@ -1060,9 +1128,18 @@ void HAL::start_webserver()
     });
 
     server.on("/config_wifi", HTTP_POST, []() {
-        if (server.hasArg("ssid") && server.hasArg("password")) {
-            strcpy(hal.ssid, server.arg("ssid").c_str());
-            strcpy(hal.password, server.arg("password").c_str());
+        if (server.hasArg("ssid")) {
+            String ssid = server.arg("ssid");
+            String password = server.hasArg("password") ? server.arg("password") : "";
+            ssid.trim();
+            if (ssid.length() == 0) {
+                server.send(500, "text/plain", "ERR 500");
+                return;
+            }
+            strncpy(hal.ssid, ssid.c_str(), sizeof(hal.ssid) - 1);
+            hal.ssid[sizeof(hal.ssid) - 1] = '\0';
+            strncpy(hal.password, password.c_str(), sizeof(hal.password) - 1);
+            hal.password[sizeof(hal.password) - 1] = '\0';
             hal.config_wifi = true;
             server.send(200, "text/plain", "OK");
         } else {
@@ -1128,6 +1205,21 @@ void HAL::start_webserver()
         }
     });
 
+    server.on("/config_volume", HTTP_POST, []() {
+        if (server.hasArg("volume")) {
+            int volume = server.arg("volume").toInt();
+            if (volume >= 0 && volume <= 9) {
+                hal.setVolume(volume);
+                hal.pref.putUInt("volume", hal._volume);
+                server.send(200, "text/plain", "OK");
+            } else {
+                server.send(500, "text/plain", "ERR 500");
+            }
+        } else {
+            server.send(500, "text/plain", "ERR 500");
+        }
+    });
+
     server.on("/config_app_aps", HTTP_POST, []() {
         if (server.hasArg("enable")) {
             hal.aps_enable = server.arg("enable").toBool();
@@ -1142,6 +1234,20 @@ void HAL::start_webserver()
         if (server.hasArg("enable")) {
             hal.gif_enable = server.arg("enable").toBool();
             hal.pref.putBool("gif_enable", hal.gif_enable);
+            if (server.hasArg("video_fit")) {
+                const String video_fit = server.arg("video_fit");
+                if (isVideoFitValueValid(video_fit)) {
+                    setVideoFitConfig(video_fit);
+                    hal.pref.putString("video_fit", hal.config_video_fit);
+                } else {
+                    server.send(500, "text/plain", "ERR 500");
+                    return;
+                }
+            }
+            if (server.hasArg("video_audio")) {
+                hal.config_video_audio = server.arg("video_audio").toBool();
+                hal.pref.putBool("video_audio", hal.config_video_audio);
+            }
             server.send(200, "text/plain", "OK");
         } else {
             server.send(500, "text/plain", "ERR 500");

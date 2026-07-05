@@ -13,6 +13,7 @@ public:
     bool has(const String ssid);
     String getPassword(const String ssid);
     void clearall();
+    bool autoConnectSaved(uint32_t timeoutMs = 6000, bool scanFirst = true);
     bool requireWiFi(bool forceChoose = false);
     bool requireWiFiForce(bool forceChoose = false)
     {

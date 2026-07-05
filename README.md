@@ -116,3 +116,11 @@ The `idf.py flash` target does not erase the entire flash contents. However it i
 
 This can be combined with other targets, ie `idf.py -p PORT erase-flash flash` will erase everything and then re-flash the new app, bootloader and partition table.
 
+# License
+
+Project code and local modifications in this repository are released under the
+0BSD license. See [LICENSE](LICENSE).
+
+Third-party components and vendored dependencies keep their original licenses;
+check the corresponding component directories for their license files.
+

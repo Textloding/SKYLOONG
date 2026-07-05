@@ -165,9 +165,8 @@ void AppSysinfo::loop()
     }
     if (enter_millis != 0 && millis() - enter_millis > 5000)
     {
-        WiFi.begin();
         GUI::toast(_tr(I18N_ID_CONNECTING));
-        if (WiFi.waitForConnectResult() == WL_CONNECTED)
+        if (WiFiMgr.autoConnectSaved(6000))
         {
             if (hal.NTPSync()) {
                 hal.time_sync = true;
