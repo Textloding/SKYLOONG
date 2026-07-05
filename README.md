@@ -1,85 +1,81 @@
-# SKYLOONG Screen Module Firmware
+# SKYLOONG 屏幕模块固件
 
-SKYLOONG keyboard screen module firmware based on ESP32-S3 and ESP-IDF 5.1.4.
+这是基于 ESP32-S3 和 ESP-IDF 5.1.4 的 SKYLOONG 键盘屏幕模块固件。
 
-This fork focuses on a cleaner daily-use experience: a modern web management
-console, easier Wi-Fi setup, configurable media playback, screen audio controls,
-weather city selection, and safer upload presets for the 320 x 240 screen.
+这个分支重点优化日常使用体验：新的现代化网页管理台、更方便的 Wi-Fi
+配置、图片/视频/GIF/按键音上传、屏幕音量控制、天气城市设置，以及更适合
+320 x 240 小屏幕的视频上传转码策略。
 
-![Management overview](docs/images/console-overview.png)
+![管理台总览](docs/images/console-overview.png)
 
-## What It Does
+## 主要功能
 
-- Manage the SKYLOONG/GK87-style 320 x 240 keyboard screen from a browser.
-- Upload pictures, GIFs, videos, and custom key tones.
-- Choose video layout: full image with black bars, or fullscreen crop.
-- Toggle video sound and device volume from the management console.
-- Configure Wi-Fi from the browser and keep multiple saved networks for auto reconnect.
-- Configure weather city without exposing the weather API key in the web UI.
-- Enable or disable screen apps such as time, weather, system info, APS, pictures, and videos.
-- Flashable ESP32-S3 firmware built with ESP-IDF v5.1.4.
+- 通过浏览器管理 SKYLOONG/GK87 风格的 320 x 240 键盘屏幕。
+- 上传图片、GIF、视频和自定义按键音。
+- 设置视频显示方式：完整显示补黑边，或铺满屏幕并裁切边缘。
+- 在管理台里控制设备音量和视频是否播放声音。
+- 在浏览器里配置 Wi-Fi，并保存多个网络用于自动重连。
+- 设置天气城市，同时不在网页里展示天气 API Key，避免误操作。
+- 开关时间、天气、电脑监控、APS、图片、视频等屏幕应用。
+- 使用 ESP-IDF v5.1.4 构建和刷写 ESP32-S3 固件。
 
-## Management Console
+## 管理台展示
 
-The built-in web console is designed for desktop and mobile screens. It uses a
-glass-style dark interface with quick status cards, responsive navigation, and
-task-focused pages for media, display, network, and system settings.
+内置网页管理台适配桌面和手机屏幕。界面采用深色毛玻璃风格，包含状态卡片、
+快捷操作、媒体管理、显示设置、网络配置和系统设置等页面。
 
-### Overview
+### 总览页
 
-![Overview page](docs/images/console-overview.png)
+![总览页](docs/images/console-overview.png)
 
-The overview page shows device status, current IP, storage usage, saved Wi-Fi
-count, and quick actions for common tasks.
+总览页展示设备状态、当前 IP、存储空间、已保存 Wi-Fi 数量，以及常用功能入口。
 
-### Media Upload
+### 媒体页
 
-![Media page](docs/images/console-media.png)
+![媒体页](docs/images/console-media.png)
 
-The media page supports image uploads, video/GIF upload, key tone upload, and
-file deletion. MP4 and GIF sources are transcoded in the browser before upload:
+媒体页支持图片上传、视频/GIF 上传、按键音上传和文件删除。MP4 和 GIF 会先在
+浏览器里转码，再上传到屏幕：
 
-- Output canvas: `320 x 240`, matching the physical screen.
-- Frame rate: MPEG1-compatible `24 FPS`.
-- Video: low bitrate MPEG1 with no B frames.
-- Audio: optional MP2 mono audio, or removed entirely when video sound is off.
-- Fullscreen mode fills the screen but may crop edges.
-- Complete-display mode preserves the full picture and adds black bars if needed.
+- 输出画布：`320 x 240`，匹配屏幕物理分辨率。
+- 帧率：MPEG1 兼容的 `24 FPS`。
+- 视频：低码率 MPEG1，并关闭 B 帧，减轻 ESP32-S3 解码压力。
+- 音频：可选 MP2 单声道音轨；关闭视频声音时会完全移除音轨。
+- 铺满屏幕：画面会占满整块屏幕，但必要时会裁切边缘。
+- 完整显示：保留完整画面，比例不一致时会补黑边。
 
-For the smoothest playback, turn off video sound before uploading large or 4K
-source files. Existing videos already stored on the screen will not be changed;
-re-upload the original source file to apply the new transcode settings.
+想要尽量流畅播放时，建议先关闭“播放视频声音”，再上传大视频或 4K 原片。
+已经上传到屏幕里的旧视频不会自动变成新参数，需要重新上传原始视频文件。
 
-### System Settings
+### 系统页
 
-![System page](docs/images/console-system.png)
+![系统页](docs/images/console-system.png)
 
-The system page controls volume, video sound, time zone, language, weather city,
-PC monitor target, and device reboot.
+系统页可以设置音量、视频声音、时区、语言、天气城市、电脑监控目标和设备重启。
 
-## Flashing Firmware
+## 刷固件教程
 
-### Requirements
+### 准备工作
 
-- SKYLOONG/GK87 ESP32-S3 screen module.
-- USB data cable.
-- Windows is recommended for this branch.
-- ESP-IDF v5.1.4 installed at `%USERPROFILE%\esp\esp-idf`.
-- ESP-IDF tools installed at `%USERPROFILE%\.espressif`.
-- Git.
+- SKYLOONG/GK87 ESP32-S3 屏幕模块。
+- USB 数据线，不能只用充电线。
+- 推荐使用 Windows。
+- 安装 ESP-IDF v5.1.4，默认路径为 `%USERPROFILE%\esp\esp-idf`。
+- 安装 ESP-IDF 工具链，默认路径为 `%USERPROFILE%\.espressif`。
+- 安装 Git。
 
-The screen usually appears as an Espressif USB serial/JTAG device:
+屏幕通常会识别为 Espressif USB 串口/JTAG 设备：
 
 ```text
 USB VID:PID=303A:1001
-USB serial device (COM3)
+USB 串行设备 (COM3)
 ```
 
-Your COM port may be different.
+你的电脑上端口号可能不是 `COM3`，以实际扫描结果为准。
 
-### Build
+### 编译固件
 
-Open an ESP-IDF terminal, or run the export script before building:
+打开 ESP-IDF 终端，或者在命令行里先加载 ESP-IDF 环境：
 
 ```bat
 cd path\to\SKYLOONG
@@ -87,8 +83,7 @@ call "%USERPROFILE%\esp\esp-idf\export.bat"
 idf.py build
 ```
 
-On Windows, if the project path contains Chinese characters or is very long,
-copy the repository to a short path such as `C:\s` before building:
+如果 Windows 路径里包含中文或路径很长，建议复制到短路径再编译，例如 `C:\s`：
 
 ```powershell
 robocopy "C:\path\to\SKYLOONG" C:\s /MIR /XD .git build managed_components web_new\__pycache__ web_new\_mockfs
@@ -96,22 +91,21 @@ cd C:\s
 cmd /d /c 'call "%USERPROFILE%\esp\esp-idf\export.bat" && idf.py build'
 ```
 
-### Flash
+### 刷入固件
 
-Find the port:
+先查看屏幕端口：
 
 ```bat
 python -m serial.tools.list_ports -v
 ```
 
-Flash the firmware:
+确认端口后刷入：
 
 ```bat
 idf.py -p COM3 flash
 ```
 
-Replace `COM3` with your actual port. A successful flash ends with verified
-hashes and a hard reset:
+请把 `COM3` 换成你的实际端口。成功刷入时，日志末尾会看到类似内容：
 
 ```text
 Hash of data verified.
@@ -120,32 +114,30 @@ Hard resetting via RTS pin...
 Done
 ```
 
-### Common Flashing Notes
+### 常见刷机问题
 
-- If only `COM1` is visible, the screen is not currently exposed as a flashable
-  ESP32-S3 serial device. Replug the USB cable or enter download mode.
-- Use a data cable, not a charge-only cable.
-- If flashing fails while connecting, hold the screen boot/download button if
-  your module exposes one, then retry `idf.py -p COMx flash`.
-- Do not flash to a port unless it matches the ESP32-S3 device.
+- 如果只看到 `COM1`，说明屏幕没有以可刷写的 ESP32-S3 串口设备出现。
+  可以重新插拔 USB，或让屏幕进入下载模式后再试。
+- 一定要使用 USB 数据线，充电线可能无法识别串口。
+- 如果一直卡在连接阶段，可以按住模块上的 BOOT/下载按键再执行刷机命令。
+- 不要刷到不确定的端口，端口应能对应到 `VID_303A:1001` 或 Espressif 设备。
 
-## Web Console Development
+## 管理台开发
 
-Editable web source lives in:
+可编辑的网页源码在：
 
 ```text
 web_new/
 ```
 
-The firmware-embedded web files live in:
+固件实际嵌入的网页文件在：
 
 ```text
 web/
 main/include/webserver/
 ```
 
-After editing `web_new`, sync the files to `web`, then regenerate embedded
-headers:
+修改 `web_new` 后，先同步到 `web`，再重新生成嵌入头文件：
 
 ```powershell
 Copy-Item -Force web_new\index.js web\index.js
@@ -154,17 +146,16 @@ Copy-Item -Force web_new\index.html web\index.html
 & 'C:\Program Files\Git\bin\bash.exe' updateWeb.sh
 ```
 
-Then rebuild and flash:
+然后重新编译并刷入：
 
 ```bat
 idf.py build
 idf.py -p COM3 flash
 ```
 
-## Verification
+## 验证命令
 
-The `tools/` directory contains lightweight source checks used while developing
-this fork:
+`tools/` 目录里放了这个分支使用的轻量检查脚本：
 
 ```powershell
 node --check web_new\index.js
@@ -175,29 +166,26 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify_video_pipeline.
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify_wifi_pipeline.ps1
 ```
 
-Recommended full check before release:
+发布或刷机前建议至少再跑一次完整构建：
 
 ```bat
 idf.py build
-idf.py -p COM3 flash
 ```
 
-## Repository Layout
+## 目录结构
 
 ```text
-main/                    ESP32-S3 firmware source
-main/include/webserver/  Generated embedded web assets
-web/                     Web assets embedded into firmware
-web_new/                 Editable modern management console
-components/              ESP-IDF/Arduino/LVGL/TFT/audio dependencies
-tools/                   Source verification scripts
-docs/images/             README screenshots
+main/                    ESP32-S3 固件源码
+main/include/webserver/  自动生成的嵌入网页资源
+web/                     会被打进固件的网页资源
+web_new/                 可编辑的新版网页管理台
+components/              ESP-IDF、Arduino、LVGL、TFT、音频等依赖组件
+tools/                   源码检查脚本
+docs/images/             README 展示截图
 ```
 
-## License
+## 开源协议
 
-Project code and local modifications in this repository are released under the
-0BSD license. See [LICENSE](LICENSE).
+本仓库内的项目代码和本地修改使用 0BSD 协议发布，详见 [LICENSE](LICENSE)。
 
-Third-party components and vendored dependencies keep their original licenses;
-check the corresponding component directories for their license files.
+第三方组件和内置依赖仍保留它们自己的原始协议，请查看对应组件目录里的许可证文件。
