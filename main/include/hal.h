@@ -19,6 +19,7 @@ enum system_event_type_t
     EVENT_HOME_REFRESH,
     EVENT_GIF_REFRESH,
     EVENT_JPG_REFRESH,
+    EVENT_POMODORO_CONFIRM,
 };
 typedef struct sysctl_event_t
 {
@@ -93,12 +94,20 @@ public:
     bool jpg_enable = true;
     bool weather_enable = true;
     bool sysinfo_enable = true;
+    bool pomodoro_enable = false;
     uint32_t config_time_roll = 5000;
     bool lang_refresh = false;
     bool config_video_audio = false;
     char config_video_fit[16];
     char config_jpg_mode[32];
     char config_jpg_file[32];
+    uint8_t pomodoro_focus_min = 25;
+    uint8_t pomodoro_short_break_min = 5;
+    uint8_t pomodoro_long_break_min = 15;
+    uint8_t pomodoro_long_break_every = 4;
+    bool pomodoro_auto_switch = true;
+    uint8_t pomodoro_tone = 1;
+    char pomodoro_tone_file[32];
     bool time_sync = true;
     SemaphoreHandle_t _mutex;
     void init();
@@ -114,6 +123,12 @@ public:
     void UNLOCKLV();
     void goSleep();
     void send_sysctl(system_event_type_t type, uint8_t data = 0);
+    bool pomodoroWaitingForConfirm();
+    bool confirmPomodoro();
+    void setPomodoroWaiting(bool waiting);
+    bool consumePomodoroAutoSwitch();
+    void requestPomodoroAutoSwitch();
+    void playPomodoroTone();
     void saveAppSettings();
     void loadAppSettings();
     void start_webserver();

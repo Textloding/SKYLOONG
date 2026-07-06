@@ -6,6 +6,10 @@
 #include "keytone/keytone1.h"
 #include "keytone/keytone2.h"
 #include "keytone/keytone3.h"
+#include "pomodoro_tone/pomodoro_tone1.h"
+#include "pomodoro_tone/pomodoro_tone2.h"
+#include "pomodoro_tone/pomodoro_tone3.h"
+#include "pomodoro_tone/pomodoro_tone4.h"
 
 I2SClass i2s;
 
@@ -82,6 +86,35 @@ uint8_t * readFile(String path) {
 
   file.close();
   return buf;
+}
+
+static bool playAudioFileFromLittleFS(const char *filename)
+{
+    if (filename == NULL || strlen(filename) == 0)
+        return false;
+
+    char path[64] = "/";
+    strncat(path, filename, sizeof(path) - strlen(path) - 1);
+
+    uint8_t *data = readFile(path);
+    if (data == NULL)
+        return false;
+
+    const size_t len = sizeFile(path);
+    bool played = false;
+    if (hasFileSuffix(filename, "wav"))
+    {
+        i2s.playWAV(data, len);
+        played = true;
+    }
+    else if (hasFileSuffix(filename, "mp3"))
+    {
+        i2s.playMP3(data, len);
+        played = true;
+    }
+
+    free(data);
+    return played;
 }
 
 static void keypad_read(lv_indev_drv_t *indev_drv, lv_indev_data_t *data)
@@ -168,22 +201,12 @@ static void task_systemctl(void *p)
                 hal.keytone_play =  false;
             } else if (hal.config_keytone == 4) {
                 hal.keytone_play =  true;
-                if (strlen(hal.config_keytone_file) != 0) {
-                    char path[50] = "/";
-                    strcat(path, hal.config_keytone_file);
-
-                    uint8_t *data = readFile(path);
-                    if (data != NULL) {
-                        if (hasFileSuffix(hal.config_keytone_file, "wav")) {
-                            i2s.playWAV(data, sizeFile(path));
-                        } else if (hasFileSuffix(hal.config_keytone_file, "mp3")) {
-                            i2s.playMP3(data, sizeFile(path));
-                        }
-                        free(data);
-                    }
-                }
+                playAudioFileFromLittleFS(hal.config_keytone_file);
                 hal.keytone_play =  false;
             }
+            break;
+        case EVENT_POMODORO_CONFIRM:
+            hal.confirmPomodoro();
             break;
         case EVENT_SERVERCTL:
             if (event.data == 1)
@@ -314,6 +337,73 @@ void HAL::audio_stop()
     i2s.stop();
 }
 
+static volatile bool pomodoro_waiting_confirm = false;
+static volatile bool pomodoro_confirm_requested = false;
+static volatile bool pomodoro_auto_switch_requested = false;
+
+bool HAL::pomodoroWaitingForConfirm()
+{
+    return pomodoro_waiting_confirm;
+}
+
+bool HAL::confirmPomodoro()
+{
+    if (!pomodoro_waiting_confirm)
+        return false;
+
+    pomodoro_confirm_requested = true;
+    return true;
+}
+
+void HAL::setPomodoroWaiting(bool waiting)
+{
+    pomodoro_waiting_confirm = waiting;
+    if (waiting == false)
+    {
+        pomodoro_confirm_requested = false;
+        pomodoro_auto_switch_requested = false;
+    }
+}
+
+bool HAL::consumePomodoroAutoSwitch()
+{
+    if (!pomodoro_auto_switch_requested)
+        return false;
+
+    pomodoro_auto_switch_requested = false;
+    return true;
+}
+
+void HAL::requestPomodoroAutoSwitch()
+{
+    pomodoro_auto_switch_requested = true;
+}
+
+bool consumePomodoroConfirmRequest()
+{
+    if (!pomodoro_confirm_requested)
+        return false;
+
+    pomodoro_confirm_requested = false;
+    return true;
+}
+
+void HAL::playPomodoroTone()
+{
+    keytone_play = true;
+    if (pomodoro_tone == 1)
+        i2s.playWAV(__pomodoro_tone1_wav, __pomodoro_tone1_wav_len);
+    else if (pomodoro_tone == 2)
+        i2s.playWAV(__pomodoro_tone2_wav, __pomodoro_tone2_wav_len);
+    else if (pomodoro_tone == 3)
+        i2s.playWAV(__pomodoro_tone3_wav, __pomodoro_tone3_wav_len);
+    else if (pomodoro_tone == 4)
+        i2s.playWAV(__pomodoro_tone4_wav, __pomodoro_tone4_wav_len);
+    else if (pomodoro_tone == 5)
+        playAudioFileFromLittleFS(pomodoro_tone_file);
+    keytone_play = false;
+}
+
 void HAL::init()
 {
     memset(&datetime, 0, sizeof(DS1302_DateTime));
@@ -349,11 +439,19 @@ void HAL::init()
     hal.sysinfo_enable = pref.getBool("sysinfo_enable", true);
     hal.gif_enable = pref.getBool("gif_enable", true);
     hal.jpg_enable = pref.getBool("jpg_enable", true);
+    hal.pomodoro_enable = pref.getBool("pomodoro_enable", false);
     hal.config_time_roll = pref.getInt("t_r", 5000);
     hal.config_video_audio = pref.getBool("video_audio", false);
     setVideoFitConfig(pref.getString("video_fit", "contain"));
     strcpy(hal.config_jpg_mode, pref.getString("jpg_mode", "roll").c_str());
     strcpy(hal.config_jpg_file, pref.getString("jpg_file", "").c_str());
+    hal.pomodoro_focus_min = pref.getUInt("pomo_focus", 25);
+    hal.pomodoro_short_break_min = pref.getUInt("pomo_short", 5);
+    hal.pomodoro_long_break_min = pref.getUInt("pomo_long", 15);
+    hal.pomodoro_long_break_every = pref.getUInt("pomo_every", 4);
+    hal.pomodoro_auto_switch = pref.getBool("pomo_auto", true);
+    hal.pomodoro_tone = pref.getUInt("pomo_tone", 1);
+    strcpy(hal.pomodoro_tone_file, pref.getString("pomo_file", "").c_str());
     i18n::setLanguage(pref.getUInt("lang", 0));
     i18n::setNTPOffset(pref.getInt("ntp", 3600 * 8));
     static lv_disp_draw_buf_t draw_buf;
@@ -1089,6 +1187,7 @@ void HAL::start_webserver()
         cJSON_AddBoolToObject(json, "sysinfo_enable", hal.sysinfo_enable);
         cJSON_AddBoolToObject(json, "gif_enable", hal.gif_enable);
         cJSON_AddBoolToObject(json, "jpg_enable", hal.jpg_enable);
+        cJSON_AddBoolToObject(json, "pomodoro_enable", hal.pomodoro_enable);
         cJSON_AddBoolToObject(json, "wifi_connected", WiFi.status() == WL_CONNECTED);
         cJSON_AddNumberToObject(json, "wifi_saved_count", WiFiMgr.count());
         cJSON_AddNumberToObject(json, "screen_width", screenWidth);
@@ -1105,6 +1204,13 @@ void HAL::start_webserver()
         cJSON_AddNumberToObject(json, "keytone", hal.config_keytone);
         cJSON_AddStringToObject(json, "keytone_file", hal.config_keytone_file);
         cJSON_AddNumberToObject(json, "volume", hal._volume);
+        cJSON_AddNumberToObject(json, "pomodoro_focus_min", hal.pomodoro_focus_min);
+        cJSON_AddNumberToObject(json, "pomodoro_short_break_min", hal.pomodoro_short_break_min);
+        cJSON_AddNumberToObject(json, "pomodoro_long_break_min", hal.pomodoro_long_break_min);
+        cJSON_AddNumberToObject(json, "pomodoro_long_break_every", hal.pomodoro_long_break_every);
+        cJSON_AddBoolToObject(json, "pomodoro_auto_switch", hal.pomodoro_auto_switch);
+        cJSON_AddNumberToObject(json, "pomodoro_tone", hal.pomodoro_tone);
+        cJSON_AddStringToObject(json, "pomodoro_tone_file", hal.pomodoro_tone_file);
 
         writeJsonToBuffer(json, jsonbuffer, sizeof(jsonbuffer));
         cJSON_Delete(json);
@@ -1292,6 +1398,47 @@ void HAL::start_webserver()
         if (server.hasArg("enable")) {
             hal.sysinfo_enable = server.arg("enable").toBool();
             hal.pref.putBool("sysinfo_enable", hal.sysinfo_enable);
+            server.send(200, "text/plain", "OK");
+        } else {
+            server.send(500, "text/plain", "ERR 500");
+        }
+    });
+
+    server.on("/config_app_pomodoro", HTTP_POST, []() {
+        if (server.hasArg("enable")) {
+            hal.pomodoro_enable = server.arg("enable").toBool();
+            hal.pref.putBool("pomodoro_enable", hal.pomodoro_enable);
+
+            if (server.hasArg("focus_min")) {
+                hal.pomodoro_focus_min = constrain(server.arg("focus_min").toInt(), 1, 90);
+                hal.pref.putUInt("pomo_focus", hal.pomodoro_focus_min);
+            }
+            if (server.hasArg("short_break_min")) {
+                hal.pomodoro_short_break_min = constrain(server.arg("short_break_min").toInt(), 1, 30);
+                hal.pref.putUInt("pomo_short", hal.pomodoro_short_break_min);
+            }
+            if (server.hasArg("long_break_min")) {
+                hal.pomodoro_long_break_min = constrain(server.arg("long_break_min").toInt(), 1, 60);
+                hal.pref.putUInt("pomo_long", hal.pomodoro_long_break_min);
+            }
+            if (server.hasArg("long_break_every")) {
+                hal.pomodoro_long_break_every = constrain(server.arg("long_break_every").toInt(), 1, 8);
+                hal.pref.putUInt("pomo_every", hal.pomodoro_long_break_every);
+            }
+            if (server.hasArg("auto_switch")) {
+                hal.pomodoro_auto_switch = server.arg("auto_switch").toBool();
+                hal.pref.putBool("pomo_auto", hal.pomodoro_auto_switch);
+            }
+            if (server.hasArg("tone")) {
+                hal.pomodoro_tone = constrain(server.arg("tone").toInt(), 1, 5);
+                hal.pref.putUInt("pomo_tone", hal.pomodoro_tone);
+            }
+            if (server.hasArg("tone_file")) {
+                strncpy(hal.pomodoro_tone_file, server.arg("tone_file").c_str(), sizeof(hal.pomodoro_tone_file) - 1);
+                hal.pomodoro_tone_file[sizeof(hal.pomodoro_tone_file) - 1] = '\0';
+                hal.pref.putString("pomo_file", hal.pomodoro_tone_file);
+            }
+
             server.send(200, "text/plain", "OK");
         } else {
             server.send(500, "text/plain", "ERR 500");

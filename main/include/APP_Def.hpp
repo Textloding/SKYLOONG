@@ -75,6 +75,18 @@ public:
     void destroy();
 };
 
+class AppPomodoro : public BaseApp
+{
+public:
+    void init()
+    {
+        appid = 7;
+    }
+    void setup();
+    void loop();
+    void destroy();
+};
+
 class AppSettings : public BaseApp
 {
 public:

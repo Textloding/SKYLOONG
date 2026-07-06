@@ -50,6 +50,7 @@ const I = {
   music: icon('<path d="M9 18V6l10-2v11"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="15" r="2.5"/>'),
   location: icon('<path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="2.5"/>'),
   speaker: icon('<path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M19 6a9 9 0 0 1 0 12"/>'),
+  timer: icon('<path d="M9 2h6"/><path d="M12 14l3-3"/><circle cx="12" cy="14" r="8"/><path d="M17.5 7.5 19 6"/>'),
   more: icon('<circle cx="5" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.3" fill="currentColor" stroke="none"/>'),
 };
 
@@ -202,6 +203,7 @@ function normalizeInfo(info = {}) {
     sysinfo_enable: !!info.sysinfo_enable,
     gif_enable: !!info.gif_enable,
     jpg_enable: !!info.jpg_enable,
+    pomodoro_enable: !!info.pomodoro_enable,
     wifi_connected: info.wifi_connected !== false,
     wifi_saved_count: Number(info.wifi_saved_count || 0),
     screen_width: Number(info.screen_width || SCREEN_W),
@@ -216,6 +218,13 @@ function normalizeInfo(info = {}) {
     keytone: Number(info.keytone || 0),
     keytone_file: info.keytone_file || "",
     volume: clamp(Number(info.volume ?? 6), 0, 9),
+    pomodoro_focus_min: clamp(Number(info.pomodoro_focus_min || 25), 1, 90),
+    pomodoro_short_break_min: clamp(Number(info.pomodoro_short_break_min || 5), 1, 30),
+    pomodoro_long_break_min: clamp(Number(info.pomodoro_long_break_min || 15), 1, 60),
+    pomodoro_long_break_every: clamp(Number(info.pomodoro_long_break_every || 4), 1, 8),
+    pomodoro_auto_switch: info.pomodoro_auto_switch !== false,
+    pomodoro_tone: clamp(Number(info.pomodoro_tone || 1), 1, 5),
+    pomodoro_tone_file: info.pomodoro_tone_file || "",
   };
 }
 
@@ -464,6 +473,7 @@ function viewOverview() {
         ${appToggle("aps", "手速监测", info.aps_enable)}
         ${appToggle("weather", "本地天气", info.weather_enable)}
         ${appToggle("sysinfo", "电脑监控", info.sysinfo_enable)}
+        ${appToggle("pomodoro", "番茄钟", info.pomodoro_enable)}
         ${appToggle("gif", "视频/GIF", info.gif_enable)}
         ${appToggle("jpg", "图片相册", info.jpg_enable)}
       </div>
@@ -822,6 +832,46 @@ function viewSystem() {
         </div>
       </section>
       <section class="panel">
+        <div class="panel-head"><span>番茄钟</span><small>独立倒计时</small></div>
+        <div class="field-stack pomodoro-panel">
+          <label class="toggle-row wide-toggle">
+            <span><b>启用番茄钟</b><small>${info.pomodoro_enable ? "会加入 fn+~ 轮换页面" : "关闭后不参与页面轮换"}</small></span>
+            <input type="checkbox" data-pomodoro-enable ${info.pomodoro_enable ? "checked" : ""}>
+            <i></i>
+          </label>
+          <div class="mini-grid">
+            <label class="field"><span>专注分钟</span><input data-pomodoro="focus_min" type="number" min="1" max="90" value="${info.pomodoro_focus_min}"></label>
+            <label class="field"><span>短休息</span><input data-pomodoro="short_break_min" type="number" min="1" max="30" value="${info.pomodoro_short_break_min}"></label>
+            <label class="field"><span>长休息</span><input data-pomodoro="long_break_min" type="number" min="1" max="60" value="${info.pomodoro_long_break_min}"></label>
+            <label class="field"><span>长休息轮次</span><input data-pomodoro="long_break_every" type="number" min="1" max="8" value="${info.pomodoro_long_break_every}"></label>
+          </div>
+          <label class="toggle-row wide-toggle">
+            <span><b>到点切回番茄钟</b><small>响铃时自动显示确认页面</small></span>
+            <input type="checkbox" data-pomodoro-auto-switch ${info.pomodoro_auto_switch ? "checked" : ""}>
+            <i></i>
+          </label>
+          <label class="field">
+            <span>提醒音</span>
+            <select data-pomodoro-tone>
+              <option value="1" ${info.pomodoro_tone === 1 ? "selected" : ""}>清脆铃声</option>
+              <option value="2" ${info.pomodoro_tone === 2 ? "selected" : ""}>柔和木琴</option>
+              <option value="3" ${info.pomodoro_tone === 3 ? "selected" : ""}>轻提示音</option>
+              <option value="4" ${info.pomodoro_tone === 4 ? "selected" : ""}>完成上扬音</option>
+              <option value="5" ${info.pomodoro_tone === 5 ? "selected" : ""}>自定义音频</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>自定义音频</span>
+            <select data-pomodoro-tone-file>
+              <option value="">未选择</option>
+              ${fileLists().tones.map(f => `<option value="${esc(fileName(f.name))}" ${fileName(info.pomodoro_tone_file) === fileName(f.name) ? "selected" : ""}>${esc(fileName(f.name))}</option>`).join("")}
+            </select>
+          </label>
+          <div class="hint-strip">${I.timer}<span>到点后屏幕会显示 00:00 并播放声音，按 <b>fn+~</b> 确认并进入下一段倒计时。</span></div>
+          <button class="btn primary" data-save-pomodoro>保存番茄钟</button>
+        </div>
+      </section>
+      <section class="panel">
         <div class="panel-head"><span>小应用参数</span><small>天气和电脑监控</small></div>
         <div class="field-stack">
           <div class="weather-card">
@@ -974,6 +1024,7 @@ function bindSystem() {
     setVolume(ev.target.value);
   });
   $("[data-video-audio]")?.addEventListener("change", ev => setVideoAudio(ev.target.checked));
+  $("[data-save-pomodoro]")?.addEventListener("click", savePomodoroSettings);
   $$("[data-cfg]").forEach(input => {
     input.addEventListener("input", ev => {
       const key = ev.target.dataset.cfg;
@@ -1008,6 +1059,11 @@ function bindAppToggle(input) {
   input.onchange = () => {
     const appId = input.dataset.appToggle;
     const enabled = input.checked;
+    if (appId === "pomodoro") {
+      state.info.pomodoro_enable = enabled;
+      runAction(`app-${appId}`, () => postForm("/config_app_pomodoro", pomodoroPayload({ enable: enabled })), "应用状态已更新");
+      return;
+    }
     runAction(`app-${appId}`, () => postForm(`/config_app_${appId}`, { enable: String(enabled) }), "应用状态已更新");
   };
 }
@@ -1103,6 +1159,41 @@ async function useTone(name) {
   state.info.keytone = 4;
   state.info.keytone_file = name;
   await runAction("tone", () => postForm("/config_keytone", { keytone: "4", keytone_file: name }), "已选用音效");
+}
+
+function pomodoroPayload(overrides = {}) {
+  const readNumber = (key, fallback) => {
+    const input = $(`[data-pomodoro="${key}"]`);
+    return input ? Number(input.value) : fallback;
+  };
+  const tone = $("[data-pomodoro-tone]");
+  const toneFile = $("[data-pomodoro-tone-file]");
+  const enabledInput = $("[data-pomodoro-enable]");
+  const autoSwitchInput = $("[data-pomodoro-auto-switch]");
+  return {
+    enable: String(overrides.enable ?? enabledInput?.checked ?? state.info.pomodoro_enable),
+    focus_min: String(clamp(readNumber("focus_min", state.info.pomodoro_focus_min), 1, 90)),
+    short_break_min: String(clamp(readNumber("short_break_min", state.info.pomodoro_short_break_min), 1, 30)),
+    long_break_min: String(clamp(readNumber("long_break_min", state.info.pomodoro_long_break_min), 1, 60)),
+    long_break_every: String(clamp(readNumber("long_break_every", state.info.pomodoro_long_break_every), 1, 8)),
+    auto_switch: String(autoSwitchInput?.checked ?? state.info.pomodoro_auto_switch),
+    tone: String(clamp(Number(tone?.value || state.info.pomodoro_tone), 1, 5)),
+    tone_file: fileName(toneFile?.value || state.info.pomodoro_tone_file || ""),
+  };
+}
+
+async function savePomodoroSettings() {
+  const payload = pomodoroPayload();
+  const saved = await runAction("pomodoro", () => postForm("/config_app_pomodoro", payload), "番茄钟已保存");
+  if (!saved) return;
+  state.info.pomodoro_enable = payload.enable === "true";
+  state.info.pomodoro_focus_min = Number(payload.focus_min);
+  state.info.pomodoro_short_break_min = Number(payload.short_break_min);
+  state.info.pomodoro_long_break_min = Number(payload.long_break_min);
+  state.info.pomodoro_long_break_every = Number(payload.long_break_every);
+  state.info.pomodoro_auto_switch = payload.auto_switch === "true";
+  state.info.pomodoro_tone = Number(payload.tone);
+  state.info.pomodoro_tone_file = payload.tone_file;
 }
 
 function playTone(name) {

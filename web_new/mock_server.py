@@ -17,6 +17,9 @@ STATE = {
     "time_roll": 5000, "jpg_mode": "roll", "jpg_file": "",
     "timezone": 8, "language": 0, "keytone": 1, "keytone_file": "",
     "volume": 6, "video_fit": "contain", "video_audio": False,
+    "pomodoro_enable": False, "pomodoro_focus_min": 25, "pomodoro_short_break_min": 5,
+    "pomodoro_long_break_min": 15, "pomodoro_long_break_every": 4,
+    "pomodoro_auto_switch": True, "pomodoro_tone": 1, "pomodoro_tone_file": "",
 }
 APP_SETTINGS = {"ip": "192.168.1.1", "port": 1648,
                 "weather": "SoC098cCa8Ih-GWTb", "city": "北京",
@@ -131,6 +134,16 @@ class Handler(BaseHTTPRequestHandler):
             STATE["jpg_mode"] = args.get("jpg_mode", "roll")
             STATE["jpg_file"] = args.get("jpg_file", "")
             STATE["time_roll"] = int(args.get("time_roll", 5000)); return self._send()
+        if path == "/config_app_pomodoro":
+            STATE["pomodoro_enable"] = args.get("enable") == "true"
+            STATE["pomodoro_focus_min"] = max(1, min(90, int(args.get("focus_min", STATE["pomodoro_focus_min"]))))
+            STATE["pomodoro_short_break_min"] = max(1, min(30, int(args.get("short_break_min", STATE["pomodoro_short_break_min"]))))
+            STATE["pomodoro_long_break_min"] = max(1, min(60, int(args.get("long_break_min", STATE["pomodoro_long_break_min"]))))
+            STATE["pomodoro_long_break_every"] = max(1, min(8, int(args.get("long_break_every", STATE["pomodoro_long_break_every"]))))
+            STATE["pomodoro_auto_switch"] = args.get("auto_switch", str(STATE["pomodoro_auto_switch"]).lower()) == "true"
+            STATE["pomodoro_tone"] = max(1, min(5, int(args.get("tone", STATE["pomodoro_tone"]))))
+            STATE["pomodoro_tone_file"] = args.get("tone_file", STATE["pomodoro_tone_file"])
+            return self._send()
         if path == "/config.json":
             incoming = json.loads(body.decode("utf-8"))
             if not incoming.get("weather"):

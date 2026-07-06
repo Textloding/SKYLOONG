@@ -26,6 +26,7 @@ public:
     BaseApp *appJPG = NULL;
     BaseApp *appWeather = NULL;
     BaseApp *appSysinfo = NULL;
+    BaseApp *appPomodoro = NULL;
     BaseApp *appSettings = NULL;
     BaseApp *appQRCode = NULL;
     BaseApp *getAppByName(const uint32_t appid);
@@ -65,6 +66,11 @@ public:
                         break;   
                     }
                 case 6:
+                    if (hal.pomodoro_enable) {
+                        nextApp = appPomodoro;
+                        break;
+                    }
+                case 7:
                     nextApp = appQRCode;
                     break;
                 case 50:

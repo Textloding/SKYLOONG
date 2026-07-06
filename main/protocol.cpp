@@ -181,7 +181,10 @@ void parasePkt(protocol_t *pkt)
             }
             else
             {
-                xSemaphoreGive(appManagerLite._binary_switchApp);
+                if (hal.pomodoroWaitingForConfirm())
+                    hal.send_sysctl(EVENT_POMODORO_CONFIRM);
+                else
+                    xSemaphoreGive(appManagerLite._binary_switchApp);
             }
             break;
         case 0xAF: // 开关屏幕（这个无论是开还是关都是一种数据，右下+左上短按）
