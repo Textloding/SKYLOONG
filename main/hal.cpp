@@ -865,6 +865,24 @@ const char default_app_setting[] = "{\"ip\":\"192.168.1.1\",\"port\":1648,\"weat
 
 struct app_setting app_settings_save;
 
+static bool writeJsonToBuffer(cJSON *json, char *result, size_t result_size)
+{
+    if (json == NULL || result == NULL || result_size == 0)
+        return false;
+
+    char *printed = cJSON_PrintUnformatted(json);
+    if (printed == NULL)
+    {
+        result[0] = '\0';
+        return false;
+    }
+
+    strncpy(result, printed, result_size - 1);
+    result[result_size - 1] = '\0';
+    cJSON_free(printed);
+    return true;
+}
+
 static void copySettingString(char *dst, size_t dst_size, const char *value)
 {
     if (dst == NULL || dst_size == 0 || value == NULL)
@@ -920,17 +938,7 @@ void appSettingsToJson(char *result)
     cJSON_AddBoolToObject(item, "weather_configured", strlen(app_settings_save.weather_secret) > 0);
     cJSON_AddStringToObject(item, "city", app_settings_save.weather_city);
     cJSON_AddStringToObject(item, "userdata", app_settings_save.userdata);
-    char *printed = cJSON_PrintUnformatted(item);
-    if (printed != NULL)
-    {
-        strncpy(result, printed, 1023);
-        result[1023] = '\0';
-        cJSON_free(printed);
-    }
-    else
-    {
-        result[0] = '\0';
-    }
+    writeJsonToBuffer(item, result, 1024);
     cJSON_Delete(item);
 }
 
@@ -1098,7 +1106,7 @@ void HAL::start_webserver()
         cJSON_AddStringToObject(json, "keytone_file", hal.config_keytone_file);
         cJSON_AddNumberToObject(json, "volume", hal._volume);
 
-        strncpy(jsonbuffer, cJSON_PrintUnformatted(json), 1024);
+        writeJsonToBuffer(json, jsonbuffer, sizeof(jsonbuffer));
         cJSON_Delete(json);
         server.send(200, "application/json", jsonbuffer);
     });
@@ -1122,7 +1130,7 @@ void HAL::start_webserver()
             }
         }
 
-        strncpy(jsonbuffer, cJSON_PrintUnformatted(json), 1024);
+        writeJsonToBuffer(json, jsonbuffer, sizeof(jsonbuffer));
         cJSON_Delete(json);
         server.send(200, "application/json", jsonbuffer);
     });
