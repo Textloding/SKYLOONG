@@ -108,6 +108,7 @@ public:
     bool pomodoro_auto_switch = true;
     uint8_t pomodoro_tone = 1;
     char pomodoro_tone_file[32];
+    uint8_t pomodoro_theme = 0;
     bool time_sync = true;
     SemaphoreHandle_t _mutex;
     void init();
@@ -133,6 +134,7 @@ public:
     void loadAppSettings();
     void start_webserver();
     TaskHandle_t webserver_task;
+    volatile uint32_t webserver_last_alive_ms = 0;
     void stop_webserver();
     void forceExitSettings();
     QueueHandle_t _queue;

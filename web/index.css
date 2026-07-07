@@ -587,6 +587,7 @@ p {
 .fit-choice button,
 .tone-choice button,
 .fit-cards button,
+.pomodoro-theme-card,
 .theme-card,
 .network-row,
 .link-btn {
@@ -852,11 +853,88 @@ p {
   text-align: right;
 }
 
+.pomodoro-theme-panel,
 .pomodoro-tone-panel,
 .pomodoro-custom-tone,
 .tone-library-mini {
   display: grid;
   gap: 12px;
+}
+
+.pomodoro-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pomodoro-theme-card {
+  min-height: 96px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto 1fr;
+  gap: 10px;
+  text-align: left;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255,255,255,.045);
+  padding: 12px;
+}
+
+.pomodoro-theme-card.active {
+  border-color: rgba(125, 211, 252, .62);
+  background: linear-gradient(135deg, rgba(125, 211, 252, .14), rgba(110, 231, 183, .08));
+}
+
+.pomodoro-theme-card > span:last-of-type {
+  grid-column: 1 / -1;
+}
+
+.pomodoro-theme-card b,
+.pomodoro-theme-card small {
+  display: block;
+}
+
+.pomodoro-theme-card small {
+  margin-top: 4px;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.theme-swatches {
+  display: flex;
+  gap: 5px;
+}
+
+.theme-swatches i {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.22);
+}
+
+.pomodoro-theme-card em {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: #031018;
+  font-style: normal;
+  opacity: 0;
+}
+
+.pomodoro-theme-card.active em {
+  opacity: 1;
+}
+
+.pomodoro-actions {
+  justify-content: stretch;
+}
+
+.pomodoro-actions .btn {
+  flex: 1 1 0;
 }
 
 .pomodoro-tone-grid {
@@ -1562,6 +1640,7 @@ p {
   .app-switches,
   .mini-grid,
   .fit-cards,
+  .pomodoro-theme-grid,
   .theme-grid {
     grid-template-columns: 1fr;
   }
@@ -1577,6 +1656,7 @@ p {
   .screen-caption .btn,
   .top-actions .btn,
   .network-form .btn,
+  .pomodoro-actions .btn,
   .weather-card-head .btn {
     width: 100%;
   }

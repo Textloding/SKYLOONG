@@ -12,6 +12,22 @@ void task_lvgl_update(void *p)
     }
 }
 
+void task_webserver_autostart(void *p)
+{
+    vTaskDelay(pdMS_TO_TICKS(8000));
+    if (hal.server_started || WiFiMgr.count() == 0)
+    {
+        vTaskDelete(NULL);
+        return;
+    }
+
+    if (WiFiMgr.autoConnectSaved(6000))
+    {
+        hal.start_webserver();
+    }
+    vTaskDelete(NULL);
+}
+
 void debug_USB_UART(void *p)
 {
     bool in_setting_mode = false;
@@ -143,6 +159,7 @@ extern "C" void app_main()
     pomodoro_init();
     xTaskCreatePinnedToCore(task_lvgl_update, "lvgl_update", 1024 * 6, NULL, 2, NULL, 1);
     xTaskCreatePinnedToCore(debug_USB_UART, "debug_USB_UART", 1024 * 4, NULL, 6, NULL, 1);
+    xTaskCreatePinnedToCore(task_webserver_autostart, "web_autostart", 4096, NULL, 1, NULL, 0);
     if (WiFiMgr.count() > 0) {
         appManagerLite.init(last_appid);
     } else {

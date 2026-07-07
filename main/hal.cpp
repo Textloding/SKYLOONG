@@ -15,6 +15,7 @@ I2SClass i2s;
 
 es8311_handle_t es_handle = es8311_create(I2C_NUM_0, ES8311_ADDRRES_0);
 static char *TAG = "audio_init";
+extern void pomodoro_reset_current();
 
 #include <TFT_eSPI.h>
 TFT_eSPI tft = TFT_eSPI(); 
@@ -452,6 +453,7 @@ void HAL::init()
     hal.pomodoro_auto_switch = pref.getBool("pomo_auto", true);
     hal.pomodoro_tone = pref.getUInt("pomo_tone", 1);
     strcpy(hal.pomodoro_tone_file, pref.getString("pomo_file", "").c_str());
+    hal.pomodoro_theme = pref.getUInt("pomo_theme", 0);
     i18n::setLanguage(pref.getUInt("lang", 0));
     i18n::setNTPOffset(pref.getInt("ntp", 3600 * 8));
     static lv_disp_draw_buf_t draw_buf;
@@ -1143,13 +1145,17 @@ void HAL::start_webserver()
 {
     if (webserver_task != NULL)
         return;
-    hal.server_started = true;
 
     if (WiFi.getMode() == WIFI_OFF || (WiFi.getMode() == WIFI_STA && WiFi.isConnected() == false))
     {
         WiFi.mode(WIFI_AP);
         WiFi.softAP("SKYLOONG 4.0 Screen");
     }
+    else if (WiFi.getMode() == WIFI_STA)
+    {
+        WiFi.setAutoReconnect(true);
+    }
+    WiFi.setSleep(false);
 
     MDNS.begin("SKYLOONG 4.0 Screen");
     server.enableCORS(true);
@@ -1204,6 +1210,9 @@ void HAL::start_webserver()
         cJSON_AddNumberToObject(json, "keytone", hal.config_keytone);
         cJSON_AddStringToObject(json, "keytone_file", hal.config_keytone_file);
         cJSON_AddNumberToObject(json, "volume", hal._volume);
+        cJSON_AddNumberToObject(json, "heap_free", ESP.getFreeHeap());
+        cJSON_AddNumberToObject(json, "webserver_uptime_ms", hal.webserver_last_alive_ms);
+        cJSON_AddNumberToObject(json, "webserver_stack_free", hal.webserver_task != NULL ? uxTaskGetStackHighWaterMark(hal.webserver_task) : 0);
         cJSON_AddNumberToObject(json, "pomodoro_focus_min", hal.pomodoro_focus_min);
         cJSON_AddNumberToObject(json, "pomodoro_short_break_min", hal.pomodoro_short_break_min);
         cJSON_AddNumberToObject(json, "pomodoro_long_break_min", hal.pomodoro_long_break_min);
@@ -1211,7 +1220,23 @@ void HAL::start_webserver()
         cJSON_AddBoolToObject(json, "pomodoro_auto_switch", hal.pomodoro_auto_switch);
         cJSON_AddNumberToObject(json, "pomodoro_tone", hal.pomodoro_tone);
         cJSON_AddStringToObject(json, "pomodoro_tone_file", hal.pomodoro_tone_file);
+        cJSON_AddNumberToObject(json, "pomodoro_theme", hal.pomodoro_theme);
 
+        writeJsonToBuffer(json, jsonbuffer, sizeof(jsonbuffer));
+        cJSON_Delete(json);
+        server.send(200, "application/json", jsonbuffer);
+    });
+
+    server.on("/health", HTTP_GET, []() {
+        cJSON *json = cJSON_CreateObject();
+        cJSON_AddBoolToObject(json, "ok", hal.server_started);
+        cJSON_AddStringToObject(json, "mode", WiFi.getMode() == WIFI_AP ? "AP" : "STA");
+        cJSON_AddStringToObject(json, "ip", WiFi.getMode() == WIFI_AP ? WiFi.softAPIP().toString().c_str() : WiFi.localIP().toString().c_str());
+        cJSON_AddBoolToObject(json, "wifi_connected", WiFi.status() == WL_CONNECTED);
+        cJSON_AddNumberToObject(json, "heap_free", ESP.getFreeHeap());
+        cJSON_AddNumberToObject(json, "uptime_ms", millis());
+        cJSON_AddNumberToObject(json, "webserver_alive_ms", hal.webserver_last_alive_ms);
+        cJSON_AddNumberToObject(json, "webserver_stack_free", hal.webserver_task != NULL ? uxTaskGetStackHighWaterMark(hal.webserver_task) : 0);
         writeJsonToBuffer(json, jsonbuffer, sizeof(jsonbuffer));
         cJSON_Delete(json);
         server.send(200, "application/json", jsonbuffer);
@@ -1438,11 +1463,20 @@ void HAL::start_webserver()
                 hal.pomodoro_tone_file[sizeof(hal.pomodoro_tone_file) - 1] = '\0';
                 hal.pref.putString("pomo_file", hal.pomodoro_tone_file);
             }
+            if (server.hasArg("theme")) {
+                hal.pomodoro_theme = constrain(server.arg("theme").toInt(), 0, 2);
+                hal.pref.putUInt("pomo_theme", hal.pomodoro_theme);
+            }
 
             server.send(200, "text/plain", "OK");
         } else {
             server.send(500, "text/plain", "ERR 500");
         }
+    });
+
+    server.on("/reset_pomodoro_timer", HTTP_POST, []() {
+        pomodoro_reset_current();
+        server.send(200, "text/plain", "OK");
     });
 
     server.on("/preview_pomodoro_tone", HTTP_POST, []() {
@@ -1636,19 +1670,36 @@ void HAL::start_webserver()
         server.send_P(200, "application/javascript", (const char *)__web_assets_worker_224792ee_js_gz, sizeof(__web_assets_worker_224792ee_js_gz));
     });
 
-    server.begin();
-    ESP_LOGI("SERVER", "HTTP server started");
-    GUI::toast(_tr(I18N_ID_SERVER_STARTED));
-    xTaskCreatePinnedToCore([](void *p)
+    BaseType_t webserver_task_status = xTaskCreatePinnedToCore([](void *p)
     {
         while (1)
         {
             if(hal.server_started) {
+                hal.webserver_last_alive_ms = millis();
+                if (WiFi.getMode() == WIFI_STA && WiFi.status() != WL_CONNECTED) {
+                    WiFi.reconnect();
+                    vTaskDelay(pdMS_TO_TICKS(1000));
+                    continue;
+                }
                 server.handleClient();
             }
             vTaskDelay(5);
         }
     }, "webserver", 4096, NULL, 3, &webserver_task, 1);
+
+    if (webserver_task_status != pdPASS)
+    {
+        ESP_LOGE("SERVER", "HTTP server task create failed, heap=%" PRIu32, esp_get_free_internal_heap_size());
+        webserver_task = NULL;
+        hal.server_started = false;
+        return;
+    }
+
+    hal.server_started = true;
+    hal.webserver_last_alive_ms = millis();
+    server.begin();
+    ESP_LOGI("SERVER", "HTTP server started");
+    GUI::toast(_tr(I18N_ID_SERVER_STARTED));
 }
 
 void HAL::stop_webserver()
@@ -1661,6 +1712,7 @@ void HAL::stop_webserver()
         WiFi.mode(WIFI_OFF);
     }
     hal.server_started = false;
+    hal.webserver_last_alive_ms = 0;
     delay(50);
     vTaskDelete(webserver_task);
     webserver_task = NULL;

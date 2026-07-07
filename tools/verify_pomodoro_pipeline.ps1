@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 
 function Read-RepoFile([string]$relativePath) {
-    Get-Content -Raw -Path (Join-Path $repoRoot $relativePath)
+    Get-Content -Raw -Encoding UTF8 -Path (Join-Path $repoRoot $relativePath)
 }
 
 function Assert-Contains([string]$source, [string]$pattern, [string]$message) {
@@ -22,6 +22,9 @@ $halCpp = Read-RepoFile "main\hal.cpp"
 $pomodoroCpp = Read-RepoFile "main\apps\Pomodoro.cpp"
 $web = Read-RepoFile "web_new\index.js"
 $mock = Read-RepoFile "web_new\mock_server.py"
+$pomodoroFocusText = [regex]::Escape(([char]0x4E13).ToString() + ([char]0x6CE8).ToString() + ([char]0x4E2D).ToString())
+$pomodoroTimeUpText = [regex]::Escape(([char]0x65F6).ToString() + ([char]0x95F4).ToString() + ([char]0x5230).ToString())
+$pomodoroConfirmText = [regex]::Escape(([char]0x6309).ToString() + " fn+~")
 
 Assert-Contains $appHeader 'class\s+AppPomodoro\s*:\s*public\s+BaseApp' "AppPomodoro class must be declared."
 Assert-Contains $appHeader 'appid\s*=\s*7' "AppPomodoro must use appid 7."
@@ -40,15 +43,27 @@ Assert-Contains $halCpp 'config_app_pomodoro' "Web server must provide /config_a
 Assert-Contains $halCpp 'pomodoro_enable' "/info must expose pomodoro_enable."
 Assert-Contains $halCpp 'pomodoro_focus_min' "/info must expose Pomodoro durations."
 Assert-Contains $halCpp 'pomodoro_tone' "/info must expose Pomodoro tone choice."
+Assert-Contains $halCpp 'pomodoro_theme' "/info must expose Pomodoro theme choice."
 Assert-Contains $halCpp 'preview_pomodoro_tone' "Web server must provide a Pomodoro tone preview endpoint."
+Assert-Contains $halCpp 'reset_pomodoro_timer' "Web server must provide a Pomodoro current-timer reset endpoint."
+Assert-Contains $pomodoroCpp 'pomodoro_reset_current' "Pomodoro must expose a current phase reset function."
+Assert-Contains $pomodoroCpp $pomodoroFocusText "Pomodoro screen must use Chinese phase text."
+Assert-Contains $pomodoroCpp $pomodoroTimeUpText "Pomodoro screen must use Chinese timeout text."
+Assert-Contains $pomodoroCpp $pomodoroConfirmText "Pomodoro screen must explain the fn+~ confirmation in Chinese."
 Assert-Contains $web 'appToggle\("pomodoro"' "Web overview must include a Pomodoro app toggle."
 Assert-Contains $web 'fn\+~' "Web UI must tell users to press fn+~ to confirm the next Pomodoro."
 Assert-Contains $web 'config_app_pomodoro' "Web UI must save Pomodoro settings."
 Assert-Contains $web 'pomodoro-tone-grid' "Web UI must present Pomodoro tones as selectable cards instead of a bare select."
 Assert-Contains $web 'data-play-pomodoro-tone' "Web UI must let users preview Pomodoro tones."
 Assert-Contains $web 'data-upload-pomodoro-tone' "Web UI must let users upload a custom Pomodoro tone from the Pomodoro panel."
+Assert-Contains $web 'pomodoroThemeOptions' "Web UI must present built-in Pomodoro themes."
+Assert-Contains $web 'data-pomodoro-theme' "Web UI must let users choose a Pomodoro theme."
+Assert-Contains $web 'data-reset-pomodoro' "Web UI must let desktop users reset the current Pomodoro countdown."
+Assert-Contains $web 'reset_pomodoro_timer' "Web UI must call the Pomodoro reset endpoint."
 Assert-Contains $mock 'pomodoro_enable' "Mock server must include Pomodoro state."
+Assert-Contains $mock 'pomodoro_theme' "Mock server must include Pomodoro theme state."
 Assert-Contains $mock 'config_app_pomodoro' "Mock server must handle Pomodoro settings."
 Assert-Contains $mock 'preview_pomodoro_tone' "Mock server must handle Pomodoro tone preview requests."
+Assert-Contains $mock 'reset_pomodoro_timer' "Mock server must handle Pomodoro reset requests."
 
 Write-Host "Pomodoro pipeline source checks passed."

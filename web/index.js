@@ -76,6 +76,11 @@ const pomodoroToneOptions = [
   { id: 4, name: "完成上扬音", desc: "更像任务完成反馈" },
   { id: 5, name: "自定义音频", desc: "上传 MP3/WAV 后使用" },
 ];
+const pomodoroThemeOptions = [
+  { id: 0, name: "番茄红", desc: "暖色高对比，适合专注提醒", colors: ["#ff6b7a", "#33191d", "#ffc857"] },
+  { id: 1, name: "深海蓝", desc: "冷静低干扰，适合长时间使用", colors: ["#41d3bd", "#0d2233", "#7dd3fc"] },
+  { id: 2, name: "森林绿", desc: "柔和护眼，休息段更放松", colors: ["#7ee787", "#13291d", "#b8d8bd"] },
+];
 
 const state = {
   route: "overview",
@@ -233,6 +238,7 @@ function normalizeInfo(info = {}) {
     pomodoro_auto_switch: info.pomodoro_auto_switch !== false,
     pomodoro_tone: clamp(Number(info.pomodoro_tone || 1), 1, 5),
     pomodoro_tone_file: info.pomodoro_tone_file || "",
+    pomodoro_theme: clamp(Number(info.pomodoro_theme || 0), 0, 2),
   };
 }
 
@@ -677,6 +683,17 @@ function pomodoroToneRow(file) {
   `;
 }
 
+function pomodoroThemeCard(option) {
+  const selected = state.info.pomodoro_theme === option.id;
+  return `
+    <button class="pomodoro-theme-card ${selected ? "active" : ""}" data-pomodoro-theme="${option.id}">
+      <span class="theme-swatches">${option.colors.map(color => `<i style="background:${color}"></i>`).join("")}</span>
+      <span><b>${esc(option.name)}</b><small>${esc(option.desc)}</small></span>
+      <em>${selected ? I.check : ""}</em>
+    </button>
+  `;
+}
+
 function fileRow(file, iconSvg) {
   const name = fileName(file.name);
   return `
@@ -909,6 +926,12 @@ function viewSystem() {
             <input type="checkbox" data-pomodoro-auto-switch ${info.pomodoro_auto_switch ? "checked" : ""}>
             <i></i>
           </label>
+          <div class="pomodoro-theme-panel">
+            <div class="subhead"><span>倒计时主题</span><small>只影响屏幕番茄钟页面</small></div>
+            <div class="pomodoro-theme-grid">
+              ${pomodoroThemeOptions.map(pomodoroThemeCard).join("")}
+            </div>
+          </div>
           <div class="pomodoro-tone-panel">
             <div class="subhead"><span>提醒音</span><small>内置音由屏幕试听，自定义音频可在网页内试听</small></div>
             <div class="pomodoro-tone-grid">
@@ -924,7 +947,10 @@ function viewSystem() {
             </div>
           </div>
           <div class="hint-strip">${I.timer}<span>到点后屏幕会显示 00:00 并播放声音，按 <b>fn+~</b> 确认并进入下一段倒计时。</span></div>
-          <button class="btn primary" data-save-pomodoro>保存番茄钟</button>
+          <div class="button-row pomodoro-actions">
+            <button class="btn primary" data-save-pomodoro>保存番茄钟</button>
+            <button class="btn subtle" data-reset-pomodoro>${I.refresh}<span>重置当前倒计时</span></button>
+          </div>
         </div>
       </section>
       <section class="panel">
@@ -1108,12 +1134,14 @@ function bindSystem() {
     state.info.pomodoro_auto_switch = ev.target.checked;
     markInfoDirty("pomodoro_auto_switch");
   });
+  $$("[data-pomodoro-theme]").forEach(btn => btn.onclick = () => setPomodoroTheme(Number(btn.dataset.pomodoroTheme)));
   $$("[data-select-pomodoro-tone]").forEach(btn => btn.onclick = () => setPomodoroTone(Number(btn.dataset.selectPomodoroTone)));
   $$("[data-play-pomodoro-tone]").forEach(btn => btn.onclick = () => previewPomodoroTone(Number(btn.dataset.playPomodoroTone)));
   $$("[data-use-pomodoro-tone]").forEach(btn => btn.onclick = () => usePomodoroTone(btn.dataset.usePomodoroTone));
   $$("[data-play-tone]").forEach(btn => btn.onclick = () => playTone(btn.dataset.playTone));
   $$("[data-delete]").forEach(btn => btn.onclick = () => confirmDelete(btn.dataset.delete));
   $("[data-save-pomodoro]")?.addEventListener("click", () => savePomodoroSettings());
+  $("[data-reset-pomodoro]")?.addEventListener("click", resetPomodoroTimer);
   $$("[data-cfg]").forEach(input => {
     input.addEventListener("input", ev => {
       const key = ev.target.dataset.cfg;
@@ -1264,6 +1292,12 @@ function setPomodoroTone(value) {
   render();
 }
 
+function setPomodoroTheme(value) {
+  state.info.pomodoro_theme = clamp(Number(value || 0), 0, 2);
+  markInfoDirty("pomodoro_theme");
+  render();
+}
+
 async function usePomodoroTone(name) {
   state.info.pomodoro_tone = 5;
   state.info.pomodoro_tone_file = fileName(name);
@@ -1302,6 +1336,7 @@ function pomodoroPayload(overrides = {}) {
     auto_switch: String(autoSwitchInput?.checked ?? state.info.pomodoro_auto_switch),
     tone: String(clamp(Number(overrides.tone ?? state.info.pomodoro_tone), 1, 5)),
     tone_file: fileName(overrides.tone_file ?? state.info.pomodoro_tone_file ?? ""),
+    theme: String(clamp(Number(overrides.theme ?? state.info.pomodoro_theme), 0, 2)),
   };
 }
 
@@ -1317,6 +1352,7 @@ async function savePomodoroSettings(okMessage = "番茄钟已保存") {
   state.info.pomodoro_auto_switch = payload.auto_switch === "true";
   state.info.pomodoro_tone = Number(payload.tone);
   state.info.pomodoro_tone_file = payload.tone_file;
+  state.info.pomodoro_theme = Number(payload.theme);
   clearInfoDirty(
     "pomodoro_enable",
     "pomodoro_focus_min",
@@ -1326,7 +1362,18 @@ async function savePomodoroSettings(okMessage = "番茄钟已保存") {
     "pomodoro_auto_switch",
     "pomodoro_tone",
     "pomodoro_tone_file",
+    "pomodoro_theme",
   );
+}
+
+async function resetPomodoroTimer() {
+  const ok = await confirmDialog({
+    title: "重置当前倒计时",
+    body: "屏幕会把当前这一段番茄钟重新从满时间开始，不会修改你的番茄钟设置。",
+    ok: "重置",
+  });
+  if (!ok) return;
+  await runAction("pomodoro-reset", () => postForm("/reset_pomodoro_timer"), "当前倒计时已重置");
 }
 
 function playTone(name) {
