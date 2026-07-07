@@ -27,6 +27,7 @@ public:
     BaseApp *appWeather = NULL;
     BaseApp *appSysinfo = NULL;
     BaseApp *appPomodoro = NULL;
+    BaseApp *appPet = NULL;
     BaseApp *appSettings = NULL;
     BaseApp *appQRCode = NULL;
     BaseApp *getAppByName(const uint32_t appid);
@@ -71,7 +72,12 @@ public:
                         break;
                     }
                 case 7:
-                    nextApp = appQRCode;
+                    if (hal.pet_enable) {
+                        nextApp = appPet;
+                        break;
+                    }
+                case 8:
+                    nextApp = appHome;
                     break;
                 case 50:
                 case 100:
@@ -80,6 +86,8 @@ public:
             }
         }
 
+        if (nextApp == NULL)
+            nextApp = appHome;
         switchApp(nextApp);
     }
     void switchSetting()

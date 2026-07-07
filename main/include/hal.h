@@ -79,6 +79,7 @@ public:
     bool qrcode_mode = false;               // 当前是否进入了二维码模式
     bool lv_has_kb = false;                 // 是否当前显示了键盘控件，用于选择发送key的类型
     bool server_started = false;            // 是否已经启动了网页服务器
+    bool webserver_should_run = true;
     bool gif_update = false;
     bool jpg_update = false;
     bool weather_update = false;
@@ -95,6 +96,12 @@ public:
     bool weather_enable = true;
     bool sysinfo_enable = true;
     bool pomodoro_enable = false;
+    bool pet_enable = true;
+    bool pet_bark_sound = true;
+    uint8_t pet_theme = 0;
+    uint8_t pet_reactivity = 2;
+    char pet_name[48];
+    volatile uint32_t pet_keypress_seq = 0;
     uint32_t config_time_roll = 5000;
     bool lang_refresh = false;
     bool config_video_audio = false;
@@ -135,6 +142,7 @@ public:
     void start_webserver();
     TaskHandle_t webserver_task;
     volatile uint32_t webserver_last_alive_ms = 0;
+    void recover_webserver();
     void stop_webserver();
     void forceExitSettings();
     QueueHandle_t _queue;

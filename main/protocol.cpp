@@ -232,6 +232,7 @@ void parasePkt(protocol_t *pkt)
     {
         if  ((millis() - last_keypress_millis) > 20) {
             last_keypress_millis = millis();
+            hal.pet_keypress_seq++;
             if (hal.keytone_play) {
                 hal.audio_stop();
                 for (int i = 0; i < 100; i++) {
@@ -242,7 +243,7 @@ void parasePkt(protocol_t *pkt)
                 }
             }
             if (!hal.keytone_play) {
-                hal.send_sysctl(EVENT_KB_KEYPRESS);
+                hal.send_sysctl(EVENT_KB_KEYPRESS, 1);
             }
         }
         break;

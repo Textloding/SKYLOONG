@@ -91,7 +91,7 @@ const char *i18n_dict[][2] = {
     {"音量调节", "Volume"},
     {"按键音", "Keytone"},
     {"修改按键音", "Change keytone"},
-    {"关闭\n按键音1\n按键音2\n按键音3\n自定义按键音", "Off\nKeytone1\nKeytone2\nKeytone3\nCustom Keytone"},
+    {"关闭\n按键音1\n按键音2\n按键音3\n自定义按键音\n弹跳三连\n篮球律动\n趣味上扬", "Off\nKeytone1\nKeytone2\nKeytone3\nCustom Keytone\nBounce Triple\nBasketball Rhythm\nFun Rise"},
 };
 
 static time_t offset = 3600 * 8;

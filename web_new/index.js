@@ -81,6 +81,13 @@ const pomodoroThemeOptions = [
   { id: 1, name: "深海蓝", desc: "冷静低干扰，适合长时间使用", colors: ["#41d3bd", "#0d2233", "#7dd3fc"] },
   { id: 2, name: "森林绿", desc: "柔和护眼，休息段更放松", colors: ["#7ee787", "#13291d", "#b8d8bd"] },
 ];
+const petThemeOptions = [
+  { id: 0, name: "清透蓝", desc: "像素狗原色，清爽高对比舞台", colors: ["#38bdf8", "#07111f", "#0f172a", "#facc15"] },
+  { id: 1, name: "薄荷绿", desc: "柔和护眼，适合长时间挂屏", colors: ["#2dd4bf", "#061b18", "#10231f", "#86efac"] },
+  { id: 2, name: "蜜桃粉", desc: "更可爱，打字反馈更醒目", colors: ["#fb7185", "#201016", "#2a1720", "#fde047"] },
+  { id: 3, name: "星云紫", desc: "偏游戏风，夜间氛围更强", colors: ["#a78bfa", "#100b1d", "#171228", "#22d3ee"] },
+];
+const PET_SPRITE_URL = "/dog_medium.png?v=modern-20260707j";
 
 const state = {
   route: "overview",
@@ -217,6 +224,11 @@ function normalizeInfo(info = {}) {
     gif_enable: !!info.gif_enable,
     jpg_enable: !!info.jpg_enable,
     pomodoro_enable: !!info.pomodoro_enable,
+    pet_enable: info.pet_enable !== false,
+    pet_bark_sound: info.pet_bark_sound !== false,
+    pet_name: info.pet_name || "键盘宠物",
+    pet_theme: clamp(Number(info.pet_theme || 0), 0, 3),
+    pet_reactivity: clamp(Number(info.pet_reactivity || 2), 1, 3),
     wifi_connected: info.wifi_connected !== false,
     wifi_saved_count: Number(info.wifi_saved_count || 0),
     screen_width: Number(info.screen_width || SCREEN_W),
@@ -501,6 +513,18 @@ function viewOverview() {
       ${metricCard("已存 Wi-Fi", String(info.wifi_saved_count || 0), info.wifi_connected ? "自动联网已启用" : "当前未联网", info.wifi_connected ? "good" : "warn")}
     </div>
 
+    <section class="panel pet-overview-panel">
+      <div>
+        <div class="panel-head"><span>键盘宠物</span><small>${info.pet_enable ? "会加入 fn+~ 轮换" : "当前未加入轮换"}</small></div>
+        ${petPreview(info)}
+      </div>
+      <div class="pet-overview-copy">
+        <b>它是一只会看你打字节奏的开源像素狗</b>
+        <small>素材来自 CC0 开源 sprite。打字越快越兴奋，会从摇尾、行走、奔跑切到汪汪提示，自定义项保存后会同步到屏幕端。</small>
+        <button class="btn primary" data-route="system">${I.system}<span>自定义宠物</span></button>
+      </div>
+    </section>
+
     <section class="panel">
       <div class="panel-head"><span>小应用</span><small>直接开关屏幕功能</small></div>
       <div class="app-switches">
@@ -508,6 +532,7 @@ function viewOverview() {
         ${appToggle("weather", "本地天气", info.weather_enable)}
         ${appToggle("sysinfo", "电脑监控", info.sysinfo_enable)}
         ${appToggle("pomodoro", "番茄钟", info.pomodoro_enable)}
+        ${appToggle("pet", "键盘宠物", info.pet_enable)}
         ${appToggle("gif", "视频/GIF", info.gif_enable)}
         ${appToggle("jpg", "图片相册", info.jpg_enable)}
       </div>
@@ -526,6 +551,52 @@ function appToggle(appId, label, checked) {
       <input type="checkbox" data-app-toggle="${appId}" ${checked ? "checked" : ""} ${busy(`app-${appId}`) ? "disabled" : ""}>
       <i></i>
     </label>
+  `;
+}
+
+function petTheme(id = 0) {
+  return petThemeOptions.find(t => t.id === Number(id)) || petThemeOptions[0];
+}
+
+function petPreviewStyle(info = state.info || {}) {
+  const theme = petTheme(info.pet_theme);
+  return `--pet-accent:${theme.colors[0]};--pet-bg:${theme.colors[1]};--pet-ground:${theme.colors[2]};--pet-spark:${theme.colors[3]};`;
+}
+
+function petMoodLabel(info = state.info || {}) {
+  const value = clamp(Number(info.pet_reactivity || 2), 1, 3);
+  if (value === 1) return "安静";
+  if (value === 3) return "活泼";
+  return "平衡";
+}
+
+function petPreview(info = state.info || {}) {
+  const name = info.pet_name || "键盘宠物";
+  return `
+    <div class="pet-preview" data-pet-preview-live style="${petPreviewStyle(info)}">
+      <div class="pet-screen-mini">
+        <span class="pet-star s1"></span><span class="pet-star s2"></span><span class="pet-star s3"></span>
+        <span class="pet-sprite" style="background-image:url('${PET_SPRITE_URL}')" aria-hidden="true"></span>
+        <span class="pet-source-badge">CC0</span>
+        <div class="pet-key-row"><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+      <div class="pet-preview-meta">
+        <b data-pet-preview-name>${esc(name)}</b>
+        <small><span data-pet-preview-theme>${esc(petTheme(info.pet_theme).name)}</span> · <span data-pet-preview-reactivity>${petMoodLabel(info)}</span></small>
+      </div>
+    </div>
+  `;
+}
+
+function petThemeCard(option) {
+  const selected = state.info.pet_theme === option.id;
+  return `
+    <button class="pet-theme-card ${selected ? "active" : ""}" data-pet-theme="${option.id}">
+      <span class="theme-swatches">${option.colors.map(color => `<i style="background:${color}"></i>`).join("")}</span>
+      <b>${esc(option.name)}</b>
+      <small>${esc(option.desc)}</small>
+      <em>${selected ? I.check : ""}</em>
+    </button>
   `;
 }
 
@@ -621,6 +692,10 @@ function mediaTones() {
           ${toneButton(0, "关闭")}
           ${toneButton(1, "内置 1")}
           ${toneButton(2, "内置 2")}
+          ${toneButton(3, "内置 3")}
+          ${toneButton(5, "弹跳三连")}
+          ${toneButton(6, "篮球律动")}
+          ${toneButton(7, "趣味上扬")}
           ${toneButton(4, "自定义")}
         </div>
         ${dropzone("tone", "选择或拖入音频", "上传后可设为自定义按键音", "audio/mpeg,audio/wav,.mp3,.wav")}
@@ -950,12 +1025,38 @@ function viewSystem() {
           <div class="button-row pomodoro-actions">
             <button class="btn primary" data-save-pomodoro>保存番茄钟</button>
             <button class="btn subtle" data-reset-pomodoro>${I.refresh}<span>重置当前倒计时</span></button>
+            <button class="btn subtle" data-reset-pomodoro-rounds>${I.timer}<span>重置轮次</span></button>
           </div>
         </div>
       </section>
       <section class="panel">
-        <div class="panel-head"><span>小应用参数</span><small>天气和电脑监控</small></div>
+        <div class="panel-head"><span>小应用参数</span><small>天气、宠物和电脑监控</small></div>
         <div class="field-stack">
+          <label class="toggle-row wide-toggle">
+            <span><b>启用键盘宠物</b><small>${info.pet_enable ? "会加入 fn+~ 轮换页面，随打字节奏变化表情" : "关闭后不参与页面轮换"}</small></span>
+            <input type="checkbox" data-app-toggle="pet" ${info.pet_enable ? "checked" : ""}>
+            <i></i>
+          </label>
+          <div class="pet-settings-card">
+            ${petPreview(info)}
+            <div class="mini-grid">
+              <label class="field"><span>宠物名字</span><input data-pet-name maxlength="12" value="${esc(info.pet_name)}" placeholder="键盘宠物"></label>
+              <label class="field range-field">
+                <span>互动灵敏度 <b class="range-value" data-pet-reactivity-value>${petMoodLabel(info)}</b></span>
+                <input data-pet-reactivity type="range" min="1" max="3" step="1" value="${info.pet_reactivity}">
+                <small>越高越容易兴奋，适合想要更强反馈的玩家。</small>
+              </label>
+            </div>
+            <label class="toggle-row pet-sound-toggle">
+              <span><b>汪汪音效</b><small>${info.pet_bark_sound ? "宠物兴奋汪汪叫时会播放内置短音效" : "只显示动画，不播放宠物叫声"}</small></span>
+              <input type="checkbox" data-pet-bark-sound ${info.pet_bark_sound ? "checked" : ""}>
+              <i></i>
+            </label>
+            <div class="pet-theme-grid">
+              ${petThemeOptions.map(petThemeCard).join("")}
+            </div>
+            <button class="btn primary" data-save-pet>保存宠物设置</button>
+          </div>
           <div class="weather-card">
             <div class="weather-card-head">
               <div><span>天气城市</span><b>${esc(cfg.city || "未设置")}</b></div>
@@ -1111,7 +1212,26 @@ function bindSystem() {
     setVolume(ev.target.value);
   });
   $("[data-video-audio]")?.addEventListener("change", ev => setVideoAudio(ev.target.checked));
+  $$("[data-app-toggle]").forEach(bindAppToggle);
   bindDropzones();
+  $("[data-pet-name]")?.addEventListener("input", ev => {
+    state.info.pet_name = ev.target.value.trim() || "键盘宠物";
+    markInfoDirty("pet_name");
+    updatePetPreview();
+  });
+  $("[data-pet-reactivity]")?.addEventListener("input", ev => {
+    state.info.pet_reactivity = clamp(Number(ev.target.value || 2), 1, 3);
+    markInfoDirty("pet_reactivity");
+    const value = $("[data-pet-reactivity-value]");
+    if (value) value.textContent = petMoodLabel(state.info);
+    updatePetPreview();
+  });
+  $("[data-pet-bark-sound]")?.addEventListener("change", ev => {
+    state.info.pet_bark_sound = ev.target.checked;
+    markInfoDirty("pet_bark_sound");
+  });
+  $$("[data-pet-theme]").forEach(btn => btn.onclick = () => setPetTheme(Number(btn.dataset.petTheme)));
+  $("[data-save-pet]")?.addEventListener("click", () => savePetSettings());
   $("[data-pomodoro-enable]")?.addEventListener("change", ev => {
     state.info.pomodoro_enable = ev.target.checked;
     markInfoDirty("pomodoro_enable");
@@ -1142,6 +1262,7 @@ function bindSystem() {
   $$("[data-delete]").forEach(btn => btn.onclick = () => confirmDelete(btn.dataset.delete));
   $("[data-save-pomodoro]")?.addEventListener("click", () => savePomodoroSettings());
   $("[data-reset-pomodoro]")?.addEventListener("click", resetPomodoroTimer);
+  $("[data-reset-pomodoro-rounds]")?.addEventListener("click", resetPomodoroRounds);
   $$("[data-cfg]").forEach(input => {
     input.addEventListener("input", ev => {
       const key = ev.target.dataset.cfg;
@@ -1182,6 +1303,24 @@ function bindAppToggle(input) {
     runAction(`app-${appId}`, () => postForm("/config_app_pomodoro", pomodoroPayload({ enable: enabled })), "应用状态已更新")
       .then(saved => {
         clearInfoDirty("pomodoro_enable");
+        if (!saved) refreshAll(true).then(render);
+    });
+    return;
+  }
+  if (appId === "pet") {
+    state.info.pet_enable = enabled;
+    markInfoDirty("pet_enable");
+    const payload = petPayload({ enable: enabled });
+    runAction(`app-${appId}`, () => postForm("/config_app_pet", payload), "应用状态已更新")
+      .then(saved => {
+        if (saved) {
+          state.info.pet_enable = payload.enable === "true";
+          state.info.pet_name = payload.name;
+          state.info.pet_theme = Number(payload.theme);
+          state.info.pet_reactivity = Number(payload.reactivity);
+          state.info.pet_bark_sound = payload.bark_sound === "true";
+          clearInfoDirty("pet_enable", "pet_name", "pet_theme", "pet_reactivity", "pet_bark_sound");
+        }
         if (!saved) refreshAll(true).then(render);
       });
     return;
@@ -1320,6 +1459,48 @@ async function previewPomodoroTone(value) {
   }
 }
 
+function updatePetPreview() {
+  const preview = $("[data-pet-preview-live]");
+  if (preview) preview.setAttribute("style", petPreviewStyle(state.info));
+  const name = $("[data-pet-preview-name]");
+  if (name) name.textContent = state.info.pet_name || "键盘宠物";
+  const theme = $("[data-pet-preview-theme]");
+  if (theme) theme.textContent = petTheme(state.info.pet_theme).name;
+  const reactivity = $("[data-pet-preview-reactivity]");
+  if (reactivity) reactivity.textContent = petMoodLabel(state.info);
+}
+
+function setPetTheme(value) {
+  state.info.pet_theme = clamp(Number(value || 0), 0, 3);
+  markInfoDirty("pet_theme");
+  render();
+}
+
+function petPayload(overrides = {}) {
+  const nameInput = $("[data-pet-name]");
+  const reactivityInput = $("[data-pet-reactivity]");
+  const barkSoundInput = $("[data-pet-bark-sound]");
+  return {
+    enable: String(overrides.enable ?? state.info.pet_enable),
+    name: String(overrides.name ?? nameInput?.value?.trim() ?? state.info.pet_name ?? "键盘宠物").slice(0, 12) || "键盘宠物",
+    theme: String(clamp(Number(overrides.theme ?? state.info.pet_theme), 0, 3)),
+    reactivity: String(clamp(Number(overrides.reactivity ?? reactivityInput?.value ?? state.info.pet_reactivity), 1, 3)),
+    bark_sound: String(overrides.bark_sound ?? barkSoundInput?.checked ?? state.info.pet_bark_sound),
+  };
+}
+
+async function savePetSettings(okMessage = "宠物设置已保存") {
+  const payload = petPayload();
+  const saved = await runAction("pet-settings", () => postForm("/config_app_pet", payload), okMessage);
+  if (!saved) return;
+  state.info.pet_enable = payload.enable === "true";
+  state.info.pet_name = payload.name;
+  state.info.pet_theme = Number(payload.theme);
+  state.info.pet_reactivity = Number(payload.reactivity);
+  state.info.pet_bark_sound = payload.bark_sound === "true";
+  clearInfoDirty("pet_enable", "pet_name", "pet_theme", "pet_reactivity", "pet_bark_sound");
+}
+
 function pomodoroPayload(overrides = {}) {
   const readNumber = (key, fallback) => {
     const input = $(`[data-pomodoro="${key}"]`);
@@ -1374,6 +1555,16 @@ async function resetPomodoroTimer() {
   });
   if (!ok) return;
   await runAction("pomodoro-reset", () => postForm("/reset_pomodoro_timer"), "当前倒计时已重置");
+}
+
+async function resetPomodoroRounds() {
+  const ok = await confirmDialog({
+    title: "重置番茄钟轮次？",
+    body: "屏幕会回到第 1 轮专注并从完整专注时间重新开始，当前提醒音也会停止。",
+    ok: "重置轮次",
+  });
+  if (!ok) return;
+  await runAction("pomodoro-reset-rounds", () => postForm("/reset_pomodoro_rounds"), "番茄钟轮次已重置");
 }
 
 function playTone(name) {

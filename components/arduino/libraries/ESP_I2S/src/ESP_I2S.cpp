@@ -842,6 +842,10 @@ size_t I2SClass::write(uint8_t *buffer, size_t size) {
   return written;
 }
 
+size_t I2SClass::write(const uint8_t *buffer, size_t size) {
+  return write((uint8_t *)buffer, size);
+}
+
 i2s_chan_handle_t I2SClass::txChan() {
   return tx_chan;
 }
@@ -989,14 +993,14 @@ uint8_t *I2SClass::recordWAV(size_t rec_seconds, size_t *out_size) {
   return NULL;
 }
 
-void I2SClass::playWAV(uint8_t *data, size_t len) {
-  pcm_wav_header_t *header = (pcm_wav_header_t *)data;
+void I2SClass::playWAV(const uint8_t *data, size_t len) {
+  const pcm_wav_header_t *header = (const pcm_wav_header_t *)data;
   if (header->fmt_chunk.audio_format != 1) {
     log_e("Audio format is not PCM!");
     return;
   }
   _stop = false;
-  wav_data_chunk_t *data_chunk = &header->data_chunk;
+  const wav_data_chunk_t *data_chunk = &header->data_chunk;
   size_t data_offset = 0;
   while (memcmp(data_chunk->subchunk_id, "data", 4) != 0) {
     log_d(
@@ -1004,7 +1008,7 @@ void I2SClass::playWAV(uint8_t *data, size_t len) {
       data_chunk->subchunk_size + 8
     );
     data_offset += data_chunk->subchunk_size + 8;
-    data_chunk = (wav_data_chunk_t *)(data + WAVE_HEADER_SIZE + data_offset - 8);
+    data_chunk = (const wav_data_chunk_t *)(data + WAVE_HEADER_SIZE + data_offset - 8);
   }
   log_d(
     "Play WAV: rate:%lu, bits:%d, channels:%d, size:%lu", header->fmt_chunk.sample_rate, header->fmt_chunk.bits_per_sample, header->fmt_chunk.num_of_channels,
