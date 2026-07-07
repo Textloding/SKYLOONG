@@ -597,7 +597,7 @@ p {
   width: clamp(112px, 68%, 150px);
   height: clamp(71px, 43%, 95px);
   aspect-ratio: 60 / 38;
-  background-image: url("/dog_medium.png?v=modern-20260707i");
+  background-image: url("/dog_medium.png?v=modern-20260707j");
   background-repeat: no-repeat;
   background-size: 600% 600%;
   background-position: 0 100%;
@@ -685,6 +685,14 @@ p {
   border-radius: 18px;
   background: rgba(255,255,255,.045);
   padding: 14px;
+}
+
+.pet-sound-toggle {
+  margin: 2px 0 0;
+  border-color: color-mix(in srgb, var(--pet-accent, var(--accent)) 26%, rgba(255,255,255,.12));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--pet-accent, var(--accent)) 12%, transparent), transparent 54%),
+    rgba(255,255,255,.045);
 }
 
 .pet-theme-grid {

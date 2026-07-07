@@ -87,7 +87,7 @@ const petThemeOptions = [
   { id: 2, name: "蜜桃粉", desc: "更可爱，打字反馈更醒目", colors: ["#fb7185", "#201016", "#2a1720", "#fde047"] },
   { id: 3, name: "星云紫", desc: "偏游戏风，夜间氛围更强", colors: ["#a78bfa", "#100b1d", "#171228", "#22d3ee"] },
 ];
-const PET_SPRITE_URL = "/dog_medium.png?v=modern-20260707i";
+const PET_SPRITE_URL = "/dog_medium.png?v=modern-20260707j";
 
 const state = {
   route: "overview",
@@ -225,6 +225,7 @@ function normalizeInfo(info = {}) {
     jpg_enable: !!info.jpg_enable,
     pomodoro_enable: !!info.pomodoro_enable,
     pet_enable: info.pet_enable !== false,
+    pet_bark_sound: info.pet_bark_sound !== false,
     pet_name: info.pet_name || "键盘宠物",
     pet_theme: clamp(Number(info.pet_theme || 0), 0, 3),
     pet_reactivity: clamp(Number(info.pet_reactivity || 2), 1, 3),
@@ -1046,6 +1047,11 @@ function viewSystem() {
                 <small>越高越容易兴奋，适合想要更强反馈的玩家。</small>
               </label>
             </div>
+            <label class="toggle-row pet-sound-toggle">
+              <span><b>汪汪音效</b><small>${info.pet_bark_sound ? "宠物兴奋汪汪叫时会播放内置短音效" : "只显示动画，不播放宠物叫声"}</small></span>
+              <input type="checkbox" data-pet-bark-sound ${info.pet_bark_sound ? "checked" : ""}>
+              <i></i>
+            </label>
             <div class="pet-theme-grid">
               ${petThemeOptions.map(petThemeCard).join("")}
             </div>
@@ -1220,6 +1226,10 @@ function bindSystem() {
     if (value) value.textContent = petMoodLabel(state.info);
     updatePetPreview();
   });
+  $("[data-pet-bark-sound]")?.addEventListener("change", ev => {
+    state.info.pet_bark_sound = ev.target.checked;
+    markInfoDirty("pet_bark_sound");
+  });
   $$("[data-pet-theme]").forEach(btn => btn.onclick = () => setPetTheme(Number(btn.dataset.petTheme)));
   $("[data-save-pet]")?.addEventListener("click", () => savePetSettings());
   $("[data-pomodoro-enable]")?.addEventListener("change", ev => {
@@ -1293,6 +1303,24 @@ function bindAppToggle(input) {
     runAction(`app-${appId}`, () => postForm("/config_app_pomodoro", pomodoroPayload({ enable: enabled })), "应用状态已更新")
       .then(saved => {
         clearInfoDirty("pomodoro_enable");
+        if (!saved) refreshAll(true).then(render);
+    });
+    return;
+  }
+  if (appId === "pet") {
+    state.info.pet_enable = enabled;
+    markInfoDirty("pet_enable");
+    const payload = petPayload({ enable: enabled });
+    runAction(`app-${appId}`, () => postForm("/config_app_pet", payload), "应用状态已更新")
+      .then(saved => {
+        if (saved) {
+          state.info.pet_enable = payload.enable === "true";
+          state.info.pet_name = payload.name;
+          state.info.pet_theme = Number(payload.theme);
+          state.info.pet_reactivity = Number(payload.reactivity);
+          state.info.pet_bark_sound = payload.bark_sound === "true";
+          clearInfoDirty("pet_enable", "pet_name", "pet_theme", "pet_reactivity", "pet_bark_sound");
+        }
         if (!saved) refreshAll(true).then(render);
       });
     return;
@@ -1451,11 +1479,13 @@ function setPetTheme(value) {
 function petPayload(overrides = {}) {
   const nameInput = $("[data-pet-name]");
   const reactivityInput = $("[data-pet-reactivity]");
+  const barkSoundInput = $("[data-pet-bark-sound]");
   return {
     enable: String(overrides.enable ?? state.info.pet_enable),
     name: String(overrides.name ?? nameInput?.value?.trim() ?? state.info.pet_name ?? "键盘宠物").slice(0, 12) || "键盘宠物",
     theme: String(clamp(Number(overrides.theme ?? state.info.pet_theme), 0, 3)),
     reactivity: String(clamp(Number(overrides.reactivity ?? reactivityInput?.value ?? state.info.pet_reactivity), 1, 3)),
+    bark_sound: String(overrides.bark_sound ?? barkSoundInput?.checked ?? state.info.pet_bark_sound),
   };
 }
 
@@ -1467,7 +1497,8 @@ async function savePetSettings(okMessage = "宠物设置已保存") {
   state.info.pet_name = payload.name;
   state.info.pet_theme = Number(payload.theme);
   state.info.pet_reactivity = Number(payload.reactivity);
-  clearInfoDirty("pet_enable", "pet_name", "pet_theme", "pet_reactivity");
+  state.info.pet_bark_sound = payload.bark_sound === "true";
+  clearInfoDirty("pet_enable", "pet_name", "pet_theme", "pet_reactivity", "pet_bark_sound");
 }
 
 function pomodoroPayload(overrides = {}) {

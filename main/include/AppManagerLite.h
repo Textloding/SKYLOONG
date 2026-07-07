@@ -77,7 +77,7 @@ public:
                         break;
                     }
                 case 8:
-                    nextApp = appQRCode;
+                    nextApp = appHome;
                     break;
                 case 50:
                 case 100:
@@ -86,6 +86,8 @@ public:
             }
         }
 
+        if (nextApp == NULL)
+            nextApp = appHome;
         switchApp(nextApp);
     }
     void switchSetting()

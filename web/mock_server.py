@@ -15,7 +15,7 @@ STATE = {
     "theme": 0, "aps_enable": True, "weather_enable": True,
     "sysinfo_enable": False, "gif_enable": True, "jpg_enable": True,
     "pet_enable": True,
-    "pet_name": "键盘宠物", "pet_theme": 0, "pet_reactivity": 2,
+    "pet_name": "键盘宠物", "pet_theme": 0, "pet_reactivity": 2, "pet_bark_sound": True,
     "time_roll": 5000, "jpg_mode": "roll", "jpg_file": "",
     "timezone": 8, "language": 0, "keytone": 1, "keytone_file": "",
     "volume": 6, "video_fit": "contain", "video_audio": False,
@@ -136,6 +136,7 @@ class Handler(BaseHTTPRequestHandler):
                     STATE["pet_name"] = (args.get("name") or STATE["pet_name"] or "键盘宠物")[:12]
                     STATE["pet_theme"] = max(0, min(3, int(args.get("theme", STATE["pet_theme"]))))
                     STATE["pet_reactivity"] = max(1, min(3, int(args.get("reactivity", STATE["pet_reactivity"]))))
+                    STATE["pet_bark_sound"] = args.get("bark_sound", str(STATE["pet_bark_sound"]).lower()) == "true"
                 return self._send()
         if path == "/config_app_jpg":
             STATE["jpg_enable"] = args.get("enable") == "true"

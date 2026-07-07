@@ -1,5 +1,6 @@
 #include "A_Config.h"
 
+#include "esp_heap_caps.h"
 #include "Wire.h"
 #include "es8311.h"
 #include "ESP_I2S.h"
@@ -192,7 +193,8 @@ static void task_systemctl(void *p)
             hal.APMChanged = true;
             break;
         case EVENT_KB_KEYPRESS:
-            hal.pet_keypress_seq++;
+            if (event.data == 0)
+                hal.pet_keypress_seq++;
             if (hal.config_keytone == 1) {
                 hal.keytone_play =  true;
                 i2s.playWAV(__keytone_keytone1_wav, __keytone_keytone1_wav_len);
@@ -459,6 +461,7 @@ void HAL::init()
     hal.jpg_enable = pref.getBool("jpg_enable", true);
     hal.pomodoro_enable = pref.getBool("pomodoro_enable", false);
     hal.pet_enable = pref.getBool("pet_enable", true);
+    hal.pet_bark_sound = pref.getBool("pet_bark_sound", true);
     uint32_t stored_pet_theme = pref.getUInt("pet_theme", 0);
     uint32_t stored_pet_reactivity = pref.getUInt("pet_reactivity", 2);
     hal.pet_theme = (uint8_t)(stored_pet_theme > 3 ? 3 : stored_pet_theme);
@@ -714,10 +717,13 @@ void HAL::send_sysctl(system_event_type_t type, uint8_t data)
 
 #include <WebServer.h>
 #include <ESPmDNS.h>
+#include <errno.h>
+#include <lwip/sockets.h>
 
 #define FILESYSTEM LittleFS
 DNSServer dnsServer;
 WebServer server(80);
+static bool webserver_routes_registered = false;
 // holds the current upload
 File fsUploadFile;
 #include <list>
@@ -805,6 +811,60 @@ bool handleFileRead(String path)
         return true;
     }
     return false;
+}
+
+static void sendGzippedAsset(const char *contentType, const uint8_t *content, size_t contentLength)
+{
+    server.sendHeader("Content-Encoding", "gzip", true);
+    server.sendHeader("Cache-Control", "public, max-age=31536000, immutable");
+    server.setContentLength(contentLength);
+    server.send(200, contentType, "");
+
+    NetworkClient &client = server.client();
+    const int socketFd = client.fd();
+    if (socketFd < 0)
+        return;
+
+    const size_t chunkSize = 512;
+    const uint32_t idleTimeoutMs = 1200;
+    uint32_t lastProgressMs = millis();
+    size_t offset = 0;
+    while (offset < contentLength && client.connected())
+    {
+        const size_t remaining = contentLength - offset;
+        const size_t len = (remaining > chunkSize) ? chunkSize : remaining;
+        int written = ::send(socketFd, content + offset, len, MSG_DONTWAIT);
+        if (written > 0)
+        {
+            offset += (size_t)written;
+            lastProgressMs = millis();
+            vTaskDelay(pdMS_TO_TICKS(1));
+            continue;
+        }
+
+        if (written < 0 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)
+        {
+            ESP_LOGW("SERVER", "asset send aborted errno=%d sent=%u/%u", errno, (unsigned int)offset, (unsigned int)contentLength);
+            client.stop();
+            return;
+        }
+
+        if (millis() - lastProgressMs > idleTimeoutMs)
+        {
+            ESP_LOGW("SERVER", "asset send timeout sent=%u/%u", (unsigned int)offset, (unsigned int)contentLength);
+            client.stop();
+            return;
+        }
+
+        fd_set writeSet;
+        FD_ZERO(&writeSet);
+        FD_SET(socketFd, &writeSet);
+        struct timeval timeout;
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 20000;
+        select(socketFd + 1, NULL, &writeSet, NULL, &timeout);
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
 }
 
 void handleFileUpload()
@@ -1011,6 +1071,15 @@ static bool writeJsonToBuffer(cJSON *json, char *result, size_t result_size)
     return true;
 }
 
+static void addHeapDiagnostics(cJSON *json)
+{
+    cJSON_AddNumberToObject(json, "heap_free", ESP.getFreeHeap());
+    cJSON_AddNumberToObject(json, "heap_internal_free", heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+    cJSON_AddNumberToObject(json, "heap_largest_internal", heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+    cJSON_AddNumberToObject(json, "heap_spiram_free", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+    cJSON_AddNumberToObject(json, "heap_largest_spiram", heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
+}
+
 static void copySettingString(char *dst, size_t dst_size, const char *value)
 {
     if (dst == NULL || dst_size == 0 || value == NULL)
@@ -1172,6 +1241,7 @@ void handleJson()
 
 void HAL::start_webserver()
 {
+    webserver_should_run = true;
     if (webserver_task != NULL)
         return;
 
@@ -1203,6 +1273,7 @@ void HAL::start_webserver()
         });
     }
 
+    if (!webserver_routes_registered) {
     server.on("/info", HTTP_GET, []() {
         cJSON *json = cJSON_CreateObject();
 
@@ -1224,6 +1295,7 @@ void HAL::start_webserver()
         cJSON_AddBoolToObject(json, "jpg_enable", hal.jpg_enable);
         cJSON_AddBoolToObject(json, "pomodoro_enable", hal.pomodoro_enable);
         cJSON_AddBoolToObject(json, "pet_enable", hal.pet_enable);
+        cJSON_AddBoolToObject(json, "pet_bark_sound", hal.pet_bark_sound);
         cJSON_AddNumberToObject(json, "pet_theme", hal.pet_theme);
         cJSON_AddNumberToObject(json, "pet_reactivity", hal.pet_reactivity);
         cJSON_AddStringToObject(json, "pet_name", hal.pet_name);
@@ -1266,10 +1338,12 @@ void HAL::start_webserver()
         cJSON_AddStringToObject(json, "mode", WiFi.getMode() == WIFI_AP ? "AP" : "STA");
         cJSON_AddStringToObject(json, "ip", WiFi.getMode() == WIFI_AP ? WiFi.softAPIP().toString().c_str() : WiFi.localIP().toString().c_str());
         cJSON_AddBoolToObject(json, "wifi_connected", WiFi.status() == WL_CONNECTED);
-        cJSON_AddNumberToObject(json, "heap_free", ESP.getFreeHeap());
+        addHeapDiagnostics(json);
         cJSON_AddNumberToObject(json, "uptime_ms", millis());
         cJSON_AddNumberToObject(json, "webserver_alive_ms", hal.webserver_last_alive_ms);
         cJSON_AddNumberToObject(json, "webserver_stack_free", hal.webserver_task != NULL ? uxTaskGetStackHighWaterMark(hal.webserver_task) : 0);
+        cJSON_AddNumberToObject(json, "current_app", appManagerLite.currentApp != NULL ? appManagerLite.currentApp->appid : 0);
+        cJSON_AddNumberToObject(json, "pet_keypress_seq", hal.pet_keypress_seq);
         writeJsonToBuffer(json, jsonbuffer, sizeof(jsonbuffer));
         cJSON_Delete(json);
         server.send(200, "application/json", jsonbuffer);
@@ -1463,10 +1537,14 @@ void HAL::start_webserver()
     });
 
     server.on("/config_app_pet", HTTP_POST, []() {
-        if (server.hasArg("enable") || server.hasArg("theme") || server.hasArg("reactivity") || server.hasArg("name")) {
+        if (server.hasArg("enable") || server.hasArg("theme") || server.hasArg("reactivity") || server.hasArg("name") || server.hasArg("bark_sound")) {
             if (server.hasArg("enable")) {
                 hal.pet_enable = server.arg("enable").toBool();
                 hal.pref.putBool("pet_enable", hal.pet_enable);
+            }
+            if (server.hasArg("bark_sound")) {
+                hal.pet_bark_sound = server.arg("bark_sound").toBool();
+                hal.pref.putBool("pet_bark_sound", hal.pet_bark_sound);
             }
             if (server.hasArg("theme")) {
                 hal.pet_theme = constrain(server.arg("theme").toInt(), 0, 3);
@@ -1596,16 +1674,13 @@ void HAL::start_webserver()
         server.send_P(200, "text/html", (const char *)__web_index_html_gz, sizeof(__web_index_html_gz)); 
     });
     server.on("/index.js", HTTP_GET, []() {
-        server.sendHeader("Content-Encoding", "gzip", true);
-        server.send_P(200, "application/javascript", (const char *)__web_index_js_gz, sizeof(__web_index_js_gz));
+        sendGzippedAsset("application/javascript", __web_index_js_gz, sizeof(__web_index_js_gz));
     });
     server.on("/ffmpeg.js", HTTP_GET, []() {
-        server.sendHeader("Content-Encoding", "gzip", true);
-        server.send_P(200, "application/javascript", (const char *)__web_ffmpeg_js_gz, sizeof(__web_ffmpeg_js_gz));
+        sendGzippedAsset("application/javascript", __web_ffmpeg_js_gz, sizeof(__web_ffmpeg_js_gz));
     });
     server.on("/index.css", HTTP_GET, []() {
-        server.sendHeader("Content-Encoding", "gzip", true);
-        server.send_P(200, "text/css", (const char *)__web_index_css_gz, sizeof(__web_index_css_gz));
+        sendGzippedAsset("text/css", __web_index_css_gz, sizeof(__web_index_css_gz));
     });
 
     server.on("/menu.jpg", HTTP_GET, []() {
@@ -1733,13 +1808,14 @@ void HAL::start_webserver()
         server.send_P(200, "image/png", (const char *)__web_weather_png_gz, sizeof(__web_weather_png_gz));
     });
     server.on("/dog_medium.png", HTTP_GET, []() {
-        server.sendHeader("Content-Encoding", "gzip", true);
-        server.send_P(200, "image/png", (const char *)__web_dog_medium_png_gz, sizeof(__web_dog_medium_png_gz));
+        sendGzippedAsset("image/png", __web_dog_medium_png_gz, sizeof(__web_dog_medium_png_gz));
     });
     server.on("/assets/worker-224792ee.js", HTTP_GET, []() {
         server.sendHeader("Content-Encoding", "gzip", true);
         server.send_P(200, "application/javascript", (const char *)__web_assets_worker_224792ee_js_gz, sizeof(__web_assets_worker_224792ee_js_gz));
     });
+    webserver_routes_registered = true;
+    }
 
     BaseType_t webserver_task_status = xTaskCreatePinnedToCore([](void *p)
     {
@@ -1773,8 +1849,26 @@ void HAL::start_webserver()
     GUI::toast(_tr(I18N_ID_SERVER_STARTED));
 }
 
+void HAL::recover_webserver()
+{
+    bool should_run = webserver_should_run;
+    ESP_LOGW("SERVER", "Recovering HTTP server, heap=%" PRIu32, esp_get_free_internal_heap_size());
+    server.stop();
+    if (webserver_task != NULL)
+    {
+        vTaskDelete(webserver_task);
+        webserver_task = NULL;
+    }
+    server_started = false;
+    webserver_last_alive_ms = 0;
+    webserver_should_run = should_run;
+    if (webserver_should_run)
+        start_webserver();
+}
+
 void HAL::stop_webserver()
 {
+    webserver_should_run = false;
     if (webserver_task == NULL)
         return;
     server.stop();

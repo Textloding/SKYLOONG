@@ -9,23 +9,21 @@ Add-Type -AssemblyName System.Drawing
 $bmp = [System.Drawing.Bitmap]::FromFile($source)
 $frameWidth = 60
 $frameHeight = 38
+$frameScale = 2
+$outputFrameWidth = $frameWidth * $frameScale
+$outputFrameHeight = $frameHeight * $frameScale
 
 $frames = @(
     @{ Name = "pet_dog_bark_0"; Row = 0; Col = 0 }, @{ Name = "pet_dog_bark_1"; Row = 0; Col = 1 },
-    @{ Name = "pet_dog_bark_2"; Row = 0; Col = 2 }, @{ Name = "pet_dog_bark_3"; Row = 0; Col = 3 },
-    @{ Name = "pet_dog_bark_4"; Row = 0; Col = 4 }, @{ Name = "pet_dog_bark_5"; Row = 0; Col = 5 },
+    @{ Name = "pet_dog_bark_2"; Row = 0; Col = 3 }, @{ Name = "pet_dog_bark_3"; Row = 0; Col = 5 },
     @{ Name = "pet_dog_walk_0"; Row = 1; Col = 0 }, @{ Name = "pet_dog_walk_1"; Row = 1; Col = 1 },
-    @{ Name = "pet_dog_walk_2"; Row = 1; Col = 2 }, @{ Name = "pet_dog_walk_3"; Row = 1; Col = 3 },
-    @{ Name = "pet_dog_walk_4"; Row = 1; Col = 4 }, @{ Name = "pet_dog_walk_5"; Row = 1; Col = 5 },
+    @{ Name = "pet_dog_walk_2"; Row = 1; Col = 3 }, @{ Name = "pet_dog_walk_3"; Row = 1; Col = 5 },
     @{ Name = "pet_dog_run_0"; Row = 2; Col = 0 }, @{ Name = "pet_dog_run_1"; Row = 2; Col = 1 },
-    @{ Name = "pet_dog_run_2"; Row = 2; Col = 2 }, @{ Name = "pet_dog_run_3"; Row = 2; Col = 3 },
-    @{ Name = "pet_dog_run_4"; Row = 2; Col = 4 }, @{ Name = "pet_dog_run_5"; Row = 2; Col = 5 },
+    @{ Name = "pet_dog_run_2"; Row = 2; Col = 3 }, @{ Name = "pet_dog_run_3"; Row = 2; Col = 5 },
     @{ Name = "pet_dog_sit_0"; Row = 4; Col = 0 }, @{ Name = "pet_dog_sit_1"; Row = 4; Col = 1 },
-    @{ Name = "pet_dog_sit_2"; Row = 4; Col = 2 }, @{ Name = "pet_dog_sit_3"; Row = 4; Col = 3 },
-    @{ Name = "pet_dog_sit_4"; Row = 4; Col = 4 }, @{ Name = "pet_dog_sit_5"; Row = 4; Col = 5 },
+    @{ Name = "pet_dog_sit_2"; Row = 4; Col = 3 }, @{ Name = "pet_dog_sit_3"; Row = 4; Col = 5 },
     @{ Name = "pet_dog_idle_0"; Row = 5; Col = 0 }, @{ Name = "pet_dog_idle_1"; Row = 5; Col = 1 },
-    @{ Name = "pet_dog_idle_2"; Row = 5; Col = 2 }, @{ Name = "pet_dog_idle_3"; Row = 5; Col = 3 },
-    @{ Name = "pet_dog_idle_4"; Row = 5; Col = 4 }, @{ Name = "pet_dog_idle_5"; Row = 5; Col = 5 }
+    @{ Name = "pet_dog_idle_2"; Row = 5; Col = 3 }, @{ Name = "pet_dog_idle_3"; Row = 5; Col = 5 }
 )
 
 function Get-Rgb565([System.Drawing.Color]$color) {
@@ -38,11 +36,13 @@ function Get-Rgb565([System.Drawing.Color]$color) {
 function Write-FrameData([System.IO.StreamWriter]$writer, [hashtable]$frame, [bool]$swap) {
     $items = New-Object System.Collections.Generic.List[string]
 
-    for ($y = 0; $y -lt $frameHeight; $y++) {
+    for ($y = 0; $y -lt $outputFrameHeight; $y++) {
         $items.Clear()
+        $srcY = [Math]::Floor($y / $frameScale)
 
-        for ($x = 0; $x -lt $frameWidth; $x++) {
-            $color = $bmp.GetPixel($frame.Col * $frameWidth + $x, $frame.Row * $frameHeight + $y)
+        for ($x = 0; $x -lt $outputFrameWidth; $x++) {
+            $srcX = [Math]::Floor($x / $frameScale)
+            $color = $bmp.GetPixel($frame.Col * $frameWidth + $srcX, $frame.Row * $frameHeight + $srcY)
             $rgb565 = Get-Rgb565 $color
             $hi = ($rgb565 -shr 8) -band 0xff
             $lo = $rgb565 -band 0xff
@@ -93,7 +93,8 @@ try {
     $writer.WriteLine(" * Generated from assets/pet/dog_medium.png.")
     $writer.WriteLine(" * Source: https://opengameart.org/content/dog-3")
     $writer.WriteLine(" * Author: rmazanek, License: CC0.")
-    $writer.WriteLine(" * Frame size: 60 x 38 px, 6 columns x 6 rows.")
+    $writer.WriteLine(" * Source frame size: 60 x 38 px, 6 columns x 6 rows.")
+    $writer.WriteLine(" * Firmware frame size: $outputFrameWidth x $outputFrameHeight px, 2x nearest-neighbor, 4 frames per animation.")
     $writer.WriteLine(" */")
     $writer.WriteLine("")
 
@@ -114,9 +115,9 @@ try {
         $writer.WriteLine("  .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,")
         $writer.WriteLine("  .header.always_zero = 0,")
         $writer.WriteLine("  .header.reserved = 0,")
-        $writer.WriteLine("  .header.w = $frameWidth,")
-        $writer.WriteLine("  .header.h = $frameHeight,")
-        $writer.WriteLine("  .data_size = $($frameWidth * $frameHeight) * LV_IMG_PX_SIZE_ALPHA_BYTE,")
+        $writer.WriteLine("  .header.w = $outputFrameWidth,")
+        $writer.WriteLine("  .header.h = $outputFrameHeight,")
+        $writer.WriteLine("  .data_size = $($outputFrameWidth * $outputFrameHeight) * LV_IMG_PX_SIZE_ALPHA_BYTE,")
         $writer.WriteLine("  .data = $mapName,")
         $writer.WriteLine("};")
         $writer.WriteLine("")

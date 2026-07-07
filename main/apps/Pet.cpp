@@ -1,36 +1,30 @@
 #include "A_Config.h"
+#include "ESP_I2S.h"
+#include "pet_bark_sound.h"
+
+extern I2SClass i2s;
 
 extern "C" {
     extern const lv_img_dsc_t pet_dog_bark_0;
     extern const lv_img_dsc_t pet_dog_bark_1;
     extern const lv_img_dsc_t pet_dog_bark_2;
     extern const lv_img_dsc_t pet_dog_bark_3;
-    extern const lv_img_dsc_t pet_dog_bark_4;
-    extern const lv_img_dsc_t pet_dog_bark_5;
     extern const lv_img_dsc_t pet_dog_walk_0;
     extern const lv_img_dsc_t pet_dog_walk_1;
     extern const lv_img_dsc_t pet_dog_walk_2;
     extern const lv_img_dsc_t pet_dog_walk_3;
-    extern const lv_img_dsc_t pet_dog_walk_4;
-    extern const lv_img_dsc_t pet_dog_walk_5;
     extern const lv_img_dsc_t pet_dog_run_0;
     extern const lv_img_dsc_t pet_dog_run_1;
     extern const lv_img_dsc_t pet_dog_run_2;
     extern const lv_img_dsc_t pet_dog_run_3;
-    extern const lv_img_dsc_t pet_dog_run_4;
-    extern const lv_img_dsc_t pet_dog_run_5;
     extern const lv_img_dsc_t pet_dog_sit_0;
     extern const lv_img_dsc_t pet_dog_sit_1;
     extern const lv_img_dsc_t pet_dog_sit_2;
     extern const lv_img_dsc_t pet_dog_sit_3;
-    extern const lv_img_dsc_t pet_dog_sit_4;
-    extern const lv_img_dsc_t pet_dog_sit_5;
     extern const lv_img_dsc_t pet_dog_idle_0;
     extern const lv_img_dsc_t pet_dog_idle_1;
     extern const lv_img_dsc_t pet_dog_idle_2;
     extern const lv_img_dsc_t pet_dog_idle_3;
-    extern const lv_img_dsc_t pet_dog_idle_4;
-    extern const lv_img_dsc_t pet_dog_idle_5;
 }
 
 static lv_obj_t *pet_stage = NULL;
@@ -49,8 +43,12 @@ static uint32_t last_render_ms = 0;
 static uint32_t last_decay_ms = 0;
 static uint32_t last_key_seq = 0;
 static uint32_t last_key_ms = 0;
+static uint32_t last_bark_sound_ms = 0;
 static uint16_t pet_energy = 0;
 static uint16_t combo = 0;
+static const lv_img_dsc_t *last_pet_frame = NULL;
+
+static const uint16_t PET_BARK_COOLDOWN_MS = 3200;
 
 struct PetTheme
 {
@@ -77,23 +75,23 @@ static const PetTheme pet_themes[] = {
 };
 
 static const lv_img_dsc_t *const pet_dog_idle_frames[] = {
-    &pet_dog_idle_0, &pet_dog_idle_1, &pet_dog_idle_2, &pet_dog_idle_3, &pet_dog_idle_4, &pet_dog_idle_5,
+    &pet_dog_idle_0, &pet_dog_idle_1, &pet_dog_idle_2, &pet_dog_idle_3,
 };
 
 static const lv_img_dsc_t *const pet_dog_walk_frames[] = {
-    &pet_dog_walk_0, &pet_dog_walk_1, &pet_dog_walk_2, &pet_dog_walk_3, &pet_dog_walk_4, &pet_dog_walk_5,
+    &pet_dog_walk_0, &pet_dog_walk_1, &pet_dog_walk_2, &pet_dog_walk_3,
 };
 
 static const lv_img_dsc_t *const pet_dog_run_frames[] = {
-    &pet_dog_run_0, &pet_dog_run_1, &pet_dog_run_2, &pet_dog_run_3, &pet_dog_run_4, &pet_dog_run_5,
+    &pet_dog_run_0, &pet_dog_run_1, &pet_dog_run_2, &pet_dog_run_3,
 };
 
 static const lv_img_dsc_t *const pet_dog_bark_frames[] = {
-    &pet_dog_bark_0, &pet_dog_bark_1, &pet_dog_bark_2, &pet_dog_bark_3, &pet_dog_bark_4, &pet_dog_bark_5,
+    &pet_dog_bark_0, &pet_dog_bark_1, &pet_dog_bark_2, &pet_dog_bark_3,
 };
 
 static const lv_img_dsc_t *const pet_dog_sit_frames[] = {
-    &pet_dog_sit_0, &pet_dog_sit_1, &pet_dog_sit_2, &pet_dog_sit_3, &pet_dog_sit_4, &pet_dog_sit_5,
+    &pet_dog_sit_0, &pet_dog_sit_1, &pet_dog_sit_2, &pet_dog_sit_3,
 };
 
 enum PetDogMood
@@ -104,6 +102,8 @@ enum PetDogMood
     PET_DOG_BARK,
     PET_DOG_SIT,
 };
+
+static PetDogMood last_pet_mood = PET_DOG_IDLE;
 
 static const PetTheme &petTheme()
 {
@@ -179,22 +179,59 @@ static PetDogMood petMoodForState(bool sleepy, bool waiting, bool excited, bool 
     return PET_DOG_IDLE;
 }
 
+static PetDogMood currentPetMood(uint32_t now)
+{
+    uint32_t idle_ms = now - last_key_ms;
+    bool sleepy = idle_ms > 90000;
+    bool waiting = idle_ms > 20000 && !sleepy;
+    bool excited = combo >= 45 || pet_energy > 76;
+    bool focused = combo >= 15 || pet_energy > 35;
+    return petMoodForState(sleepy, waiting, excited, focused);
+}
+
+static const lv_img_dsc_t *petFrameAt(const lv_img_dsc_t *const *frames, size_t count, uint32_t now, uint16_t frame_ms)
+{
+    if (count == 0)
+        return &pet_dog_idle_0;
+    return frames[(now / frame_ms) % count];
+}
+
 static const lv_img_dsc_t *petDogFrameForMood(PetDogMood mood, uint32_t now)
 {
     switch (mood)
     {
     case PET_DOG_SIT:
-        return pet_dog_sit_frames[(now / 520) % 6];
+        return petFrameAt(pet_dog_sit_frames, sizeof(pet_dog_sit_frames) / sizeof(pet_dog_sit_frames[0]), now, 520);
     case PET_DOG_BARK:
-        return pet_dog_bark_frames[(now / 105) % 6];
+        return petFrameAt(pet_dog_bark_frames, sizeof(pet_dog_bark_frames) / sizeof(pet_dog_bark_frames[0]), now, 125);
     case PET_DOG_RUN:
-        return pet_dog_run_frames[(now / 95) % 6];
+        return petFrameAt(pet_dog_run_frames, sizeof(pet_dog_run_frames) / sizeof(pet_dog_run_frames[0]), now, 110);
     case PET_DOG_WALK:
-        return pet_dog_walk_frames[(now / 135) % 6];
+        return petFrameAt(pet_dog_walk_frames, sizeof(pet_dog_walk_frames) / sizeof(pet_dog_walk_frames[0]), now, 150);
     case PET_DOG_IDLE:
     default:
-        return pet_dog_idle_frames[(now / 420) % 6];
+        return petFrameAt(pet_dog_idle_frames, sizeof(pet_dog_idle_frames) / sizeof(pet_dog_idle_frames[0]), now, 460);
     }
+}
+
+static void maybePlayPetBark(PetDogMood mood, uint32_t now)
+{
+    if (mood != PET_DOG_BARK)
+    {
+        last_pet_mood = mood;
+        return;
+    }
+
+    bool entered_bark = last_pet_mood != PET_DOG_BARK;
+    if (hal.pet_bark_sound && (entered_bark || now - last_bark_sound_ms > PET_BARK_COOLDOWN_MS))
+    {
+        hal.keytone_play = true;
+        i2s.playWAV(__pet_bark_wav, __pet_bark_wav_len);
+        hal.keytone_play = false;
+        last_bark_sound_ms = now;
+    }
+
+    last_pet_mood = mood;
 }
 
 static const char *moodText(PetDogMood mood, bool waiting)
@@ -232,9 +269,7 @@ static void renderPet()
     uint32_t idle_ms = now - last_key_ms;
     bool sleepy = idle_ms > 90000;
     bool waiting = idle_ms > 20000 && !sleepy;
-    bool excited = combo >= 45 || pet_energy > 76;
-    bool focused = combo >= 15 || pet_energy > 35;
-    PetDogMood mood = petMoodForState(sleepy, waiting, excited, focused);
+    PetDogMood mood = currentPetMood(now);
     const PetTheme &theme = petTheme();
     uint32_t accent = moodAccent(theme, mood);
     uint8_t wave = (now / (mood == PET_DOG_RUN ? 95 : 180)) % 4;
@@ -246,7 +281,12 @@ static void renderPet()
     setBox(pet_energy_fill, 44, 134, 18 + (int16_t)(pet_energy * 216 / 100), 3, accent, 2, LV_OPA_COVER);
     setBox(pet_shadow, 91, 121, 138, 14, 0x020617, 9, LV_OPA_70);
 
-    lv_img_set_src(pet_dog_img, petDogFrameForMood(mood, now));
+    const lv_img_dsc_t *frame = petDogFrameForMood(mood, now);
+    if (frame != last_pet_frame)
+    {
+        lv_img_set_src(pet_dog_img, frame);
+        last_pet_frame = frame;
+    }
     lv_obj_align(pet_dog_img, LV_ALIGN_CENTER, 0, -11 + bob);
 
     for (uint8_t i = 0; i < 6; i++)
@@ -321,7 +361,6 @@ void AppPet::setup()
 
     pet_dog_img = lv_img_create(pet_stage);
     lv_img_set_src(pet_dog_img, &pet_dog_idle_0);
-    lv_img_set_zoom(pet_dog_img, 768);
     lv_img_set_antialias(pet_dog_img, false);
     lv_obj_align(pet_dog_img, LV_ALIGN_CENTER, 0, -11);
 
@@ -341,6 +380,9 @@ void AppPet::setup()
     last_key_seq = hal.pet_keypress_seq;
     last_key_ms = millis();
     last_decay_ms = last_key_ms;
+    last_bark_sound_ms = 0;
+    last_pet_mood = PET_DOG_IDLE;
+    last_pet_frame = &pet_dog_idle_0;
     last_render_ms = 0;
     pet_energy = 0;
     combo = 0;
@@ -384,6 +426,8 @@ void AppPet::loop()
         last_decay_ms = now;
     }
 
+    maybePlayPetBark(currentPetMood(now), now);
+
     if (now - last_render_ms > 95)
     {
         last_render_ms = now;
@@ -410,4 +454,5 @@ void AppPet::destroy()
     lbl_pet_title = NULL;
     lbl_pet_status = NULL;
     lbl_pet_hint = NULL;
+    last_pet_frame = NULL;
 }

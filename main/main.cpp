@@ -28,6 +28,17 @@ void task_webserver_autostart(void *p)
     vTaskDelete(NULL);
 }
 
+static void start_webserver_early()
+{
+    if (hal.server_started || WiFiMgr.count() == 0)
+        return;
+
+    if (WiFiMgr.autoConnectSaved(6000))
+    {
+        hal.start_webserver();
+    }
+}
+
 void debug_USB_UART(void *p)
 {
     bool in_setting_mode = false;
@@ -123,6 +134,7 @@ extern "C" void app_main()
     hal.kb_status.channel_current = 0;
     WiFiMgr.init();
 
+    start_webserver_early();
     appHome.init();
     appAPS.init();
     appGIF.init();
