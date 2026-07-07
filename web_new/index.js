@@ -69,6 +69,13 @@ const mediaTabs = [
 ];
 
 const commonWeatherCities = ["北京", "上海", "广州", "深圳", "杭州", "成都", "重庆", "武汉", "南京", "苏州", "西安", "长沙"];
+const pomodoroToneOptions = [
+  { id: 1, name: "清脆铃声", desc: "短促清亮，适合专注结束" },
+  { id: 2, name: "柔和木琴", desc: "更轻，不容易吓到人" },
+  { id: 3, name: "轻提示音", desc: "低打扰，适合办公室" },
+  { id: 4, name: "完成上扬音", desc: "更像任务完成反馈" },
+  { id: 5, name: "自定义音频", desc: "上传 MP3/WAV 后使用" },
+];
 
 const state = {
   route: "overview",
@@ -76,6 +83,7 @@ const state = {
   info: null,
   list: null,
   appCfg: null,
+  dirtyInfo: new Set(),
   dirtyAppCfg: new Set(),
   online: true,
   booted: false,
@@ -181,7 +189,7 @@ async function refreshAll(quiet = false) {
       getJSON("/list?dir=/"),
       getJSON("/config.json").catch(() => state.appCfg),
     ]);
-    state.info = normalizeInfo(info);
+    state.info = mergeInfoFromDevice(info);
     state.list = normalizeList(list);
     state.appCfg = mergeAppCfgFromDevice(appCfg);
     state.online = true;
@@ -226,6 +234,26 @@ function normalizeInfo(info = {}) {
     pomodoro_tone: clamp(Number(info.pomodoro_tone || 1), 1, 5),
     pomodoro_tone_file: info.pomodoro_tone_file || "",
   };
+}
+
+function markInfoDirty(...keys) {
+  keys.forEach(key => state.dirtyInfo.add(key));
+}
+
+function clearInfoDirty(...keys) {
+  keys.forEach(key => state.dirtyInfo.delete(key));
+}
+
+function mergeInfoFromDevice(info) {
+  const next = normalizeInfo(info);
+  if (!state.info || state.dirtyInfo.size === 0) return next;
+  const merged = { ...next };
+  state.dirtyInfo.forEach(key => {
+    if (Object.prototype.hasOwnProperty.call(state.info, key)) {
+      merged[key] = state.info[key];
+    }
+  });
+  return normalizeInfo(merged);
 }
 
 function normalizeList(list = {}) {
@@ -619,6 +647,36 @@ function toneRow(file) {
   `;
 }
 
+function pomodoroToneCard(option) {
+  const selected = state.info.pomodoro_tone === option.id;
+  const customName = fileName(state.info.pomodoro_tone_file || "");
+  return `
+    <article class="pomodoro-tone-card ${selected ? "active" : ""}" data-pomodoro-tone-card="${option.id}">
+      <button class="tone-main" data-select-pomodoro-tone="${option.id}">
+        <span class="tone-mark">${option.id === 5 ? I.music : I.timer}</span>
+        <span><b>${esc(option.name)}</b><small>${option.id === 5 && customName ? esc(customName) : esc(option.desc)}</small></span>
+      </button>
+      <button class="icon-button" data-play-pomodoro-tone="${option.id}" aria-label="试听 ${esc(option.name)}">${I.play}</button>
+    </article>
+  `;
+}
+
+function pomodoroToneRow(file) {
+  const name = fileName(file.name);
+  const inUse = state.info.pomodoro_tone === 5 && fileName(state.info.pomodoro_tone_file) === name;
+  return `
+    <article class="file-row compact" data-file="${esc(name)}">
+      <span class="file-icon">${I.music}</span>
+      <div><b>${esc(name)}</b><small>${fmtSize(file.size)}${inUse ? " · 番茄钟在用" : ""}</small></div>
+      <div class="row-actions">
+        <button class="icon-button" data-play-tone="${esc(name)}" aria-label="浏览器试听 ${esc(name)}">${state.playing === name ? I.stop : I.play}</button>
+        <button class="btn mini ${inUse ? "primary" : "subtle"}" data-use-pomodoro-tone="${esc(name)}">${inUse ? "在用" : "设为提醒音"}</button>
+        <button class="icon-button danger-text" data-delete="${esc(name)}" aria-label="删除 ${esc(name)}">${I.trash}</button>
+      </div>
+    </article>
+  `;
+}
+
 function fileRow(file, iconSvg) {
   const name = fileName(file.name);
   return `
@@ -799,6 +857,7 @@ function rssiLevel(rssi) {
 function viewSystem() {
   const info = state.info;
   const cfg = state.appCfg || normalizeAppCfg();
+  const { tones } = fileLists();
   return `
     <div class="page-title">
       <p>系统设置</p>
@@ -850,23 +909,20 @@ function viewSystem() {
             <input type="checkbox" data-pomodoro-auto-switch ${info.pomodoro_auto_switch ? "checked" : ""}>
             <i></i>
           </label>
-          <label class="field">
-            <span>提醒音</span>
-            <select data-pomodoro-tone>
-              <option value="1" ${info.pomodoro_tone === 1 ? "selected" : ""}>清脆铃声</option>
-              <option value="2" ${info.pomodoro_tone === 2 ? "selected" : ""}>柔和木琴</option>
-              <option value="3" ${info.pomodoro_tone === 3 ? "selected" : ""}>轻提示音</option>
-              <option value="4" ${info.pomodoro_tone === 4 ? "selected" : ""}>完成上扬音</option>
-              <option value="5" ${info.pomodoro_tone === 5 ? "selected" : ""}>自定义音频</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>自定义音频</span>
-            <select data-pomodoro-tone-file>
-              <option value="">未选择</option>
-              ${fileLists().tones.map(f => `<option value="${esc(fileName(f.name))}" ${fileName(info.pomodoro_tone_file) === fileName(f.name) ? "selected" : ""}>${esc(fileName(f.name))}</option>`).join("")}
-            </select>
-          </label>
+          <div class="pomodoro-tone-panel">
+            <div class="subhead"><span>提醒音</span><small>内置音由屏幕试听，自定义音频可在网页内试听</small></div>
+            <div class="pomodoro-tone-grid">
+              ${pomodoroToneOptions.map(pomodoroToneCard).join("")}
+            </div>
+            <div class="pomodoro-custom-tone">
+              <div class="upload-inline" data-upload-pomodoro-tone>
+                ${dropzone("pomodoro-tone", "上传自定义提醒音", "支持 MP3/WAV，上传后自动设为番茄钟提醒音", "audio/mpeg,audio/wav,.mp3,.wav")}
+              </div>
+              <div class="tone-library-mini">
+                ${tones.length ? `<div class="file-list">${tones.map(pomodoroToneRow).join("")}</div>` : emptyState(I.music, "还没有自定义提醒音", "可以直接在这里上传，或者去媒体页管理音效库")}
+              </div>
+            </div>
+          </div>
           <div class="hint-strip">${I.timer}<span>到点后屏幕会显示 00:00 并播放声音，按 <b>fn+~</b> 确认并进入下一段倒计时。</span></div>
           <button class="btn primary" data-save-pomodoro>保存番茄钟</button>
         </div>
@@ -935,9 +991,27 @@ function bindMedia() {
   $$("[data-media-tab]").forEach(btn => {
     btn.onclick = () => { state.mediaTab = btn.dataset.mediaTab; render(); };
   });
+  bindDropzones();
+  $$("[data-delete]").forEach(btn => btn.onclick = () => confirmDelete(btn.dataset.delete));
+  $$("[data-use-image]").forEach(btn => btn.onclick = () => setCurrentImage(btn.dataset.useImage));
+  $$("[data-video-fit]").forEach(btn => btn.onclick = () => setVideoFit(btn.dataset.videoFit));
+  $("[data-video-audio]")?.addEventListener("change", ev => setVideoAudio(ev.target.checked));
+  $$("[data-keytone]").forEach(btn => btn.onclick = () => setKeytone(Number(btn.dataset.keytone)));
+  $$("[data-use-tone]").forEach(btn => btn.onclick = () => useTone(btn.dataset.useTone));
+  $$("[data-play-tone]").forEach(btn => btn.onclick = () => playTone(btn.dataset.playTone));
+  $("[data-retry-ffmpeg]")?.addEventListener("click", () => {
+    state.ffmpeg = { status: "idle", message: "" };
+    ensureFFmpeg();
+    render();
+  });
+  $("[data-cancel-video]")?.addEventListener("click", cancelVideoTask);
+}
+
+function bindDropzones() {
   $$("[data-dropzone]").forEach(zone => {
     const type = zone.dataset.dropzone;
     const input = $(`[data-file-input="${type}"]`);
+    if (!input) return;
     zone.onclick = () => input.click();
     zone.onkeydown = ev => {
       if (ev.key === "Enter" || ev.key === " ") {
@@ -961,19 +1035,6 @@ function bindMedia() {
       if (ev.dataTransfer.files?.length) handleFiles(type, [...ev.dataTransfer.files]);
     });
   });
-  $$("[data-delete]").forEach(btn => btn.onclick = () => confirmDelete(btn.dataset.delete));
-  $$("[data-use-image]").forEach(btn => btn.onclick = () => setCurrentImage(btn.dataset.useImage));
-  $$("[data-video-fit]").forEach(btn => btn.onclick = () => setVideoFit(btn.dataset.videoFit));
-  $("[data-video-audio]")?.addEventListener("change", ev => setVideoAudio(ev.target.checked));
-  $$("[data-keytone]").forEach(btn => btn.onclick = () => setKeytone(Number(btn.dataset.keytone)));
-  $$("[data-use-tone]").forEach(btn => btn.onclick = () => useTone(btn.dataset.useTone));
-  $$("[data-play-tone]").forEach(btn => btn.onclick = () => playTone(btn.dataset.playTone));
-  $("[data-retry-ffmpeg]")?.addEventListener("click", () => {
-    state.ffmpeg = { status: "idle", message: "" };
-    ensureFFmpeg();
-    render();
-  });
-  $("[data-cancel-video]")?.addEventListener("click", cancelVideoTask);
 }
 
 function bindDisplay() {
@@ -1024,7 +1085,35 @@ function bindSystem() {
     setVolume(ev.target.value);
   });
   $("[data-video-audio]")?.addEventListener("change", ev => setVideoAudio(ev.target.checked));
-  $("[data-save-pomodoro]")?.addEventListener("click", savePomodoroSettings);
+  bindDropzones();
+  $("[data-pomodoro-enable]")?.addEventListener("change", ev => {
+    state.info.pomodoro_enable = ev.target.checked;
+    markInfoDirty("pomodoro_enable");
+  });
+  $$("[data-pomodoro]").forEach(input => {
+    input.addEventListener("input", ev => {
+      const map = {
+        focus_min: "pomodoro_focus_min",
+        short_break_min: "pomodoro_short_break_min",
+        long_break_min: "pomodoro_long_break_min",
+        long_break_every: "pomodoro_long_break_every",
+      };
+      const key = map[ev.target.dataset.pomodoro];
+      if (!key) return;
+      state.info[key] = Number(ev.target.value);
+      markInfoDirty(key);
+    });
+  });
+  $("[data-pomodoro-auto-switch]")?.addEventListener("change", ev => {
+    state.info.pomodoro_auto_switch = ev.target.checked;
+    markInfoDirty("pomodoro_auto_switch");
+  });
+  $$("[data-select-pomodoro-tone]").forEach(btn => btn.onclick = () => setPomodoroTone(Number(btn.dataset.selectPomodoroTone)));
+  $$("[data-play-pomodoro-tone]").forEach(btn => btn.onclick = () => previewPomodoroTone(Number(btn.dataset.playPomodoroTone)));
+  $$("[data-use-pomodoro-tone]").forEach(btn => btn.onclick = () => usePomodoroTone(btn.dataset.usePomodoroTone));
+  $$("[data-play-tone]").forEach(btn => btn.onclick = () => playTone(btn.dataset.playTone));
+  $$("[data-delete]").forEach(btn => btn.onclick = () => confirmDelete(btn.dataset.delete));
+  $("[data-save-pomodoro]")?.addEventListener("click", () => savePomodoroSettings());
   $$("[data-cfg]").forEach(input => {
     input.addEventListener("input", ev => {
       const key = ev.target.dataset.cfg;
@@ -1059,11 +1148,16 @@ function bindAppToggle(input) {
   input.onchange = () => {
     const appId = input.dataset.appToggle;
     const enabled = input.checked;
-    if (appId === "pomodoro") {
-      state.info.pomodoro_enable = enabled;
-      runAction(`app-${appId}`, () => postForm("/config_app_pomodoro", pomodoroPayload({ enable: enabled })), "应用状态已更新");
-      return;
-    }
+  if (appId === "pomodoro") {
+    state.info.pomodoro_enable = enabled;
+    markInfoDirty("pomodoro_enable");
+    runAction(`app-${appId}`, () => postForm("/config_app_pomodoro", pomodoroPayload({ enable: enabled })), "应用状态已更新")
+      .then(saved => {
+        clearInfoDirty("pomodoro_enable");
+        if (!saved) refreshAll(true).then(render);
+      });
+    return;
+  }
     runAction(`app-${appId}`, () => postForm(`/config_app_${appId}`, { enable: String(enabled) }), "应用状态已更新");
   };
 }
@@ -1161,13 +1255,42 @@ async function useTone(name) {
   await runAction("tone", () => postForm("/config_keytone", { keytone: "4", keytone_file: name }), "已选用音效");
 }
 
+function setPomodoroTone(value) {
+  state.info.pomodoro_tone = clamp(Number(value || 1), 1, 5);
+  if (state.info.pomodoro_tone === 5 && !state.info.pomodoro_tone_file) {
+    state.info.pomodoro_tone_file = fileName(fileLists().tones[0]?.name || "");
+  }
+  markInfoDirty("pomodoro_tone", "pomodoro_tone_file");
+  render();
+}
+
+async function usePomodoroTone(name) {
+  state.info.pomodoro_tone = 5;
+  state.info.pomodoro_tone_file = fileName(name);
+  markInfoDirty("pomodoro_tone", "pomodoro_tone_file");
+  await savePomodoroSettings("已设为番茄钟提醒音");
+}
+
+async function previewPomodoroTone(value) {
+  const tone = clamp(Number(value || state.info.pomodoro_tone), 1, 5);
+  const toneFile = tone === 5 ? fileName(state.info.pomodoro_tone_file || fileLists().tones[0]?.name || "") : "";
+  if (tone === 5 && !toneFile) {
+    toast("请先上传或选择自定义音频", "danger");
+    return;
+  }
+  try {
+    await postForm("/preview_pomodoro_tone", { tone: String(tone), tone_file: toneFile });
+    toast("已发送到屏幕试听");
+  } catch (err) {
+    toast("试听失败", "danger");
+  }
+}
+
 function pomodoroPayload(overrides = {}) {
   const readNumber = (key, fallback) => {
     const input = $(`[data-pomodoro="${key}"]`);
     return input ? Number(input.value) : fallback;
   };
-  const tone = $("[data-pomodoro-tone]");
-  const toneFile = $("[data-pomodoro-tone-file]");
   const enabledInput = $("[data-pomodoro-enable]");
   const autoSwitchInput = $("[data-pomodoro-auto-switch]");
   return {
@@ -1177,14 +1300,14 @@ function pomodoroPayload(overrides = {}) {
     long_break_min: String(clamp(readNumber("long_break_min", state.info.pomodoro_long_break_min), 1, 60)),
     long_break_every: String(clamp(readNumber("long_break_every", state.info.pomodoro_long_break_every), 1, 8)),
     auto_switch: String(autoSwitchInput?.checked ?? state.info.pomodoro_auto_switch),
-    tone: String(clamp(Number(tone?.value || state.info.pomodoro_tone), 1, 5)),
-    tone_file: fileName(toneFile?.value || state.info.pomodoro_tone_file || ""),
+    tone: String(clamp(Number(overrides.tone ?? state.info.pomodoro_tone), 1, 5)),
+    tone_file: fileName(overrides.tone_file ?? state.info.pomodoro_tone_file ?? ""),
   };
 }
 
-async function savePomodoroSettings() {
+async function savePomodoroSettings(okMessage = "番茄钟已保存") {
   const payload = pomodoroPayload();
-  const saved = await runAction("pomodoro", () => postForm("/config_app_pomodoro", payload), "番茄钟已保存");
+  const saved = await runAction("pomodoro", () => postForm("/config_app_pomodoro", payload), okMessage);
   if (!saved) return;
   state.info.pomodoro_enable = payload.enable === "true";
   state.info.pomodoro_focus_min = Number(payload.focus_min);
@@ -1194,6 +1317,16 @@ async function savePomodoroSettings() {
   state.info.pomodoro_auto_switch = payload.auto_switch === "true";
   state.info.pomodoro_tone = Number(payload.tone);
   state.info.pomodoro_tone_file = payload.tone_file;
+  clearInfoDirty(
+    "pomodoro_enable",
+    "pomodoro_focus_min",
+    "pomodoro_short_break_min",
+    "pomodoro_long_break_min",
+    "pomodoro_long_break_every",
+    "pomodoro_auto_switch",
+    "pomodoro_tone",
+    "pomodoro_tone_file",
+  );
 }
 
 function playTone(name) {
@@ -1348,6 +1481,7 @@ async function handleFiles(type, files) {
   if (type === "image") return openCropper(file);
   if (type === "video") return startVideoUpload(file);
   if (type === "tone") return uploadTone(file);
+  if (type === "pomodoro-tone") return uploadPomodoroTone(file);
 }
 
 function safeName(original, ext) {
@@ -1456,20 +1590,35 @@ async function uploadBlobWithProgress(blob, name, host) {
 }
 
 async function uploadTone(file) {
+  await uploadToneFile(file);
+}
+
+async function uploadPomodoroTone(file) {
+  const name = await uploadToneFile(file, "自定义提醒音已上传");
+  if (!name) return;
+  state.info.pomodoro_tone = 5;
+  state.info.pomodoro_tone_file = name;
+  markInfoDirty("pomodoro_tone", "pomodoro_tone_file");
+  await savePomodoroSettings("自定义提醒音已设为番茄钟");
+}
+
+async function uploadToneFile(file, okMessage = "音效已上传") {
   const ext = extOf(file.name);
   if (![".mp3", ".wav"].includes(ext)) {
     toast("请选择 MP3 或 WAV", "danger");
-    return;
+    return "";
   }
-  if (!hasSpace(file.size)) return;
+  if (!hasSpace(file.size)) return "";
   const name = safeName(file.name, ext);
   try {
     await uploadFile(file, name);
     await refreshAll(true);
-    toast("音效已上传");
+    toast(okMessage);
     render();
+    return name;
   } catch (err) {
     toast("上传失败", "danger");
+    return "";
   }
 }
 
@@ -1638,6 +1787,13 @@ async function confirmDelete(name) {
       state.info.keytone = 0;
       state.info.keytone_file = "";
       try { await postForm("/config_keytone", { keytone: "0", keytone_file: "" }); } catch (err) {}
+    }
+    if (fileName(state.info?.pomodoro_tone_file || "") === name) {
+      state.info.pomodoro_tone = 1;
+      state.info.pomodoro_tone_file = "";
+      markInfoDirty("pomodoro_tone", "pomodoro_tone_file");
+      try { await postForm("/config_app_pomodoro", pomodoroPayload({ tone: 1, tone_file: "" })); } catch (err) {}
+      clearInfoDirty("pomodoro_tone", "pomodoro_tone_file");
     }
     await refreshAll(true);
     toast("已删除");

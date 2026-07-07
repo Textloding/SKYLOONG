@@ -144,6 +144,9 @@ class Handler(BaseHTTPRequestHandler):
             STATE["pomodoro_tone"] = max(1, min(5, int(args.get("tone", STATE["pomodoro_tone"]))))
             STATE["pomodoro_tone_file"] = args.get("tone_file", STATE["pomodoro_tone_file"])
             return self._send()
+        if path == "/preview_pomodoro_tone":
+            print(f"** Pomodoro tone preview tone={args.get('tone')} file={args.get('tone_file', '')} **")
+            return self._send()
         if path == "/config.json":
             incoming = json.loads(body.decode("utf-8"))
             if not incoming.get("weather"):

@@ -1445,6 +1445,28 @@ void HAL::start_webserver()
         }
     });
 
+    server.on("/preview_pomodoro_tone", HTTP_POST, []() {
+        const uint8_t old_tone = hal.pomodoro_tone;
+        char old_file[sizeof(hal.pomodoro_tone_file)];
+        strncpy(old_file, hal.pomodoro_tone_file, sizeof(old_file) - 1);
+        old_file[sizeof(old_file) - 1] = '\0';
+
+        if (server.hasArg("tone")) {
+            hal.pomodoro_tone = constrain(server.arg("tone").toInt(), 1, 5);
+        }
+        if (server.hasArg("tone_file")) {
+            strncpy(hal.pomodoro_tone_file, server.arg("tone_file").c_str(), sizeof(hal.pomodoro_tone_file) - 1);
+            hal.pomodoro_tone_file[sizeof(hal.pomodoro_tone_file) - 1] = '\0';
+        }
+
+        hal.playPomodoroTone();
+
+        hal.pomodoro_tone = old_tone;
+        strncpy(hal.pomodoro_tone_file, old_file, sizeof(hal.pomodoro_tone_file) - 1);
+        hal.pomodoro_tone_file[sizeof(hal.pomodoro_tone_file) - 1] = '\0';
+        server.send(200, "text/plain", "OK");
+    });
+
     server.on("/list", HTTP_GET, handleFileList);
     server.on("/edit", HTTP_PUT, handleFileCreate);    // create file
     server.on("/edit", HTTP_DELETE, handleFileDelete); // delete file
