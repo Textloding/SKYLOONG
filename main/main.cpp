@@ -106,6 +106,7 @@ AppJPG appJPG;
 AppWeather appWeather;
 AppSysinfo appSysinfo;
 AppPomodoro appPomodoro;
+AppPet appPet;
 AppSettings appSettings;
 AppQRCode appQRCode;
 extern void add_to_app_list(BaseApp *app);
@@ -129,6 +130,7 @@ extern "C" void app_main()
     appWeather.init();
     appSysinfo.init();
     appPomodoro.init();
+    appPet.init();
     appSettings.init();
     appQRCode.init();
     appManagerLite.appHome = &appHome;
@@ -138,6 +140,7 @@ extern "C" void app_main()
     appManagerLite.appWeather = &appWeather;
     appManagerLite.appSysinfo = &appSysinfo;
     appManagerLite.appPomodoro = &appPomodoro;
+    appManagerLite.appPet = &appPet;
     appManagerLite.appSettings = &appSettings;
     appManagerLite.appQRCode = &appQRCode;
 

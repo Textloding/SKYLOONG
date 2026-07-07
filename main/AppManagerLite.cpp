@@ -19,6 +19,8 @@ BaseApp *AppManagerLite::getAppByName(const uint32_t appid)
     return appSysinfo;
     if (appid == 7)
         return appPomodoro;
+    if (appid == 8)
+        return appPet;
     if (appid == 50)
         return appSettings;
     if (appid == 100)

@@ -87,6 +87,18 @@ public:
     void destroy();
 };
 
+class AppPet : public BaseApp
+{
+public:
+    void init()
+    {
+        appid = 8;
+    }
+    void setup();
+    void loop();
+    void destroy();
+};
+
 class AppSettings : public BaseApp
 {
 public:

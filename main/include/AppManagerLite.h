@@ -27,6 +27,7 @@ public:
     BaseApp *appWeather = NULL;
     BaseApp *appSysinfo = NULL;
     BaseApp *appPomodoro = NULL;
+    BaseApp *appPet = NULL;
     BaseApp *appSettings = NULL;
     BaseApp *appQRCode = NULL;
     BaseApp *getAppByName(const uint32_t appid);
@@ -71,6 +72,11 @@ public:
                         break;
                     }
                 case 7:
+                    if (hal.pet_enable) {
+                        nextApp = appPet;
+                        break;
+                    }
+                case 8:
                     nextApp = appQRCode;
                     break;
                 case 50:

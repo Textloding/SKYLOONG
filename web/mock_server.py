@@ -14,6 +14,8 @@ STATE = {
     "mode": "STA", "ssid": "MyHomeWiFi", "ip": "192.168.1.100",
     "theme": 0, "aps_enable": True, "weather_enable": True,
     "sysinfo_enable": False, "gif_enable": True, "jpg_enable": True,
+    "pet_enable": True,
+    "pet_name": "键盘宠物", "pet_theme": 0, "pet_reactivity": 2,
     "time_roll": 5000, "jpg_mode": "roll", "jpg_file": "",
     "timezone": 8, "language": 0, "keytone": 1, "keytone_file": "",
     "volume": 6, "video_fit": "contain", "video_audio": False,
@@ -121,14 +123,19 @@ class Handler(BaseHTTPRequestHandler):
             STATE["keytone_file"] = args.get("keytone_file", ""); return self._send()
         if path == "/config_volume":
             STATE["volume"] = max(0, min(9, int(args.get("volume", 6)))); return self._send()
-        for app in ("aps", "gif", "weather", "sysinfo"):
+        for app in ("aps", "gif", "weather", "sysinfo", "pet"):
             if path == f"/config_app_{app}":
-                STATE[f"{app}_enable"] = args.get("enable") == "true"
+                if "enable" in args:
+                    STATE[f"{app}_enable"] = args.get("enable") == "true"
                 if app == "gif":
                     if args.get("video_fit") in ("contain", "cover"):
                         STATE["video_fit"] = args.get("video_fit")
                     if "video_audio" in args:
                         STATE["video_audio"] = args.get("video_audio") == "true"
+                if app == "pet":
+                    STATE["pet_name"] = (args.get("name") or STATE["pet_name"] or "键盘宠物")[:12]
+                    STATE["pet_theme"] = max(0, min(3, int(args.get("theme", STATE["pet_theme"]))))
+                    STATE["pet_reactivity"] = max(1, min(3, int(args.get("reactivity", STATE["pet_reactivity"]))))
                 return self._send()
         if path == "/config_app_jpg":
             STATE["jpg_enable"] = args.get("enable") == "true"

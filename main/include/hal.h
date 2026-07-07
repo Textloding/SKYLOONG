@@ -95,6 +95,11 @@ public:
     bool weather_enable = true;
     bool sysinfo_enable = true;
     bool pomodoro_enable = false;
+    bool pet_enable = true;
+    uint8_t pet_theme = 0;
+    uint8_t pet_reactivity = 2;
+    char pet_name[48];
+    volatile uint32_t pet_keypress_seq = 0;
     uint32_t config_time_roll = 5000;
     bool lang_refresh = false;
     bool config_video_audio = false;

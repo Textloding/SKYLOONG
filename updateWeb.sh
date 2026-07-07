@@ -108,6 +108,9 @@ xxd -i ./web/video2.png.gz ./main/include/webserver/video2.h
 gzip -9kf ./web/weather.png
 xxd -i ./web/weather.png.gz ./main/include/webserver/weather.h
 
+gzip -9kf ./web/dog_medium.png
+xxd -i ./web/dog_medium.png.gz ./main/include/webserver/dog_medium.h
+
 gzip -9kf ./web/assets/worker-224792ee.js
 xxd -i ./web/assets/worker-224792ee.js.gz ./main/include/webserver/worker.h
 
@@ -150,4 +153,5 @@ sed -i '1i\const ' ./main/include/webserver/time_bg.h
 sed -i '1i\const ' ./main/include/webserver/time_ic.h
 sed -i '1i\const ' ./main/include/webserver/video2.h
 sed -i '1i\const ' ./main/include/webserver/weather.h
+sed -i '1i\const ' ./main/include/webserver/dog_medium.h
 sed -i '1i\const ' ./main/include/webserver/worker.h

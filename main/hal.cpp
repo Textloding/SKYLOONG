@@ -192,6 +192,7 @@ static void task_systemctl(void *p)
             hal.APMChanged = true;
             break;
         case EVENT_KB_KEYPRESS:
+            hal.pet_keypress_seq++;
             if (hal.config_keytone == 1) {
                 hal.keytone_play =  true;
                 i2s.playWAV(__keytone_keytone1_wav, __keytone_keytone1_wav_len);
@@ -457,6 +458,17 @@ void HAL::init()
     hal.gif_enable = pref.getBool("gif_enable", true);
     hal.jpg_enable = pref.getBool("jpg_enable", true);
     hal.pomodoro_enable = pref.getBool("pomodoro_enable", false);
+    hal.pet_enable = pref.getBool("pet_enable", true);
+    uint32_t stored_pet_theme = pref.getUInt("pet_theme", 0);
+    uint32_t stored_pet_reactivity = pref.getUInt("pet_reactivity", 2);
+    hal.pet_theme = (uint8_t)(stored_pet_theme > 3 ? 3 : stored_pet_theme);
+    hal.pet_reactivity = (uint8_t)(stored_pet_reactivity < 1 ? 1 : (stored_pet_reactivity > 3 ? 3 : stored_pet_reactivity));
+    String stored_pet_name = pref.getString("pet_name", "键盘宠物");
+    stored_pet_name.trim();
+    if (stored_pet_name.length() == 0)
+        stored_pet_name = "键盘宠物";
+    strncpy(hal.pet_name, stored_pet_name.c_str(), sizeof(hal.pet_name) - 1);
+    hal.pet_name[sizeof(hal.pet_name) - 1] = '\0';
     hal.config_time_roll = pref.getInt("t_r", 5000);
     hal.config_video_audio = pref.getBool("video_audio", false);
     setVideoFitConfig(pref.getString("video_fit", "contain"));
@@ -1155,6 +1167,7 @@ void handleJson()
 #include "webserver/time_ic.h"
 #include "webserver/video2.h"
 #include "webserver/weather.h"
+#include "webserver/dog_medium.h"
 #include "webserver/worker.h"
 
 void HAL::start_webserver()
@@ -1210,6 +1223,10 @@ void HAL::start_webserver()
         cJSON_AddBoolToObject(json, "gif_enable", hal.gif_enable);
         cJSON_AddBoolToObject(json, "jpg_enable", hal.jpg_enable);
         cJSON_AddBoolToObject(json, "pomodoro_enable", hal.pomodoro_enable);
+        cJSON_AddBoolToObject(json, "pet_enable", hal.pet_enable);
+        cJSON_AddNumberToObject(json, "pet_theme", hal.pet_theme);
+        cJSON_AddNumberToObject(json, "pet_reactivity", hal.pet_reactivity);
+        cJSON_AddStringToObject(json, "pet_name", hal.pet_name);
         cJSON_AddBoolToObject(json, "wifi_connected", WiFi.status() == WL_CONNECTED);
         cJSON_AddNumberToObject(json, "wifi_saved_count", WiFiMgr.count());
         cJSON_AddNumberToObject(json, "screen_width", screenWidth);
@@ -1439,6 +1456,35 @@ void HAL::start_webserver()
         if (server.hasArg("enable")) {
             hal.sysinfo_enable = server.arg("enable").toBool();
             hal.pref.putBool("sysinfo_enable", hal.sysinfo_enable);
+            server.send(200, "text/plain", "OK");
+        } else {
+            server.send(500, "text/plain", "ERR 500");
+        }
+    });
+
+    server.on("/config_app_pet", HTTP_POST, []() {
+        if (server.hasArg("enable") || server.hasArg("theme") || server.hasArg("reactivity") || server.hasArg("name")) {
+            if (server.hasArg("enable")) {
+                hal.pet_enable = server.arg("enable").toBool();
+                hal.pref.putBool("pet_enable", hal.pet_enable);
+            }
+            if (server.hasArg("theme")) {
+                hal.pet_theme = constrain(server.arg("theme").toInt(), 0, 3);
+                hal.pref.putUInt("pet_theme", hal.pet_theme);
+            }
+            if (server.hasArg("reactivity")) {
+                hal.pet_reactivity = constrain(server.arg("reactivity").toInt(), 1, 3);
+                hal.pref.putUInt("pet_reactivity", hal.pet_reactivity);
+            }
+            if (server.hasArg("name")) {
+                String pet_name = server.arg("name");
+                pet_name.trim();
+                if (pet_name.length() == 0)
+                    pet_name = "键盘宠物";
+                strncpy(hal.pet_name, pet_name.c_str(), sizeof(hal.pet_name) - 1);
+                hal.pet_name[sizeof(hal.pet_name) - 1] = '\0';
+                hal.pref.putString("pet_name", hal.pet_name);
+            }
             server.send(200, "text/plain", "OK");
         } else {
             server.send(500, "text/plain", "ERR 500");
@@ -1685,6 +1731,10 @@ void HAL::start_webserver()
     server.on("/weather.png", HTTP_GET, []() {
         server.sendHeader("Content-Encoding", "gzip", true);
         server.send_P(200, "image/png", (const char *)__web_weather_png_gz, sizeof(__web_weather_png_gz));
+    });
+    server.on("/dog_medium.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_dog_medium_png_gz, sizeof(__web_dog_medium_png_gz));
     });
     server.on("/assets/worker-224792ee.js", HTTP_GET, []() {
         server.sendHeader("Content-Encoding", "gzip", true);
