@@ -672,6 +672,12 @@ p {
   gap: 4px;
 }
 
+.tone-choice {
+  flex-wrap: wrap;
+  width: fit-content;
+  max-width: 100%;
+}
+
 .segmented.wide {
   display: flex;
 }
@@ -684,6 +690,11 @@ p {
   border-radius: 12px;
   background: transparent;
   color: var(--muted);
+}
+
+.tone-choice button {
+  flex: 1 1 92px;
+  white-space: nowrap;
 }
 
 .segmented button.active,
@@ -1697,7 +1708,8 @@ p {
     height: 21px;
   }
 
-  .segmented {
+  .segmented,
+  .tone-choice {
     width: 100%;
     overflow-x: auto;
   }

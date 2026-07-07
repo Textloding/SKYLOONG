@@ -45,7 +45,11 @@ static uint32_t phase_started_ms = 0;
 static uint32_t phase_duration_ms = 0;
 static uint32_t last_tone_ms = 0;
 static uint32_t last_render_second = 0xFFFFFFFF;
+static uint16_t last_render_progress = 0xFFFF;
 static uint8_t last_render_theme = 0xFF;
+static uint8_t last_render_phase = 0xFF;
+static uint8_t last_render_round = 0xFF;
+static bool last_render_waiting = false;
 static bool waiting_confirm = false;
 
 static const PomodoroTheme &activeTheme()
@@ -97,7 +101,11 @@ static void beginPhaseLocked(PomodoroPhase next)
     waiting_confirm = false;
     last_tone_ms = 0;
     last_render_second = 0xFFFFFFFF;
+    last_render_progress = 0xFFFF;
     last_render_theme = 0xFF;
+    last_render_phase = 0xFF;
+    last_render_round = 0xFF;
+    last_render_waiting = false;
     hal.setPomodoroWaiting(false);
 }
 
@@ -195,6 +203,19 @@ void pomodoro_reset_current()
         hal.audio_stop();
 }
 
+void pomodoro_reset_rounds()
+{
+    pomodoro_init();
+    bool should_stop_audio = false;
+    xSemaphoreTake(pomodoro_mutex, portMAX_DELAY);
+    should_stop_audio = waiting_confirm;
+    completed_focus_rounds = 0;
+    beginPhaseLocked(POMODORO_FOCUS);
+    xSemaphoreGive(pomodoro_mutex);
+    if (should_stop_audio)
+        hal.audio_stop();
+}
+
 static void renderPomodoro(uint32_t remaining_ms, PomodoroPhase current_phase, uint8_t round, bool waiting, uint32_t duration_ms)
 {
     if (lbl_time_left == NULL)
@@ -204,22 +225,31 @@ static void renderPomodoro(uint32_t remaining_ms, PomodoroPhase current_phase, u
     if (waiting)
         seconds = 0;
 
-    if (seconds == last_render_second && hal.pomodoro_theme == last_render_theme)
-        return;
-    last_render_second = seconds;
-    last_render_theme = hal.pomodoro_theme;
-
     uint32_t minutes = seconds / 60;
     uint32_t rest = seconds % 60;
     int32_t progress = 0;
     if (duration_ms > 0)
-        progress = (int32_t)((duration_ms - remaining_ms) * 100 / duration_ms);
+        progress = (int32_t)((duration_ms - remaining_ms) * 10000 / duration_ms);
     if (waiting)
-        progress = 100;
+        progress = 10000;
     if (progress < 0)
         progress = 0;
-    if (progress > 100)
-        progress = 100;
+    if (progress > 10000)
+        progress = 10000;
+
+    if (seconds == last_render_second &&
+        progress == last_render_progress &&
+        hal.pomodoro_theme == last_render_theme &&
+        current_phase == last_render_phase &&
+        round == last_render_round &&
+        waiting == last_render_waiting)
+        return;
+    last_render_second = seconds;
+    last_render_progress = progress;
+    last_render_theme = hal.pomodoro_theme;
+    last_render_phase = current_phase;
+    last_render_round = round;
+    last_render_waiting = waiting;
 
     const PomodoroTheme &theme = activeTheme();
 
@@ -261,7 +291,7 @@ void AppPomodoro::setup()
 
     lv_obj_t *panel = lv_obj_create(_appScreen);
     panel_timer = panel;
-    lv_obj_set_size(panel, 300, 220);
+    lv_obj_set_size(panel, 312, 230);
     lv_obj_center(panel);
     lv_obj_set_style_radius(panel, 10, 0);
     lv_obj_set_style_bg_color(panel, lv_color_hex(theme.panel_bg), 0);
@@ -281,29 +311,29 @@ void AppPomodoro::setup()
     lv_obj_align(lbl_round, LV_ALIGN_TOP_RIGHT, -6, 7);
 
     arc_timer = lv_arc_create(panel);
-    lv_obj_set_size(arc_timer, 142, 142);
-    lv_obj_align(arc_timer, LV_ALIGN_CENTER, 0, 2);
-    lv_arc_set_range(arc_timer, 0, 100);
+    lv_obj_set_size(arc_timer, 184, 184);
+    lv_obj_align(arc_timer, LV_ALIGN_CENTER, 0, 8);
+    lv_arc_set_range(arc_timer, 0, 10000);
     lv_arc_set_value(arc_timer, 0);
     lv_obj_remove_style(arc_timer, NULL, LV_PART_KNOB);
     lv_obj_clear_flag(arc_timer, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_style_arc_width(arc_timer, 10, LV_PART_MAIN);
-    lv_obj_set_style_arc_width(arc_timer, 10, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(arc_timer, 12, LV_PART_MAIN);
+    lv_obj_set_style_arc_width(arc_timer, 12, LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(arc_timer, lv_color_hex(theme.arc_bg), LV_PART_MAIN);
     lv_obj_set_style_arc_color(arc_timer, lv_color_hex(theme.accent), LV_PART_INDICATOR);
 
     lbl_time_left = lv_label_create(panel);
     lv_label_set_text(lbl_time_left, "25:00");
-    lv_obj_set_style_text_font(lbl_time_left, &lv_font_montserrat_48, 0);
-    lv_obj_center(lbl_time_left);
+    lv_obj_set_style_text_font(lbl_time_left, &lv_font_montserrat_42, 0);
+    lv_obj_align(lbl_time_left, LV_ALIGN_CENTER, 0, 6);
 
     lbl_phase = lv_label_create(panel);
     lv_label_set_text(lbl_phase, phaseTitle(phase));
     lv_obj_set_style_text_color(lbl_phase, lv_color_hex(theme.muted), 0);
-    lv_obj_set_width(lbl_phase, 260);
+    lv_obj_set_width(lbl_phase, 190);
     lv_label_set_long_mode(lbl_phase, LV_LABEL_LONG_CLIP);
     lv_obj_set_style_text_align(lbl_phase, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(lbl_phase, LV_ALIGN_BOTTOM_MID, 0, -34);
+    lv_obj_align(lbl_phase, LV_ALIGN_CENTER, 0, -45);
 
     lbl_hint = lv_label_create(panel);
     lv_label_set_text(lbl_hint, "后台持续计时");
@@ -311,10 +341,15 @@ void AppPomodoro::setup()
     lv_obj_set_width(lbl_hint, 278);
     lv_label_set_long_mode(lbl_hint, LV_LABEL_LONG_CLIP);
     lv_obj_set_style_text_align(lbl_hint, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(lbl_hint, LV_ALIGN_BOTTOM_MID, 0, -10);
+    lv_obj_align(lbl_hint, LV_ALIGN_BOTTOM_MID, 0, -8);
     hal.UNLOCKLV();
 
     last_render_second = 0xFFFFFFFF;
+    last_render_progress = 0xFFFF;
+    last_render_theme = 0xFF;
+    last_render_phase = 0xFF;
+    last_render_round = 0xFF;
+    last_render_waiting = false;
 }
 
 void AppPomodoro::loop()

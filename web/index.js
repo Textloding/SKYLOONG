@@ -621,6 +621,10 @@ function mediaTones() {
           ${toneButton(0, "关闭")}
           ${toneButton(1, "内置 1")}
           ${toneButton(2, "内置 2")}
+          ${toneButton(3, "内置 3")}
+          ${toneButton(5, "弹跳三连")}
+          ${toneButton(6, "篮球律动")}
+          ${toneButton(7, "趣味上扬")}
           ${toneButton(4, "自定义")}
         </div>
         ${dropzone("tone", "选择或拖入音频", "上传后可设为自定义按键音", "audio/mpeg,audio/wav,.mp3,.wav")}
@@ -950,6 +954,7 @@ function viewSystem() {
           <div class="button-row pomodoro-actions">
             <button class="btn primary" data-save-pomodoro>保存番茄钟</button>
             <button class="btn subtle" data-reset-pomodoro>${I.refresh}<span>重置当前倒计时</span></button>
+            <button class="btn subtle" data-reset-pomodoro-rounds>${I.timer}<span>重置轮次</span></button>
           </div>
         </div>
       </section>
@@ -1142,6 +1147,7 @@ function bindSystem() {
   $$("[data-delete]").forEach(btn => btn.onclick = () => confirmDelete(btn.dataset.delete));
   $("[data-save-pomodoro]")?.addEventListener("click", () => savePomodoroSettings());
   $("[data-reset-pomodoro]")?.addEventListener("click", resetPomodoroTimer);
+  $("[data-reset-pomodoro-rounds]")?.addEventListener("click", resetPomodoroRounds);
   $$("[data-cfg]").forEach(input => {
     input.addEventListener("input", ev => {
       const key = ev.target.dataset.cfg;
@@ -1374,6 +1380,16 @@ async function resetPomodoroTimer() {
   });
   if (!ok) return;
   await runAction("pomodoro-reset", () => postForm("/reset_pomodoro_timer"), "当前倒计时已重置");
+}
+
+async function resetPomodoroRounds() {
+  const ok = await confirmDialog({
+    title: "重置番茄钟轮次？",
+    body: "屏幕会回到第 1 轮专注并从完整专注时间重新开始，当前提醒音也会停止。",
+    ok: "重置轮次",
+  });
+  if (!ok) return;
+  await runAction("pomodoro-reset-rounds", () => postForm("/reset_pomodoro_rounds"), "番茄钟轮次已重置");
 }
 
 function playTone(name) {

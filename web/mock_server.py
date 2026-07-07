@@ -149,6 +149,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/reset_pomodoro_timer":
             print("** Pomodoro current timer reset **")
             return self._send()
+        if path == "/reset_pomodoro_rounds":
+            print("** Pomodoro rounds reset **")
+            return self._send()
         if path == "/preview_pomodoro_tone":
             print(f"** Pomodoro tone preview tone={args.get('tone')} file={args.get('tone_file', '')} **")
             return self._send()

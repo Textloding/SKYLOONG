@@ -11,12 +11,12 @@
 - 现代化网页管理后台，支持电脑和手机浏览器自适应访问。
 - 支持图片、GIF、MP4、MPEG 视频和自定义音效上传。
 - 针对 320 x 240 屏幕优化视频转码，可选择“完整显示”或“铺满屏幕”。
-- 支持设备音量、视频声音开关、按键音和番茄钟提醒音设置。
+- 支持设备音量、视频声音开关、内置/自定义按键音和番茄钟提醒音设置。
 - 支持多个 Wi-Fi 凭据保存和开机自动联网。
 - 天气城市可手动设置，也可由浏览器自动识别后写入设备。
 - 天气 API Key 不在管理后台直接展示，降低误操作风险。
 - 支持手速监测、天气、电脑监控、图片相册、视频/GIF、番茄钟等屏幕页面。
-- 番茄钟为独立小应用，支持专注/短休息/长休息、自定义提醒音、主题和远程重置当前倒计时。
+- 番茄钟为独立小应用，支持专注/短休息/长休息、自定义提醒音、主题、远程重置当前倒计时和重置轮次。
 - 提供 `/health`、`/info` 等接口用于排查设备联网和网页服务状态。
 
 ## 管理台展示
@@ -247,9 +247,17 @@ fn + ~
 - 系统页调节设备音量。
 - 设置视频是否播放声音。
 - 上传并试听按键音。
+- 使用内置按键音：内置 1、内置 2、内置 3、弹跳三连、篮球律动、趣味上扬。
 - 设置番茄钟提醒音。
 
 注意：视频声音会占用更多解码和播放资源。若视频画面或声音卡顿，优先关闭视频声音并重新上传视频。
+
+按键音说明：
+
+- “关闭”会禁用按键音。
+- “自定义”会使用媒体页上传的音频文件。
+- 新增的“弹跳三连”“篮球律动”“趣味上扬”为固件内置轻量音效，不依赖 LittleFS 文件。
+- 内置音效存放在固件只读区，避免占用运行时 DRAM；过大的自定义音频仍会占用设备存储空间。
 
 ### 番茄钟
 
@@ -265,6 +273,7 @@ fn + ~
 - 倒计时主题。
 - 内置提醒音或自定义提醒音。
 - 在电脑端重置当前倒计时。
+- 在电脑端重置轮次，重置后会回到第 1 轮专注并从完整专注时间重新开始。
 
 倒计时结束后，屏幕显示 `00:00` 并播放提醒音。用户需要按：
 
@@ -275,6 +284,13 @@ fn + ~
 确认停止提醒音，并进入下一段倒计时。
 
 这样设计是为了避免倒计时结束后自动切走导致用户错过提醒。
+
+倒计时显示说明：
+
+- 番茄钟圆环按当前剩余毫秒计算进度，比只按整秒刷新更平滑、更准确。
+- 圆环按 `320 x 240` 屏幕重新布局，时间数字与顶部状态文字保持分离。
+- 管理台的“重置当前倒计时”只重置当前专注/休息段，不改变已完成轮次。
+- 管理台的“重置轮次”会停止当前提醒音，并回到第 1 轮专注。
 
 ### 天气
 
@@ -421,6 +437,7 @@ node --check web\index.js
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify_web_cache_version.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify_web_dirty_state.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify_pomodoro_pipeline.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify_keytone_pipeline.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify_webserver_reliability.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify_wifi_pipeline.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify_video_pipeline.ps1

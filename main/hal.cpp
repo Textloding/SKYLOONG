@@ -6,6 +6,9 @@
 #include "keytone/keytone1.h"
 #include "keytone/keytone2.h"
 #include "keytone/keytone3.h"
+#include "keytone/keytone4.h"
+#include "keytone/keytone5.h"
+#include "keytone/keytone6.h"
 #include "pomodoro_tone/pomodoro_tone1.h"
 #include "pomodoro_tone/pomodoro_tone2.h"
 #include "pomodoro_tone/pomodoro_tone3.h"
@@ -16,6 +19,7 @@ I2SClass i2s;
 es8311_handle_t es_handle = es8311_create(I2C_NUM_0, ES8311_ADDRRES_0);
 static char *TAG = "audio_init";
 extern void pomodoro_reset_current();
+extern void pomodoro_reset_rounds();
 
 #include <TFT_eSPI.h>
 TFT_eSPI tft = TFT_eSPI(); 
@@ -203,6 +207,18 @@ static void task_systemctl(void *p)
             } else if (hal.config_keytone == 4) {
                 hal.keytone_play =  true;
                 playAudioFileFromLittleFS(hal.config_keytone_file);
+                hal.keytone_play =  false;
+            } else if (hal.config_keytone == 5) {
+                hal.keytone_play =  true;
+                i2s.playWAV(__keytone_keytone4_wav, __keytone_keytone4_wav_len);
+                hal.keytone_play =  false;
+            } else if (hal.config_keytone == 6) {
+                hal.keytone_play =  true;
+                i2s.playWAV(__keytone_keytone5_wav, __keytone_keytone5_wav_len);
+                hal.keytone_play =  false;
+            } else if (hal.config_keytone == 7) {
+                hal.keytone_play =  true;
+                i2s.playWAV(__keytone_keytone6_wav, __keytone_keytone6_wav_len);
                 hal.keytone_play =  false;
             }
             break;
@@ -1476,6 +1492,11 @@ void HAL::start_webserver()
 
     server.on("/reset_pomodoro_timer", HTTP_POST, []() {
         pomodoro_reset_current();
+        server.send(200, "text/plain", "OK");
+    });
+
+    server.on("/reset_pomodoro_rounds", HTTP_POST, []() {
+        pomodoro_reset_rounds();
         server.send(200, "text/plain", "OK");
     });
 
