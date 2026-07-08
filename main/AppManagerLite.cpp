@@ -85,7 +85,7 @@ void AppManagerLite::switchApp(BaseApp *app)
     {
         return;
     }
-    if(app->appid != 50)
+    if(app->appid != 50 && app->appid != 100)
         last_appid = app->appid;
     if (currentApp)
         currentApp->stop();

@@ -4,6 +4,7 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $halHeader = Join-Path $repoRoot "main\include\hal.h"
 $halSource = Join-Path $repoRoot "main\hal.cpp"
 $mainSource = Join-Path $repoRoot "main\main.cpp"
+$appManagerHeader = Join-Path $repoRoot "main\include\AppManagerLite.h"
 $appManagerSource = Join-Path $repoRoot "main\AppManagerLite.cpp"
 $lvglConfig = Join-Path $repoRoot "components\lvgl\lv_conf.h"
 $sdkconfigPath = Join-Path $repoRoot "sdkconfig"
@@ -32,6 +33,7 @@ function Assert-LvglImageCacheSmall($text) {
 $header = Read-Text $halHeader
 $source = Read-Text $halSource
 $main = Read-Text $mainSource
+$appManagerLiteHeader = Read-Text $appManagerHeader
 $appManager = Read-Text $appManagerSource
 $lvgl = Read-Text $lvglConfig
 $sdkconfig = Read-Text $sdkconfigPath
@@ -74,5 +76,9 @@ Assert-Contains $main 'start_webserver_early' "Firmware must attempt to start th
 Assert-Contains $main 'start_webserver_early\s*\(\s*\)\s*;\s*appHome\.init' "Early management server start must happen before app initialization."
 Assert-Contains $main 'WiFiMgr\.autoConnectSaved\s*\(' "Management server autostart must reconnect to saved Wi-Fi."
 Assert-Contains $main 'hal\.start_webserver\s*\(' "Management server autostart must launch the WebServer."
+Assert-Contains $header 'EVENT_GOTO_QRCODE' "Firmware must keep the QR/Wi-Fi setup event for manual provisioning."
+Assert-Contains $appManagerLiteHeader 'case\s+8:\s*nextApp\s*=\s*appQRCode' "Fn+~ app switching must keep the QR/Wi-Fi setup screen reachable after the pet app."
+Assert-Contains $appManagerLiteHeader 'case\s+100:\s*nextApp\s*=\s*appHome' "Fn+~ app switching must let users leave the QR/Wi-Fi setup screen."
+Assert-Contains $appManager 'app->appid\s*!=\s*50\s*&&\s*app->appid\s*!=\s*100' "QR/Wi-Fi setup must not be persisted as the boot app after users visit it."
 
 Write-Host "Web server reliability source checks passed."

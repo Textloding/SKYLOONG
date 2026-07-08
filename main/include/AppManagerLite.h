@@ -77,7 +77,7 @@ public:
                         break;
                     }
                 case 8:
-                    nextApp = appHome;
+                    nextApp = appQRCode;
                     break;
                 case 50:
                 case 100:
