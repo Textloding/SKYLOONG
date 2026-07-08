@@ -6,6 +6,12 @@
 
 ![管理台总览](docs/images/console-overview.png)
 
+## 当前版本
+
+- 主分支面向普通用户使用，包含现代化管理台、Wi-Fi 自动重连、视频转码、番茄钟、键盘宠物和网页服务稳定性优化。
+- 详细变更见 [2026-07-08 版本说明](docs/releases/2026-07-08.md)。
+- 不想配置 ESP-IDF 的用户，推荐使用独立刷机工具：[Textloding/skyloong-flasher](https://github.com/Textloding/skyloong-flasher)。
+
 ## 功能概览
 
 - 现代化网页管理后台，支持电脑和手机浏览器自适应访问。
@@ -65,6 +71,18 @@ USB VID:PID = 303A:1001
 不同电脑上的端口号可能不同，刷机前必须以实际扫描结果为准。
 
 ## 刷固件前准备
+
+### 推荐方式：使用一键刷机工具
+
+普通用户建议优先使用独立刷机工具，不需要手动输入 `idf.py flash`：
+
+```text
+https://github.com/Textloding/skyloong-flasher
+```
+
+刷机工具支持选择本地 zip、输入 GitHub 仓库链接或分支链接，并在界面里显示下载、解析、构建、设备扫描和刷机进度。
+
+下面的 ESP-IDF 命令适合开发者或需要自行编译固件的用户。
 
 ### 必备硬件
 
