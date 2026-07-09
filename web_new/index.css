@@ -1010,7 +1010,8 @@ p {
   background-color: rgba(13, 24, 38, .98);
 }
 
-.field select option {
+.field select option,
+.field select optgroup {
   background: #0b1220;
   color: #eaf2ff;
 }
@@ -1020,9 +1021,15 @@ p {
   color: #ffffff;
 }
 
-.field select option:hover {
+.field select option:hover,
+.field select option:focus {
   background: #123145;
   color: #ffffff;
+}
+
+.field select option:disabled {
+  background: #0b1220;
+  color: rgba(226, 238, 246, .46);
 }
 
 .field input[type="range"] {
