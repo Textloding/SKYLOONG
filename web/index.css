@@ -990,28 +990,45 @@ p {
 
 .field select {
   color-scheme: dark;
-  background-color: #111c28;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 40px;
+  background-color: rgba(9, 17, 28, .94);
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(226, 242, 255, .9) 50%),
+    linear-gradient(135deg, rgba(226, 242, 255, .9) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 13px) 50%;
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+.field select:hover {
+  border-color: rgba(125, 211, 252, .44);
+  background-color: rgba(13, 24, 38, .98);
 }
 
 .field select option,
 .field select optgroup {
-  background-color: #111c28;
-  color: #eef6fb;
+  background: #0b1220;
+  color: #eaf2ff;
 }
 
 .field select option:checked {
-  background-color: #163a52;
-  color: #eef6fb;
+  background: #155e75;
+  color: #ffffff;
 }
 
 .field select option:hover,
 .field select option:focus {
-  background-color: #1f506b;
-  color: #eef6fb;
+  background: #123145;
+  color: #ffffff;
 }
 
 .field select option:disabled {
-  background-color: #111c28;
+  background: #0b1220;
   color: rgba(226, 238, 246, .46);
 }
 
