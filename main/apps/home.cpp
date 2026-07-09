@@ -71,8 +71,9 @@ namespace theme_fox
         lbl_time = lv_label_create(home_appScreen);
         lv_label_set_text(lbl_time, "");
         lv_obj_set_style_text_font(lbl_time, &font_main1_time, 0);
-        lv_obj_set_pos(lbl_time, 157, 30);
-        lv_obj_set_size(lbl_time, 163, 42);
+        lv_obj_set_pos(lbl_time, 80, 30);
+        lv_obj_set_size(lbl_time, 240, 42);
+        lv_label_set_long_mode(lbl_time, LV_LABEL_LONG_CLIP);
         lv_obj_set_style_text_align(lbl_time, LV_TEXT_ALIGN_RIGHT, 0);
         lv_obj_set_style_text_color(lbl_time, lv_color_hex(0xf9c262), 0);
 
@@ -338,8 +339,9 @@ namespace theme_spartan
         lbl_time = lv_label_create(home_appScreen);
         lv_label_set_text(lbl_time, "");
         lv_obj_set_style_text_font(lbl_time, &font_main1_time, 0);
-        lv_obj_set_pos(lbl_time, 168, 20);
-        lv_obj_set_size(lbl_time, 152, 42);
+        lv_obj_set_pos(lbl_time, 88, 20);
+        lv_obj_set_size(lbl_time, 232, 42);
+        lv_label_set_long_mode(lbl_time, LV_LABEL_LONG_CLIP);
         lv_obj_set_style_text_align(lbl_time, LV_TEXT_ALIGN_RIGHT, 0);
         lv_obj_set_style_text_color(lbl_time, lv_color_hex(0x000000), 0);
 

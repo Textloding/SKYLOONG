@@ -58,10 +58,16 @@ struct app_setting
 {
     char weather_secret[64];
     char weather_city[64];
-    char weather_provider[16];
-    char weather_endpoint[96];
+    char weather_provider[32];
+    char weather_endpoint[128];
     char weather_lat[24];
     char weather_lon[24];
+    char weather_key_seniverse[64];
+    char weather_key_qweather[64];
+    char weather_key_aliyun_72158[64];
+    char weather_key_aliyun_10812[64];
+    char weather_key_aliyun_50139[64];
+    char weather_key_aliyun_71988[64];
 };
 extern struct app_setting app_settings_save;
 

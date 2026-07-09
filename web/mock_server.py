@@ -21,10 +21,18 @@ STATE = {
 APP_SETTINGS = {
     "weather": "",
     "city": "北京",
-    "weather_provider": "openmeteo",
-    "weather_endpoint": "http://api.open-meteo.com",
+    "weather_provider": "aliyun_72158",
+    "weather_endpoint": "https://getweather.market.alicloudapi.com/lundear/weather1d",
     "weather_lat": "39.9042",
     "weather_lon": "116.4074",
+    "weather_provider_keys": {
+        "seniverse": False,
+        "qweather": False,
+        "aliyun_72158": False,
+        "aliyun_10812": False,
+        "aliyun_50139": False,
+        "aliyun_71988": False,
+    },
 }
 TOTAL_BYTES = 9 * 1024 * 1024
 
@@ -139,7 +147,10 @@ class Handler(BaseHTTPRequestHandler):
             STATE["time_roll"] = int(args.get("time_roll", 5000)); return self._send()
         if path == "/config.json":
             incoming = json.loads(body.decode("utf-8"))
-            if not incoming.get("weather"):
+            if incoming.get("weather"):
+                keys = APP_SETTINGS.setdefault("weather_provider_keys", {})
+                keys[incoming.get("weather_provider", APP_SETTINGS.get("weather_provider"))] = True
+            else:
                 incoming.pop("weather", None)
             APP_SETTINGS.update(incoming); return self._send()
         if path == "/time":

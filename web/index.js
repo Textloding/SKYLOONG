@@ -70,15 +70,6 @@ const mediaTabs = [
 
 const commonWeatherCities = ["北京", "上海", "广州", "深圳", "杭州", "成都", "重庆", "武汉", "南京", "苏州", "西安", "长沙"];
 const weatherSources = {
-  openmeteo: {
-    name: "Open-Meteo",
-    desc: "免 Key，适合作为默认天气源；建议保存经纬度避免中文城市重名。",
-    endpointLabel: "API 地址",
-    endpoint: "http://api.open-meteo.com",
-    keyHelp: "无需申请 Key",
-    keyUrl: "https://open-meteo.com/en/docs",
-    keyPlaceholder: "此服务无需 Key",
-  },
   seniverse: {
     name: "心知天气",
     desc: "兼容原固件天气接口，需要使用你自己的私有 Key。",
@@ -97,6 +88,42 @@ const weatherSources = {
     keyUrl: "https://dev.qweather.com/docs/configuration/authentication/",
     keyPlaceholder: "粘贴 QWeather API KEY，留空不修改",
   },
+  aliyun_72158: {
+    name: "阿里云 72158 精准天气",
+    desc: "阿里云市场 APPCODE 鉴权，适合国内网络；按城市名查询实时和多天天气。",
+    endpointLabel: "接口地址",
+    endpoint: "https://getweather.market.alicloudapi.com/lundear/weather1d",
+    keyHelp: "在阿里云市场购买/开通免费规格后，进入控制台复制 AppCode；接口地址通常不用改。",
+    keyUrl: "https://market.aliyun.com/detail/cmapi00072158.html",
+    keyPlaceholder: "粘贴阿里云 AppCode，留空不修改",
+  },
+  aliyun_10812: {
+    name: "阿里云 10812 万维易源",
+    desc: "万维易源天气服务，使用阿里云市场 AppCode，请求时自动添加 APPCODE 请求头。",
+    endpointLabel: "接口地址",
+    endpoint: "https://ali-weather.showapi.com/spot-to-weather",
+    keyHelp: "在阿里云市场开通该商品后复制 AppCode；固件会按 ShowAPI 常见结构解析返回。",
+    keyUrl: "https://market.aliyun.com/detail/cmapi010812.html",
+    keyPlaceholder: "粘贴阿里云 AppCode，留空不修改",
+  },
+  aliyun_50139: {
+    name: "阿里云 50139 实时多天天气",
+    desc: "阿里云市场实时、多天天气与空气质量服务；如商品页接口地址变化，可在这里手动替换。",
+    endpointLabel: "接口地址",
+    endpoint: "https://weather01.market.alicloudapi.com/weather",
+    keyHelp: "在阿里云市场开通免费规格后复制 AppCode；若接口文档给出专用地址，请粘贴到接口地址。",
+    keyUrl: "https://market.aliyun.com/detail/cmapi00050139.html",
+    keyPlaceholder: "粘贴阿里云 AppCode，留空不修改",
+  },
+  aliyun_71988: {
+    name: "阿里云 71988 快证天气",
+    desc: "阿里云市场快证 API 天气源；适合用户已有该商品 AppCode 的场景。",
+    endpointLabel: "接口地址",
+    endpoint: "https://kzweather.market.alicloudapi.com/weather",
+    keyHelp: "在阿里云市场开通该商品后复制 AppCode；如商品文档接口地址不同，请在这里覆盖。",
+    keyUrl: "https://market.aliyun.com/detail/cmapi00071988.html",
+    keyPlaceholder: "粘贴阿里云 AppCode，留空不修改",
+  },
 };
 const state = {
   route: "overview",
@@ -106,6 +133,7 @@ const state = {
   appCfg: null,
   dirtyInfo: new Set(),
   dirtyAppCfg: new Set(),
+  weatherKeyDrafts: {},
   online: true,
   booted: false,
   scan: { status: "idle", networks: [] },
@@ -273,12 +301,38 @@ function normalizeList(list = {}) {
   };
 }
 
+function collectWeatherDraftFromDom() {
+  const draft = {};
+  $$("[data-cfg]").forEach(input => {
+    if (!input.dataset.cfg) return;
+    draft[input.dataset.cfg] = input.type === "number" ? Number(input.value) : input.value;
+  });
+  return draft;
+}
+
+function isWeatherEditing() {
+  if (state.route !== "system") return false;
+  if (state.dirtyAppCfg.size > 0) return true;
+  const active = document.activeElement;
+  return !!(active && active.closest && active.closest(".weather-card"));
+}
+
 function normalizeAppCfg(cfg = {}) {
-  const rawProvider = cfg?.weather_provider || cfg?.weatherProvider || "openmeteo";
-  const provider = weatherSources[rawProvider] ? rawProvider : "openmeteo";
+  const rawProvider = cfg?.weather_provider || cfg?.weatherProvider || "aliyun_72158";
+  const provider = weatherSources[rawProvider] ? rawProvider : "aliyun_72158";
   const source = weatherSources[provider];
+  const weatherProviderKeys = {
+    seniverse: false,
+    qweather: false,
+    aliyun_72158: false,
+    aliyun_10812: false,
+    aliyun_50139: false,
+    aliyun_71988: false,
+    ...(cfg?.weather_provider_keys || cfg?.weatherProviderKeys || {}),
+  };
   return {
-    weatherConfigured: !!(cfg?.weather_configured || cfg?.weather),
+    weatherConfigured: !!(cfg?.weather_configured || cfg?.weatherConfigured || cfg?.weather || weatherProviderKeys[provider]),
+    weatherProviderKeys,
     weatherProvider: provider,
     weatherEndpoint: cfg?.weather_endpoint || cfg?.weatherEndpoint || source.endpoint,
     weatherLat: cfg?.weather_lat || cfg?.weatherLat || "",
@@ -289,6 +343,13 @@ function normalizeAppCfg(cfg = {}) {
 
 function mergeAppCfgFromDevice(cfg) {
   const next = normalizeAppCfg(cfg);
+  if (isWeatherEditing()) {
+    return normalizeAppCfg({
+      ...next,
+      ...state.appCfg,
+      ...collectWeatherDraftFromDom(),
+    });
+  }
   if (!state.appCfg || state.dirtyAppCfg.size === 0) return next;
   const merged = { ...next };
   state.dirtyAppCfg.forEach(key => {
@@ -724,7 +785,7 @@ function viewDisplay() {
         <div class="theme-grid">
           ${Array.from({ length: 4 }, (_, i) => `
             <button class="theme-card ${info.theme === i ? "active" : ""}" data-theme="${i}">
-              <img src="/theme${i + 1}.png?v=theme-fix-20260709b" alt="主题 ${i + 1}">
+              <img src="/theme${i + 1}.png?v=theme-layout-20260709c" alt="主题 ${i + 1}">
               ${info.theme === i ? `<span>${I.check}</span>` : ""}
             </button>
           `).join("")}
@@ -888,8 +949,10 @@ function viewSystem() {
 }
 
 function weatherSettingsCard(cfg) {
-  const source = weatherSources[cfg.weatherProvider] || weatherSources.openmeteo;
-  const needsKey = cfg.weatherProvider !== "openmeteo";
+  const source = weatherSources[cfg.weatherProvider] || weatherSources.aliyun_72158;
+  const keyDraft = state.weatherKeyDrafts[cfg.weatherProvider] || "";
+  const hasSavedKey = !!cfg.weatherProviderKeys?.[cfg.weatherProvider];
+  const keyPlaceholder = hasSavedKey && !keyDraft ? "已保存，留空不修改" : source.keyPlaceholder;
   return `
     <div class="weather-card">
             <div class="weather-card-head">
@@ -909,7 +972,7 @@ function weatherSettingsCard(cfg) {
       </label>
       <label class="field">
         <span>API Key</span>
-        <input data-cfg="weather" type="password" autocomplete="off" placeholder="${esc(source.keyPlaceholder)}" ${needsKey ? "" : "disabled"}>
+        <input data-cfg="weather" type="password" autocomplete="off" value="${esc(keyDraft)}" placeholder="${esc(keyPlaceholder)}">
         <small>${esc(source.keyHelp)} <a href="${esc(source.keyUrl)}" target="_blank" rel="noreferrer">查看获取方法</a></small>
       </label>
             <label class="field"><span>手动选择或输入</span><input data-cfg="city" list="weather-city-list" value="${esc(cfg.city)}" placeholder="例如 北京"></label>
@@ -925,10 +988,9 @@ function weatherSettingsCard(cfg) {
 }
 
 function weatherStatusText(cfg) {
-  if (cfg.weatherProvider === "openmeteo") {
-    return cfg.weatherLat && cfg.weatherLon ? "免 Key 天气源已就绪；城市名用于屏幕显示，经纬度用于查询。" : "Open-Meteo 需要经纬度；可点自动识别后保存。";
-  }
-  return cfg.weatherConfigured ? "天气 Key 已保存；该源异常时会退回免 Key 基础天气。" : "请选择服务商并填入自己的 API Key；异常时会尝试免 Key 兜底。";
+  const hasSavedKey = !!cfg.weatherProviderKeys?.[cfg.weatherProvider];
+  if (hasSavedKey) return "该天气源的 Key 已保存；切换回来时可直接保存，不需要重复填写。";
+  return "请选择天气源并填入自己的 API Key / AppCode；天气查询完全按当前保存的用户配置执行。";
 }
 
 function bindCommon() {
@@ -1070,6 +1132,9 @@ function bindSystem() {
     input.addEventListener("input", ev => {
       const key = ev.target.dataset.cfg;
       if (!key) return;
+      if (key === "weather" && state.appCfg?.weatherProvider) {
+        state.weatherKeyDrafts[state.appCfg.weatherProvider] = ev.target.value;
+      }
       state.dirtyAppCfg.add(key);
       state.appCfg = normalizeAppCfg({
         ...state.appCfg,
@@ -1078,8 +1143,12 @@ function bindSystem() {
     });
   });
   $("[data-weather-provider]")?.addEventListener("change", ev => {
+    const keyInput = $("[data-cfg=\"weather\"]");
+    if (keyInput && state.appCfg?.weatherProvider) {
+      state.weatherKeyDrafts[state.appCfg.weatherProvider] = keyInput.value;
+    }
     const provider = ev.target.value;
-    const source = weatherSources[provider] || weatherSources.openmeteo;
+    const source = weatherSources[provider] || weatherSources.aliyun_72158;
     const endpoint = $("[data-cfg=\"weather_endpoint\"]");
     if (endpoint && (!endpoint.value || Object.values(weatherSources).some(item => item.endpoint === endpoint.value))) {
       endpoint.value = source.endpoint;
@@ -1090,6 +1159,7 @@ function bindSystem() {
       ...state.appCfg,
       weatherProvider: provider,
       weatherEndpoint: endpoint?.value || source.endpoint,
+      weatherConfigured: !!state.appCfg?.weatherProviderKeys?.[provider] || !!state.weatherKeyDrafts[provider],
     });
     render();
   });
@@ -1241,23 +1311,33 @@ async function saveAppConfig() {
     toast("请填写天气城市", "danger");
     return;
   }
-  cfg.weather_provider = cfg.weather_provider || state.appCfg?.weatherProvider || "openmeteo";
-  const source = weatherSources[cfg.weather_provider] || weatherSources.openmeteo;
+  cfg.weather_provider = cfg.weather_provider || state.appCfg?.weatherProvider || "aliyun_72158";
+  const source = weatherSources[cfg.weather_provider] || weatherSources.aliyun_72158;
   cfg.weather_endpoint = (cfg.weather_endpoint || source.endpoint).trim();
   cfg.weather_lat = (cfg.weather_lat || "").trim();
   cfg.weather_lon = (cfg.weather_lon || "").trim();
   cfg.weather = (cfg.weather || "").trim();
-  if (cfg.weather_provider === "openmeteo" && (!cfg.weather_lat || !cfg.weather_lon)) {
-    toast("Open-Meteo 需要经纬度，点自动识别后再保存", "danger");
+  const providerKeys = state.appCfg?.weatherProviderKeys || {};
+  const hasSavedKey = !!providerKeys[cfg.weather_provider];
+  if (!cfg.weather && !hasSavedKey) {
+    toast("这个天气源需要 API Key / AppCode，请先填写", "danger");
     return;
   }
-  if (cfg.weather_provider !== "openmeteo" && !cfg.weather && !state.appCfg?.weatherConfigured) {
-    toast("这个天气源需要 API Key，请先填写", "danger");
-    return;
-  }
-  state.appCfg = normalizeAppCfg({ ...state.appCfg, ...cfg });
+  const nextAppCfg = normalizeAppCfg({
+    ...state.appCfg,
+    ...cfg,
+    weather_provider_keys: {
+      ...providerKeys,
+      [cfg.weather_provider]: true,
+    },
+  });
   const saved = await runAction("appcfg", () => postPlain("/config.json", JSON.stringify(cfg)), "应用参数已保存");
-  if (saved) state.dirtyAppCfg.clear();
+  if (saved) {
+    state.appCfg = nextAppCfg;
+    delete state.weatherKeyDrafts[cfg.weather_provider];
+    state.dirtyAppCfg.clear();
+    render();
+  }
 }
 
 function setWeatherDetect(status, message = "") {
