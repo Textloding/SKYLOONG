@@ -1049,9 +1049,24 @@ void handleTime()
 #include <cJSON.h>
 
 static char jsonbuffer[1024];
-const char default_app_setting[] = "{\"ip\":\"192.168.1.1\",\"port\":1648,\"weather\":\"SoC098cCa8Ih-GWTb\",\"city\":\"北京\",\"userdata\":\"请在网页端\n自定义文本\"}";
+const char default_weather_key[] = "SoC098cCa8Ih-GWTb";
+const char default_weather_city[] = "北京";
+const char default_weather_provider[] = "openmeteo";
+const char default_weather_endpoint[] = "http://api.open-meteo.com";
+const char default_weather_lat[] = "39.9042";
+const char default_weather_lon[] = "116.4074";
+const char default_app_setting[] = "{\"ip\":\"192.168.1.1\",\"port\":1648,\"weather\":\"\",\"city\":\"北京\",\"weather_provider\":\"openmeteo\",\"weather_endpoint\":\"http://api.open-meteo.com\",\"weather_lat\":\"39.9042\",\"weather_lon\":\"116.4074\",\"userdata\":\"请在网页端\n自定义文本\"}";
 
 struct app_setting app_settings_save;
+
+struct legacy_app_setting
+{
+    char remote_ip[64];
+    uint16_t remote_port;
+    char weather_secret[64];
+    char weather_city[64];
+    char userdata[256];
+};
 
 static bool writeJsonToBuffer(cJSON *json, char *result, size_t result_size)
 {
@@ -1094,6 +1109,75 @@ static const char *jsonStringValue(cJSON *root, const char *key)
     return (item != NULL && cJSON_IsString(item) && item->valuestring != NULL) ? item->valuestring : NULL;
 }
 
+void parseAppSettings(const char *input);
+
+static bool isKnownWeatherProvider(const char *provider)
+{
+    return provider != NULL &&
+           (strcmp(provider, "openmeteo") == 0 ||
+            strcmp(provider, "seniverse") == 0 ||
+            strcmp(provider, "qweather") == 0);
+}
+
+static const char *defaultWeatherEndpointForProvider(const char *provider)
+{
+    if (provider != NULL && strcmp(provider, "seniverse") == 0)
+        return "http://api.seniverse.com";
+    if (provider != NULL && strcmp(provider, "qweather") == 0)
+        return "https://devapi.qweather.com";
+    return default_weather_endpoint;
+}
+
+static void fillWeatherDefaultsIfMissing()
+{
+    if (!isKnownWeatherProvider(app_settings_save.weather_provider))
+        copySettingString(app_settings_save.weather_provider, sizeof(app_settings_save.weather_provider), default_weather_provider);
+
+    if (strlen(app_settings_save.weather_endpoint) == 0)
+        copySettingString(app_settings_save.weather_endpoint, sizeof(app_settings_save.weather_endpoint), defaultWeatherEndpointForProvider(app_settings_save.weather_provider));
+
+    if (strcmp(app_settings_save.weather_provider, "openmeteo") == 0)
+    {
+        app_settings_save.weather_secret[0] = '\0';
+        if (strlen(app_settings_save.weather_city) == 0)
+            copySettingString(app_settings_save.weather_city, sizeof(app_settings_save.weather_city), default_weather_city);
+        if (strcmp(app_settings_save.weather_city, default_weather_city) == 0 && strlen(app_settings_save.weather_lat) == 0)
+            copySettingString(app_settings_save.weather_lat, sizeof(app_settings_save.weather_lat), default_weather_lat);
+        if (strcmp(app_settings_save.weather_city, default_weather_city) == 0 && strlen(app_settings_save.weather_lon) == 0)
+            copySettingString(app_settings_save.weather_lon, sizeof(app_settings_save.weather_lon), default_weather_lon);
+    }
+}
+
+static void migrateLegacyAppSettings(const legacy_app_setting &legacy)
+{
+    parseAppSettings(default_app_setting);
+    copySettingString(app_settings_save.remote_ip, sizeof(app_settings_save.remote_ip), legacy.remote_ip);
+    if (legacy.remote_port > 0 && legacy.remote_port <= 65535)
+        app_settings_save.remote_port = legacy.remote_port;
+    copySettingString(app_settings_save.weather_city, sizeof(app_settings_save.weather_city), legacy.weather_city);
+    copySettingString(app_settings_save.userdata, sizeof(app_settings_save.userdata), legacy.userdata);
+
+    if (strlen(legacy.weather_secret) > 0 && strcmp(legacy.weather_secret, default_weather_key) != 0)
+    {
+        copySettingString(app_settings_save.weather_secret, sizeof(app_settings_save.weather_secret), legacy.weather_secret);
+        copySettingString(app_settings_save.weather_provider, sizeof(app_settings_save.weather_provider), "seniverse");
+        copySettingString(app_settings_save.weather_endpoint, sizeof(app_settings_save.weather_endpoint), "http://api.seniverse.com");
+    }
+    else
+    {
+        app_settings_save.weather_secret[0] = '\0';
+        copySettingString(app_settings_save.weather_provider, sizeof(app_settings_save.weather_provider), default_weather_provider);
+        copySettingString(app_settings_save.weather_endpoint, sizeof(app_settings_save.weather_endpoint), default_weather_endpoint);
+        app_settings_save.weather_lat[0] = '\0';
+        app_settings_save.weather_lon[0] = '\0';
+        if (strlen(app_settings_save.weather_city) == 0 || strcmp(app_settings_save.weather_city, default_weather_city) == 0)
+        {
+            copySettingString(app_settings_save.weather_lat, sizeof(app_settings_save.weather_lat), default_weather_lat);
+            copySettingString(app_settings_save.weather_lon, sizeof(app_settings_save.weather_lon), default_weather_lon);
+        }
+    }
+}
+
 void parseAppSettings(const char *input)
 {
     cJSON *root = cJSON_Parse(input);
@@ -1120,10 +1204,27 @@ void parseAppSettings(const char *input)
     if (city != NULL && strlen(city) > 0)
         copySettingString(app_settings_save.weather_city, sizeof(app_settings_save.weather_city), city);
 
+    const char *weather_provider = jsonStringValue(root, "weather_provider");
+    if (weather_provider != NULL && strlen(weather_provider) > 0)
+        copySettingString(app_settings_save.weather_provider, sizeof(app_settings_save.weather_provider), weather_provider);
+
+    const char *weather_endpoint = jsonStringValue(root, "weather_endpoint");
+    if (weather_endpoint != NULL && strlen(weather_endpoint) > 0)
+        copySettingString(app_settings_save.weather_endpoint, sizeof(app_settings_save.weather_endpoint), weather_endpoint);
+
+    const char *weather_lat = jsonStringValue(root, "weather_lat");
+    if (weather_lat != NULL)
+        copySettingString(app_settings_save.weather_lat, sizeof(app_settings_save.weather_lat), weather_lat);
+
+    const char *weather_lon = jsonStringValue(root, "weather_lon");
+    if (weather_lon != NULL)
+        copySettingString(app_settings_save.weather_lon, sizeof(app_settings_save.weather_lon), weather_lon);
+
     const char *userdata = jsonStringValue(root, "userdata");
     if (userdata != NULL)
         copySettingString(app_settings_save.userdata, sizeof(app_settings_save.userdata), userdata);
 
+    fillWeatherDefaultsIfMissing();
     cJSON_Delete(root);
 }
 
@@ -1132,7 +1233,11 @@ void appSettingsToJson(char *result)
     cJSON *item = cJSON_CreateObject();
     cJSON_AddStringToObject(item, "ip", app_settings_save.remote_ip);
     cJSON_AddNumberToObject(item, "port", app_settings_save.remote_port);
-    cJSON_AddBoolToObject(item, "weather_configured", strlen(app_settings_save.weather_secret) > 0);
+    cJSON_AddStringToObject(item, "weather_provider", app_settings_save.weather_provider);
+    cJSON_AddStringToObject(item, "weather_endpoint", app_settings_save.weather_endpoint);
+    cJSON_AddStringToObject(item, "weather_lat", app_settings_save.weather_lat);
+    cJSON_AddStringToObject(item, "weather_lon", app_settings_save.weather_lon);
+    cJSON_AddBoolToObject(item, "weather_configured", strlen(app_settings_save.weather_secret) > 0 || strcmp(app_settings_save.weather_provider, "openmeteo") == 0);
     cJSON_AddStringToObject(item, "city", app_settings_save.weather_city);
     cJSON_AddStringToObject(item, "userdata", app_settings_save.userdata);
     writeJsonToBuffer(item, result, 1024);
@@ -1151,18 +1256,37 @@ void HAL::loadAppSettings()
     File file = LittleFS.open("/.cfg.bin", "r");
     if (file)
     {
-        int sz = file.read((uint8_t *)&app_settings_save, sizeof(app_settings_save));
-        if (sz != sizeof(app_settings_save))
+        size_t fileSize = file.size();
+        if (fileSize == sizeof(app_settings_save))
         {
+            int sz = file.read((uint8_t *)&app_settings_save, sizeof(app_settings_save));
+            if (sz != sizeof(app_settings_save))
+            {
+                file.close();
+                goto reset;
+            }
+            if (file.read() != -1)
+            {
+                file.close();
+                goto reset;
+            }
             file.close();
-            goto reset;
+            fillWeatherDefaultsIfMissing();
+            return;
         }
-        if (file.read() != -1)
+        if (fileSize == sizeof(legacy_app_setting))
         {
+            legacy_app_setting legacy;
+            int sz = file.read((uint8_t *)&legacy, sizeof(legacy));
             file.close();
-            goto reset;
+            if (sz != sizeof(legacy))
+                goto reset;
+            migrateLegacyAppSettings(legacy);
+            saveAppSettings();
+            return;
         }
         file.close();
+        goto reset;
     }
     else
     {

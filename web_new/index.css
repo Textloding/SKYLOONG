@@ -1317,6 +1317,11 @@ p {
   box-shadow: 0 0 0 3px rgba(56, 189, 248, .12);
 }
 
+.field input:disabled {
+  opacity: .58;
+  cursor: not-allowed;
+}
+
 .password-field {
   position: relative;
 }
@@ -1412,6 +1417,15 @@ p {
 
 .weather-card > small {
   color: var(--faint);
+}
+
+.weather-card a {
+  color: var(--accent-strong);
+  text-decoration: none;
+}
+
+.weather-card a:hover {
+  text-decoration: underline;
 }
 
 .weather-card-head {

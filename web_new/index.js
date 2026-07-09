@@ -69,6 +69,35 @@ const mediaTabs = [
 ];
 
 const commonWeatherCities = ["北京", "上海", "广州", "深圳", "杭州", "成都", "重庆", "武汉", "南京", "苏州", "西安", "长沙"];
+const weatherSources = {
+  openmeteo: {
+    name: "Open-Meteo",
+    desc: "免 Key，适合作为默认天气源；建议保存经纬度避免中文城市重名。",
+    endpointLabel: "API 地址",
+    endpoint: "http://api.open-meteo.com",
+    keyHelp: "无需申请 Key",
+    keyUrl: "https://open-meteo.com/en/docs",
+    keyPlaceholder: "此服务无需 Key",
+  },
+  seniverse: {
+    name: "心知天气",
+    desc: "兼容原固件天气接口，需要使用你自己的私有 Key。",
+    endpointLabel: "API 地址",
+    endpoint: "http://api.seniverse.com",
+    keyHelp: "注册心知天气，在控制台创建产品并复制 API 密钥；接口地址通常不用改。",
+    keyUrl: "https://docs.seniverse.com/api/weather/now.html",
+    keyPlaceholder: "粘贴心知天气私钥 Key，留空不修改",
+  },
+  qweather: {
+    name: "QWeather 和风天气",
+    desc: "国内常用天气源，需要 API KEY；建议同时保存经纬度。",
+    endpointLabel: "API Host",
+    endpoint: "https://devapi.qweather.com",
+    keyHelp: "进入 QWeather 项目管理创建 API KEY；官方更推荐 JWT，本固件先支持 key 参数。",
+    keyUrl: "https://dev.qweather.com/docs/configuration/authentication/",
+    keyPlaceholder: "粘贴 QWeather API KEY，留空不修改",
+  },
+};
 const pomodoroToneOptions = [
   { id: 1, name: "清脆铃声", desc: "短促清亮，适合专注结束" },
   { id: 2, name: "柔和木琴", desc: "更轻，不容易吓到人" },
@@ -283,10 +312,17 @@ function normalizeList(list = {}) {
 }
 
 function normalizeAppCfg(cfg = {}) {
+  const rawProvider = cfg?.weather_provider || cfg?.weatherProvider || "openmeteo";
+  const provider = weatherSources[rawProvider] ? rawProvider : "openmeteo";
+  const source = weatherSources[provider];
   return {
     ip: cfg?.ip || "192.168.1.1",
     port: Number(cfg?.port || 1648),
     weatherConfigured: !!(cfg?.weather_configured || cfg?.weather),
+    weatherProvider: provider,
+    weatherEndpoint: cfg?.weather_endpoint || cfg?.weatherEndpoint || source.endpoint,
+    weatherLat: cfg?.weather_lat || cfg?.weatherLat || "",
+    weatherLon: cfg?.weather_lon || cfg?.weatherLon || "",
     city: cfg?.city || "",
     userdata: cfg?.userdata || "",
   };
@@ -1057,16 +1093,7 @@ function viewSystem() {
             </div>
             <button class="btn primary" data-save-pet>保存宠物设置</button>
           </div>
-          <div class="weather-card">
-            <div class="weather-card-head">
-              <div><span>天气城市</span><b>${esc(cfg.city || "未设置")}</b></div>
-              <button class="btn subtle" data-detect-city ${state.weatherDetect.status === "detecting" ? "disabled" : ""}>${I.location}<span>${state.weatherDetect.status === "detecting" ? "识别中" : "自动识别"}</span></button>
-            </div>
-            <label class="field"><span>手动选择或输入</span><input data-cfg="city" list="weather-city-list" value="${esc(cfg.city)}" placeholder="例如 北京"></label>
-            <datalist id="weather-city-list">${commonWeatherCities.map(city => `<option value="${esc(city)}"></option>`).join("")}</datalist>
-            <div class="city-chips">${commonWeatherCities.slice(0, 8).map(city => `<button class="${cfg.city === city ? "active" : ""}" data-city-pick="${esc(city)}">${esc(city)}</button>`).join("")}</div>
-            <small>${state.weatherDetect.message ? esc(state.weatherDetect.message) : (cfg.weatherConfigured ? "天气服务已配置，你只需要选择城市。" : "城市会先保存，天气服务暂未启用时不会影响其它功能。")}</small>
-          </div>
+          ${weatherSettingsCard(cfg)}
           <label class="field"><span>电脑 IP</span><input data-cfg="ip" value="${esc(cfg.ip)}"></label>
           <label class="field"><span>端口</span><input data-cfg="port" type="number" min="1" max="65535" value="${esc(cfg.port)}"></label>
           <label class="field"><span>屏幕文字</span><textarea data-cfg="userdata" rows="3">${esc(cfg.userdata)}</textarea></label>
@@ -1079,6 +1106,50 @@ function viewSystem() {
       </section>
     </div>
   `;
+}
+
+function weatherSettingsCard(cfg) {
+  const source = weatherSources[cfg.weatherProvider] || weatherSources.openmeteo;
+  const needsKey = cfg.weatherProvider !== "openmeteo";
+  return `
+    <div class="weather-card">
+            <div class="weather-card-head">
+        <div><span>天气服务</span><b>${esc(source.name)}</b></div>
+              <button class="btn subtle" data-detect-city ${state.weatherDetect.status === "detecting" ? "disabled" : ""}>${I.location}<span>${state.weatherDetect.status === "detecting" ? "识别中" : "自动识别"}</span></button>
+            </div>
+      <label class="field">
+        <span>天气源</span>
+        <select data-cfg="weather_provider" data-weather-provider>
+          ${Object.entries(weatherSources).map(([id, item]) => `<option value="${esc(id)}" ${cfg.weatherProvider === id ? "selected" : ""}>${esc(item.name)}</option>`).join("")}
+        </select>
+        <small>${esc(source.desc)}</small>
+      </label>
+      <label class="field">
+        <span>${esc(source.endpointLabel)}</span>
+        <input data-cfg="weather_endpoint" value="${esc(cfg.weatherEndpoint || source.endpoint)}" placeholder="${esc(source.endpoint)}">
+      </label>
+      <label class="field">
+        <span>API Key</span>
+        <input data-cfg="weather" type="password" autocomplete="off" placeholder="${esc(source.keyPlaceholder)}" ${needsKey ? "" : "disabled"}>
+        <small>${esc(source.keyHelp)} <a href="${esc(source.keyUrl)}" target="_blank" rel="noreferrer">查看获取方法</a></small>
+      </label>
+            <label class="field"><span>手动选择或输入</span><input data-cfg="city" list="weather-city-list" value="${esc(cfg.city)}" placeholder="例如 北京"></label>
+            <datalist id="weather-city-list">${commonWeatherCities.map(city => `<option value="${esc(city)}"></option>`).join("")}</datalist>
+            <div class="city-chips">${commonWeatherCities.slice(0, 8).map(city => `<button class="${cfg.city === city ? "active" : ""}" data-city-pick="${esc(city)}">${esc(city)}</button>`).join("")}</div>
+      <div class="mini-grid">
+        <label class="field"><span>纬度</span><input data-cfg="weather_lat" inputmode="decimal" value="${esc(cfg.weatherLat)}" placeholder="39.9042"></label>
+        <label class="field"><span>经度</span><input data-cfg="weather_lon" inputmode="decimal" value="${esc(cfg.weatherLon)}" placeholder="116.4074"></label>
+          </div>
+      <small>${state.weatherDetect.message ? esc(state.weatherDetect.message) : weatherStatusText(cfg)}</small>
+    </div>
+  `;
+}
+
+function weatherStatusText(cfg) {
+  if (cfg.weatherProvider === "openmeteo") {
+    return cfg.weatherLat && cfg.weatherLon ? "免 Key 天气源已就绪；城市名用于屏幕显示，经纬度用于查询。" : "Open-Meteo 需要经纬度；可点自动识别后保存。";
+  }
+  return cfg.weatherConfigured ? "天气 Key 已保存；该源异常时会退回免 Key 基础天气。" : "请选择服务商并填入自己的 API Key；异常时会尝试免 Key 兜底。";
 }
 
 function bindCommon() {
@@ -1273,6 +1344,22 @@ function bindSystem() {
         [key]: ev.target.type === "number" ? Number(ev.target.value) : ev.target.value,
       });
     });
+  });
+  $("[data-weather-provider]")?.addEventListener("change", ev => {
+    const provider = ev.target.value;
+    const source = weatherSources[provider] || weatherSources.openmeteo;
+    const endpoint = $("[data-cfg=\"weather_endpoint\"]");
+    if (endpoint && (!endpoint.value || Object.values(weatherSources).some(item => item.endpoint === endpoint.value))) {
+      endpoint.value = source.endpoint;
+    }
+    state.dirtyAppCfg.add("weather_provider");
+    state.dirtyAppCfg.add("weather_endpoint");
+    state.appCfg = normalizeAppCfg({
+      ...state.appCfg,
+      weatherProvider: provider,
+      weatherEndpoint: endpoint?.value || source.endpoint,
+    });
+    render();
   });
   $$("[data-language]").forEach(btn => {
     btn.onclick = () => runAction("language", () => postForm("/config_language", { language: btn.dataset.language }), "语言已更新");
@@ -1599,6 +1686,20 @@ async function saveAppConfig() {
     toast("请填写天气城市", "danger");
     return;
   }
+  cfg.weather_provider = cfg.weather_provider || state.appCfg?.weatherProvider || "openmeteo";
+  const source = weatherSources[cfg.weather_provider] || weatherSources.openmeteo;
+  cfg.weather_endpoint = (cfg.weather_endpoint || source.endpoint).trim();
+  cfg.weather_lat = (cfg.weather_lat || "").trim();
+  cfg.weather_lon = (cfg.weather_lon || "").trim();
+  cfg.weather = (cfg.weather || "").trim();
+  if (cfg.weather_provider === "openmeteo" && (!cfg.weather_lat || !cfg.weather_lon)) {
+    toast("Open-Meteo 需要经纬度，点自动识别后再保存", "danger");
+    return;
+  }
+  if (cfg.weather_provider !== "openmeteo" && !cfg.weather && !state.appCfg?.weatherConfigured) {
+    toast("这个天气源需要 API Key，请先填写", "danger");
+    return;
+  }
   state.appCfg = normalizeAppCfg({ ...state.appCfg, ...cfg });
   const saved = await runAction("appcfg", () => postPlain("/config.json", JSON.stringify(cfg)), "应用参数已保存");
   if (saved) state.dirtyAppCfg.clear();
@@ -1619,14 +1720,14 @@ async function cityFromCoordinates(latitude, longitude) {
   const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}&localityLanguage=zh`;
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`geo ${res.status}`);
-  return pickCityFromGeo(await res.json());
+  return { city: pickCityFromGeo(await res.json()), lat: latitude, lon: longitude };
 }
 
 async function cityFromIp() {
   const res = await fetch("https://api.bigdatacloud.net/data/reverse-geocode-client?localityLanguage=zh", { cache: "no-store" });
   if (!res.ok) throw new Error(`ip ${res.status}`);
   const data = await res.json();
-  return pickCityFromGeo(data);
+  return { city: pickCityFromGeo(data), lat: data.latitude, lon: data.longitude };
 }
 
 function browserPosition(timeout = 9000) {
@@ -1645,14 +1746,14 @@ function browserPosition(timeout = 9000) {
 
 async function detectWeatherCity() {
   setWeatherDetect("detecting", "正在识别当前位置");
-  let city = "";
+  let detected = { city: "", lat: "", lon: "" };
   try {
     const pos = await browserPosition();
-    city = await cityFromCoordinates(pos.coords.latitude, pos.coords.longitude);
+    detected = await cityFromCoordinates(pos.coords.latitude, pos.coords.longitude);
   } catch (err) {
     try {
       setWeatherDetect("detecting", "定位未授权，正在尝试按网络识别");
-      city = await cityFromIp();
+      detected = await cityFromIp();
     } catch (fallbackErr) {
       setWeatherDetect("idle", "自动识别失败，请手动输入城市");
       toast("自动识别失败，请手动输入城市", "danger");
@@ -1660,6 +1761,7 @@ async function detectWeatherCity() {
     }
   }
 
+  const city = detected.city || "";
   if (!city) {
     setWeatherDetect("idle", "没有识别到城市，请手动输入");
     toast("没有识别到城市", "danger");
@@ -1668,8 +1770,21 @@ async function detectWeatherCity() {
 
   const input = $("[data-cfg=\"city\"]");
   if (input) input.value = city;
+  const lat = $("[data-cfg=\"weather_lat\"]");
+  const lon = $("[data-cfg=\"weather_lon\"]");
+  const latValue = Number(detected.lat);
+  const lonValue = Number(detected.lon);
+  if (lat && Number.isFinite(latValue)) lat.value = latValue.toFixed(4);
+  if (lon && Number.isFinite(lonValue)) lon.value = lonValue.toFixed(4);
   state.dirtyAppCfg.add("city");
-  state.appCfg = normalizeAppCfg({ ...state.appCfg, city });
+  state.dirtyAppCfg.add("weather_lat");
+  state.dirtyAppCfg.add("weather_lon");
+  state.appCfg = normalizeAppCfg({
+    ...state.appCfg,
+    city,
+    weatherLat: lat?.value || state.appCfg?.weatherLat || "",
+    weatherLon: lon?.value || state.appCfg?.weatherLon || "",
+  });
   setWeatherDetect("idle", `已识别为 ${city}，保存后同步到屏幕`);
   toast(`已识别为 ${city}`);
 }

@@ -61,6 +61,10 @@ struct app_setting
     uint16_t remote_port;
     char weather_secret[64];
     char weather_city[64];
+    char weather_provider[16];
+    char weather_endpoint[96];
+    char weather_lat[24];
+    char weather_lon[24];
     char userdata[256];
 };
 extern struct app_setting app_settings_save;
