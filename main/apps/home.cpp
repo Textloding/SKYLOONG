@@ -339,8 +339,8 @@ namespace theme_spartan
         lbl_time = lv_label_create(home_appScreen);
         lv_label_set_text(lbl_time, "");
         lv_obj_set_style_text_font(lbl_time, &font_main1_time, 0);
-        lv_obj_set_pos(lbl_time, 88, 20);
-        lv_obj_set_size(lbl_time, 232, 42);
+        lv_obj_set_pos(lbl_time, 24, 20);
+        lv_obj_set_size(lbl_time, 260, 42);
         lv_label_set_long_mode(lbl_time, LV_LABEL_LONG_CLIP);
         lv_obj_set_style_text_align(lbl_time, LV_TEXT_ALIGN_RIGHT, 0);
         lv_obj_set_style_text_color(lbl_time, lv_color_hex(0x000000), 0);
@@ -523,14 +523,18 @@ namespace theme_default
     {
         toggle_connection = true;
         lv_obj_t *box_upper_left = lv_obj_create(home_appScreen);
-        lv_obj_set_size(box_upper_left, 180, 110);
-        lv_obj_set_pos(box_upper_left, 10, 10);
+        lv_obj_set_size(box_upper_left, 196, 110);
+        lv_obj_set_pos(box_upper_left, 0, 10);
         lv_obj_set_style_bg_color(box_upper_left, lv_palette_main(LV_PALETTE_BLUE), 0);
+        lv_obj_set_style_pad_all(box_upper_left, 0, 0);
 
         lbl_time = lv_label_create(box_upper_left);
         lv_label_set_text(lbl_time, "12:34:56");
-        lv_obj_set_style_text_font(lbl_time, &lv_font_montserrat_40, 0);
-        lv_obj_align(lbl_time, LV_ALIGN_CENTER, 0, -8);
+        lv_obj_set_style_text_font(lbl_time, &lv_font_montserrat_32, 0);
+        lv_obj_set_width(lbl_time, 190);
+        lv_label_set_long_mode(lbl_time, LV_LABEL_LONG_CLIP);
+        lv_obj_set_style_text_align(lbl_time, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_align(lbl_time, LV_ALIGN_CENTER, -3, -8);
         img_am = lv_img_create(box_upper_left);
         lv_obj_align_to(img_am, lbl_time, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 0);
         lv_obj_add_flag(img_am, LV_OBJ_FLAG_HIDDEN);

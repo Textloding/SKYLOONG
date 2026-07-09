@@ -1201,6 +1201,76 @@ p {
   margin-top: 4px;
 }
 
+.weather-docs {
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 16px;
+  background: rgba(255,255,255,.045);
+  padding: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.weather-guide-title span {
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.weather-docs-steps {
+  border-radius: 12px;
+  background: rgba(0,0,0,.18);
+  padding: 10px 12px;
+}
+
+.weather-docs-steps b {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.weather-docs-steps ol {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.weather-docs-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.weather-docs-list a {
+  min-height: 58px;
+  border: 1px solid rgba(125, 211, 252, .16);
+  border-radius: 12px;
+  background: rgba(8, 18, 32, .46);
+  padding: 9px 10px;
+  text-decoration: none;
+  overflow: hidden;
+}
+
+.weather-docs-list b,
+.weather-docs-list span {
+  display: block;
+}
+
+.weather-docs-list b {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.weather-docs-list span {
+  margin-top: 4px;
+  color: var(--faint);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .weather-card-head {
   display: flex;
   align-items: center;
@@ -1672,6 +1742,9 @@ p {
 
 
   .fit-cards,
+
+
+  .weather-docs-list,
 
 
   .theme-grid{

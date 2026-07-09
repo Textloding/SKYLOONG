@@ -181,6 +181,14 @@ function defaultWeatherProviderEndpoints() {
   return endpoints;
 }
 
+function defaultWeatherProviderKeyValues() {
+  const keys = {};
+  weatherProviderIds.forEach(id => {
+    keys[id] = "";
+  });
+  return keys;
+}
+
 const state = {
   route: "overview",
   mediaTab: "images",
@@ -397,9 +405,19 @@ function normalizeAppCfg(cfg = {}) {
     aliyun_71988: false,
     ...(cfg?.weather_provider_keys || cfg?.weatherProviderKeys || {}),
   };
+  const weatherProviderKeyValues = {
+    ...defaultWeatherProviderKeyValues(),
+    ...(cfg?.weather_provider_key_values || cfg?.weatherProviderKeyValues || {}),
+  };
+  weatherProviderIds.forEach(id => {
+    const snakeKey = `weather_key_${id}`;
+    if (cfg?.[snakeKey]) weatherProviderKeyValues[id] = cfg[snakeKey];
+  });
+  if (cfg?.weather) weatherProviderKeyValues[provider] = cfg.weather;
   return {
-    weatherConfigured: !!(cfg?.weather_configured || cfg?.weatherConfigured || cfg?.weather || weatherProviderKeys[provider]),
+    weatherConfigured: !!(cfg?.weather_configured || cfg?.weatherConfigured || cfg?.weather || weatherProviderKeys[provider] || weatherProviderKeyValues[provider]),
     weatherProviderKeys,
+    weatherProviderKeyValues,
     weatherProviderEndpoints,
     weatherProvider: provider,
     weatherEndpoint: activeEndpoint,
@@ -853,7 +871,7 @@ function viewDisplay() {
         <div class="theme-grid">
           ${Array.from({ length: 4 }, (_, i) => `
             <button class="theme-card ${info.theme === i ? "active" : ""}" data-theme="${i}">
-              <img src="/theme${i + 1}.png?v=theme-layout-20260709c" alt="主题 ${i + 1}">
+              <img src="/theme${i + 1}.png?v=theme-layout-20260709d" alt="主题 ${i + 1}">
               ${info.theme === i ? `<span>${I.check}</span>` : ""}
             </button>
           `).join("")}
@@ -1005,6 +1023,7 @@ function viewSystem() {
         <div class="panel-head"><span>天气服务</span><small>城市和数据源</small></div>
         <div class="field-stack">
           ${weatherSettingsCard(cfg)}
+          ${weatherConsoleDocs()}
           <button class="btn primary" data-save-appcfg>保存天气参数</button>
         </div>
       </section>
@@ -1018,12 +1037,13 @@ function viewSystem() {
 
 function weatherSettingsCard(cfg) {
   const source = weatherSources[cfg.weatherProvider] || weatherSources.aliyun_72158;
-  const keyDraft = state.weatherKeyDrafts[cfg.weatherProvider] || "";
+  const keyDraft = Object.prototype.hasOwnProperty.call(state.weatherKeyDrafts, cfg.weatherProvider)
+    ? state.weatherKeyDrafts[cfg.weatherProvider]
+    : (cfg.weatherProviderKeyValues?.[cfg.weatherProvider] || "");
   const endpointDraft = Object.prototype.hasOwnProperty.call(state.weatherEndpointDrafts, cfg.weatherProvider)
     ? state.weatherEndpointDrafts[cfg.weatherProvider]
     : cfg.weatherEndpoint;
-  const hasSavedKey = !!cfg.weatherProviderKeys?.[cfg.weatherProvider];
-  const keyPlaceholder = hasSavedKey && !keyDraft ? "已保存，留空不修改" : source.keyPlaceholder;
+  const keyPlaceholder = source.keyPlaceholder;
   return `
     <div class="weather-card">
             <div class="weather-card-head">
@@ -1043,9 +1063,9 @@ function weatherSettingsCard(cfg) {
         <small>${esc(source.endpointHelp)}</small>
       </label>
       <label class="field">
-        <span>API Key</span>
-        <input data-cfg="weather" type="password" autocomplete="off" value="${esc(keyDraft)}" placeholder="${esc(keyPlaceholder)}">
-        <small>${esc(source.keyHelp)} <a href="${esc(source.keyUrl)}" target="_blank" rel="noreferrer">查看获取方法</a></small>
+        <span>API Key / AppCode</span>
+        <input data-cfg="weather" type="text" autocomplete="off" value="${esc(keyDraft)}" placeholder="${esc(keyPlaceholder)}">
+        <small>${esc(source.keyHelp)} 当前天气源的 Key / AppCode 会明文显示在这里，切换天气源也会保留各自保存的值。 <a href="${esc(source.keyUrl)}" target="_blank" rel="noreferrer">查看获取方法</a></small>
       </label>
       ${weatherSourceGuide(source)}
             <label class="field"><span>手动选择或输入</span><input data-cfg="city" list="weather-city-list" value="${esc(cfg.city)}" placeholder="例如 北京"></label>
@@ -1056,6 +1076,47 @@ function weatherSettingsCard(cfg) {
         <label class="field"><span>经度</span><input data-cfg="weather_lon" inputmode="decimal" value="${esc(cfg.weatherLon)}" placeholder="116.4074"></label>
           </div>
       <small>${state.weatherDetect.message ? esc(state.weatherDetect.message) : weatherStatusText(cfg)}</small>
+    </div>
+  `;
+}
+
+function weatherConsoleDocs() {
+  const aliyunItems = [
+    ["阿里云 72158", "https://market.aliyun.com/detail/cmapi00072158.html", weatherSources.aliyun_72158.endpoint],
+    ["阿里云 10812", "https://market.aliyun.com/detail/cmapi010812.html", weatherSources.aliyun_10812.endpoint],
+    ["阿里云 50139", "https://market.aliyun.com/detail/cmapi00050139.html", weatherSources.aliyun_50139.endpoint],
+    ["阿里云 71988", "https://market.aliyun.com/detail/cmapi00071988.html", weatherSources.aliyun_71988.endpoint],
+  ];
+  return `
+    <div class="weather-docs">
+      <div class="weather-guide-title">
+        <b>天气源获取教程</b>
+        <span>后台直接看，不用翻 README</span>
+      </div>
+      <div class="weather-docs-steps">
+        <b>阿里云 AppCode 怎么填</b>
+        <ol>
+          <li>打开下面对应商品页，登录阿里云，开通免费规格或购买套餐。</li>
+          <li>进入阿里云云市场控制台，在已购买服务里复制该商品的 AppCode。</li>
+          <li>回到商品页的 API接口 / API调试 / 接口文档 区域，复制请求地址的 Host + Path。</li>
+          <li>把 Host + Path 的完整 https 链接填进接口地址；API Key / AppCode 只填 AppCode 本身。</li>
+        </ol>
+      </div>
+      <div class="weather-docs-list">
+        ${aliyunItems.map(([name, url, endpoint]) => `
+          <a href="${esc(url)}" target="_blank" rel="noreferrer">
+            <b>${esc(name)}</b>
+            <span>${esc(endpoint)}</span>
+          </a>
+        `).join("")}
+      </div>
+      <div class="weather-docs-steps">
+        <b>心知 / QWeather</b>
+        <ol>
+          <li>心知天气：打开文档或控制台，创建产品，复制私钥 Key，接口地址保持 http://api.seniverse.com。</li>
+          <li>QWeather：开发平台创建项目，复制 Web API KEY，接口地址保持 https://devapi.qweather.com。</li>
+        </ol>
+      </div>
     </div>
   `;
 }
@@ -1248,6 +1309,9 @@ function bindSystem() {
     }
     const provider = ev.target.value;
     const source = weatherSources[provider] || weatherSources.aliyun_72158;
+    const nextKey = Object.prototype.hasOwnProperty.call(state.weatherKeyDrafts, provider)
+      ? state.weatherKeyDrafts[provider]
+      : (state.appCfg?.weatherProviderKeyValues?.[provider] || "");
     const nextEndpoints = {
       ...(state.appCfg?.weatherProviderEndpoints || defaultWeatherProviderEndpoints()),
     };
@@ -1264,7 +1328,11 @@ function bindSystem() {
       weather_provider_endpoints: nextEndpoints,
       weatherProvider: provider,
       weatherEndpoint: nextEndpoint,
-      weatherConfigured: !!state.appCfg?.weatherProviderKeys?.[provider] || !!state.weatherKeyDrafts[provider],
+      weather_provider_key_values: {
+        ...(state.appCfg?.weatherProviderKeyValues || {}),
+        [provider]: nextKey,
+      },
+      weatherConfigured: !!state.appCfg?.weatherProviderKeys?.[provider] || !!nextKey,
     });
     render();
   });
@@ -1435,6 +1503,18 @@ async function saveAppConfig() {
   cfg.weather_lon = (cfg.weather_lon || "").trim();
   cfg.weather = (cfg.weather || "").trim();
   const providerKeys = state.appCfg?.weatherProviderKeys || {};
+  const providerKeyValues = {
+    ...defaultWeatherProviderKeyValues(),
+    ...(state.appCfg?.weatherProviderKeyValues || {}),
+    ...(cfg.weather_provider_key_values || {}),
+    [cfg.weather_provider]: cfg.weather,
+  };
+  weatherProviderIds.forEach(id => {
+    const key = (providerKeyValues[id] || "").trim();
+    providerKeyValues[id] = key;
+    cfg[`weather_key_${id}`] = key;
+  });
+  cfg.weather_provider_key_values = providerKeyValues;
   const hasSavedKey = !!providerKeys[cfg.weather_provider];
   if (!cfg.weather && !hasSavedKey) {
     toast("这个天气源需要 API Key / AppCode，请先填写", "danger");
@@ -1444,9 +1524,10 @@ async function saveAppConfig() {
     ...state.appCfg,
     ...cfg,
     weather_provider_endpoints: providerEndpoints,
+    weather_provider_key_values: providerKeyValues,
     weather_provider_keys: {
       ...providerKeys,
-      [cfg.weather_provider]: true,
+      [cfg.weather_provider]: !!cfg.weather || hasSavedKey,
     },
   });
   const saved = await runAction("appcfg", () => postPlain("/config.json", JSON.stringify(cfg)), "应用参数已保存");

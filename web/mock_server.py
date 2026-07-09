@@ -19,7 +19,7 @@ STATE = {
     "volume": 6, "video_fit": "contain", "video_audio": False,
 }
 APP_SETTINGS = {
-    "weather": "",
+    "weather": "demo-appcode-72158",
     "city": "北京",
     "weather_provider": "aliyun_72158",
     "weather_endpoint": "https://getweather.market.alicloudapi.com/lundear/weather1d",
@@ -33,10 +33,18 @@ APP_SETTINGS = {
         "aliyun_50139": "https://weather01.market.alicloudapi.com/weather",
         "aliyun_71988": "https://kzweather.market.alicloudapi.com/weather",
     },
+    "weather_provider_key_values": {
+        "seniverse": "",
+        "qweather": "",
+        "aliyun_72158": "demo-appcode-72158",
+        "aliyun_10812": "",
+        "aliyun_50139": "",
+        "aliyun_71988": "",
+    },
     "weather_provider_keys": {
         "seniverse": False,
         "qweather": False,
-        "aliyun_72158": False,
+        "aliyun_72158": True,
         "aliyun_10812": False,
         "aliyun_50139": False,
         "aliyun_71988": False,
@@ -87,8 +95,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(body=json.dumps({"size": fs_used(), "total": TOTAL_BYTES, "data": data}),
                               ctype="application/json")
         if path == "/config.json":
-            public_settings = {k: v for k, v in APP_SETTINGS.items() if k != "weather"}
-            public_settings["weather_configured"] = bool(APP_SETTINGS.get("weather"))
+            public_settings = dict(APP_SETTINGS)
+            provider = public_settings.get("weather_provider", "aliyun_72158")
+            key_values = public_settings.setdefault("weather_provider_key_values", {})
+            public_settings["weather"] = key_values.get(provider, public_settings.get("weather", ""))
+            public_settings["weather_configured"] = bool(public_settings.get("weather"))
             return self._send(body=json.dumps(public_settings, ensure_ascii=False), ctype="application/json")
         # 静态文件:优先 web_new 源码,其次模拟文件系统(上传的文件)
         rel = "index.html" if path in ("/", "/wifi") else path.lstrip("/")
@@ -156,6 +167,16 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/config.json":
             incoming = json.loads(body.decode("utf-8"))
             provider = incoming.get("weather_provider", APP_SETTINGS.get("weather_provider", "aliyun_72158"))
+            key_values = APP_SETTINGS.setdefault("weather_provider_key_values", {})
+            if isinstance(incoming.get("weather_provider_key_values"), dict):
+                key_values.update({k: v for k, v in incoming["weather_provider_key_values"].items() if v})
+            for key, value in list(incoming.items()):
+                if key.startswith("weather_key_") and value:
+                    key_values[key.replace("weather_key_", "", 1)] = value
+            if incoming.get("weather"):
+                key_values[provider] = incoming.get("weather")
+            incoming["weather_provider_key_values"] = key_values
+            incoming["weather"] = key_values.get(provider, incoming.get("weather", APP_SETTINGS.get("weather", "")))
             endpoints = APP_SETTINGS.setdefault("weather_provider_endpoints", {})
             if isinstance(incoming.get("weather_provider_endpoints"), dict):
                 endpoints.update({k: v for k, v in incoming["weather_provider_endpoints"].items() if v})
