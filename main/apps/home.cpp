@@ -71,8 +71,8 @@ namespace theme_fox
         lbl_time = lv_label_create(home_appScreen);
         lv_label_set_text(lbl_time, "");
         lv_obj_set_style_text_font(lbl_time, &font_main1_time, 0);
-        lv_obj_set_pos(lbl_time, 80, 30);
-        lv_obj_set_size(lbl_time, 240, 42);
+        lv_obj_set_pos(lbl_time, 36, 30);
+        lv_obj_set_size(lbl_time, 246, 42);
         lv_label_set_long_mode(lbl_time, LV_LABEL_LONG_CLIP);
         lv_obj_set_style_text_align(lbl_time, LV_TEXT_ALIGN_RIGHT, 0);
         lv_obj_set_style_text_color(lbl_time, lv_color_hex(0xf9c262), 0);
@@ -85,7 +85,7 @@ namespace theme_fox
         lv_obj_set_width(lbl_date, 90);
         lv_obj_set_style_text_align(lbl_date, LV_TEXT_ALIGN_CENTER, 0);
         img_am = lv_img_create(home_appScreen);
-        lv_obj_set_pos(img_am, 118 + 8, 50);
+        lv_obj_set_pos(img_am, 86 + 8, 50);
         lv_obj_add_flag(img_am, LV_OBJ_FLAG_HIDDEN);
         // 电池
         img_battery_frame = lv_img_create(home_appScreen);
@@ -339,8 +339,8 @@ namespace theme_spartan
         lbl_time = lv_label_create(home_appScreen);
         lv_label_set_text(lbl_time, "");
         lv_obj_set_style_text_font(lbl_time, &font_main1_time, 0);
-        lv_obj_set_pos(lbl_time, 24, 20);
-        lv_obj_set_size(lbl_time, 260, 42);
+        lv_obj_set_pos(lbl_time, 48, 20);
+        lv_obj_set_size(lbl_time, 246, 42);
         lv_label_set_long_mode(lbl_time, LV_LABEL_LONG_CLIP);
         lv_obj_set_style_text_align(lbl_time, LV_TEXT_ALIGN_RIGHT, 0);
         lv_obj_set_style_text_color(lbl_time, lv_color_hex(0x000000), 0);

@@ -269,6 +269,8 @@ static String weatherProvider;
 static String weatherEndpoint;
 static String weatherLat;
 static String weatherLon;
+static int lastWeatherHttpStatus = 0;
+static char lastWeatherError[128] = "";
 
 static void copyWeatherText(char *dst, size_t dst_size, const char *value)
 {
@@ -278,6 +280,13 @@ static void copyWeatherText(char *dst, size_t dst_size, const char *value)
         value = "N/A";
     strncpy(dst, value, dst_size - 1);
     dst[dst_size - 1] = '\0';
+}
+
+static void writeWeatherTestResult(char *result, size_t result_size, const char *message)
+{
+    if (result == NULL || result_size == 0)
+        return;
+    snprintf(result, result_size, "%s", message == NULL ? "" : message);
 }
 
 static String trimTrailingSlash(String value)
@@ -329,6 +338,8 @@ static bool fetchJson(const String &url, cJSON **root, int *status = NULL, const
     if (root == NULL)
         return false;
     *root = NULL;
+    lastWeatherHttpStatus = 0;
+    lastWeatherError[0] = '\0';
 
     HTTPClient http;
     WiFiClientSecure secure;
@@ -345,6 +356,7 @@ static bool fetchJson(const String &url, cJSON **root, int *status = NULL, const
     if (!okBegin)
     {
         ESP_LOGE("Weather", "http begin failed: %s", url.c_str());
+        snprintf(lastWeatherError, sizeof(lastWeatherError), "HTTP 初始化失败");
         return false;
     }
     if (appCode != NULL && strlen(appCode) > 0)
@@ -356,19 +368,23 @@ static bool fetchJson(const String &url, cJSON **root, int *status = NULL, const
     int httpCode = http.GET();
     if (status != NULL)
         *status = httpCode;
+    lastWeatherHttpStatus = httpCode;
     String payload = http.getString();
     http.end();
     if (httpCode != 200)
     {
         ESP_LOGW("Weather", "request failed: http=%d url=%s body=%s", httpCode, url.c_str(), payload.substring(0, 160).c_str());
+        snprintf(lastWeatherError, sizeof(lastWeatherError), "HTTP %d: %s", httpCode, payload.substring(0, 80).c_str());
         return false;
     }
     *root = cJSON_Parse(payload.c_str());
     if (*root == NULL)
     {
         ESP_LOGE("Weather", "json parse failed: %s", payload.substring(0, 160).c_str());
+        snprintf(lastWeatherError, sizeof(lastWeatherError), "JSON 解析失败: %s", payload.substring(0, 80).c_str());
         return false;
     }
+    snprintf(lastWeatherError, sizeof(lastWeatherError), "OK");
     return true;
 }
 
@@ -812,6 +828,8 @@ static bool getWeatherAliyun()
     if (!fetchJson(url, &root, NULL, apikey.c_str()))
         return false;
     bool ok = parseAliyunWeather(root);
+    if (!ok)
+        snprintf(lastWeatherError, sizeof(lastWeatherError), "接口返回无法解析，请核对天气源和接口地址");
     cJSON_Delete(root);
     return ok;
 }
@@ -899,6 +917,8 @@ static bool getWeatherQWeather()
     if (!fetchJson(url, &root) || !qweatherCodeOK(root))
     {
         if (root != NULL)
+            snprintf(lastWeatherError, sizeof(lastWeatherError), "QWeather 返回码不是 200");
+        if (root != NULL)
             cJSON_Delete(root);
         root = NULL;
         return false;
@@ -913,6 +933,8 @@ static bool getWeatherQWeather()
     url = base + "/v7/weather/3d?location=" + location + "&key=" + key + "&lang=zh&unit=m";
     if (!fetchJson(url, &root) || !qweatherCodeOK(root))
     {
+        if (root != NULL)
+            snprintf(lastWeatherError, sizeof(lastWeatherError), "QWeather 预报接口返回码不是 200");
         if (root != NULL)
             cJSON_Delete(root);
         root = NULL;
@@ -983,6 +1005,74 @@ bool getWeather()
 
     ESP_LOGW("Weather", "provider=%s failed", weatherProvider.c_str());
     return false;
+}
+
+bool testWeatherProvider(const char *provider, const char *endpoint, const char *key, const char *location, const char *lat, const char *lon, char *result, size_t result_size)
+{
+    if (result != NULL && result_size > 0)
+        result[0] = '\0';
+
+    String oldKey = apikey;
+    String oldCity = city;
+    String oldProvider = weatherProvider;
+    String oldEndpoint = weatherEndpoint;
+    String oldLat = weatherLat;
+    String oldLon = weatherLon;
+    WeatherData oldData = weatherData;
+
+    weatherProvider = provider == NULL ? "" : provider;
+    weatherProvider.trim();
+    weatherProvider.toLowerCase();
+    weatherEndpoint = endpoint == NULL ? "" : endpoint;
+    apikey = key == NULL ? "" : key;
+    city = location == NULL ? "" : location;
+    weatherLat = lat == NULL ? "" : lat;
+    weatherLon = lon == NULL ? "" : lon;
+    city.trim();
+    apikey.trim();
+
+    bool ok = false;
+    if (city.length() == 0)
+    {
+        writeWeatherTestResult(result, result_size, "测试失败：城市不能为空");
+    }
+    else if (apikey.length() == 0)
+    {
+        writeWeatherTestResult(result, result_size, "测试失败：API Key / AppCode 不能为空");
+    }
+    else if (weatherProvider == "qweather")
+    {
+        ok = getWeatherQWeather();
+    }
+    else if (isAliyunWeatherProvider())
+    {
+        ok = getWeatherAliyun();
+    }
+    else
+    {
+        weatherProvider = "seniverse";
+        ok = getWeatherSeniverse();
+    }
+
+    if (ok)
+    {
+        const char *weatherName = weatherNames[clampWeatherCode(weatherData.weatherCode_today)];
+        if (result != NULL && result_size > 0)
+            snprintf(result, result_size, "测试成功：%s %d° %s", weatherData.location, weatherData.temperature_now, weatherName);
+    }
+    else if (result != NULL && result_size > 0 && result[0] == '\0')
+    {
+        snprintf(result, result_size, "测试失败：%s", strlen(lastWeatherError) > 0 ? lastWeatherError : "接口无有效返回或解析失败");
+    }
+
+    apikey = oldKey;
+    city = oldCity;
+    weatherProvider = oldProvider;
+    weatherEndpoint = oldEndpoint;
+    weatherLat = oldLat;
+    weatherLon = oldLon;
+    weatherData = oldData;
+    return ok;
 }
 
 static uint32_t last_millis = 0;

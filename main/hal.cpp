@@ -1587,6 +1587,56 @@ void handleJson()
     server.send(500, "text/plain", "ERR 500");
 }
 
+extern bool testWeatherProvider(const char *provider, const char *endpoint, const char *key, const char *location, const char *lat, const char *lon, char *result, size_t result_size);
+
+void handleWeatherTest()
+{
+    if (server.method() != HTTP_POST || !server.hasArg("plain"))
+    {
+        server.send(400, "application/json", "{\"ok\":false,\"message\":\"Missing JSON body\"}");
+        return;
+    }
+
+    cJSON *root = cJSON_Parse(server.arg("plain").c_str());
+    if (root == NULL || !cJSON_IsObject(root))
+    {
+        cJSON_Delete(root);
+        server.send(400, "application/json", "{\"ok\":false,\"message\":\"Invalid JSON\"}");
+        return;
+    }
+
+    const char *provider = jsonStringValue(root, "weather_provider");
+    if (provider == NULL || strlen(provider) == 0)
+        provider = app_settings_save.weather_provider;
+    const char *endpoint = jsonStringValue(root, "weather_endpoint");
+    if (endpoint == NULL || strlen(endpoint) == 0)
+        endpoint = constWeatherEndpointSlotForProvider(provider);
+    const char *key = jsonStringValue(root, "weather");
+    if (key == NULL || strlen(key) == 0)
+        key = constWeatherKeySlotForProvider(provider);
+    const char *location = jsonStringValue(root, "city");
+    if (location == NULL || strlen(location) == 0)
+        location = app_settings_save.weather_city;
+    const char *lat = jsonStringValue(root, "weather_lat");
+    if (lat == NULL)
+        lat = app_settings_save.weather_lat;
+    const char *lon = jsonStringValue(root, "weather_lon");
+    if (lon == NULL)
+        lon = app_settings_save.weather_lon;
+
+    char message[192];
+    bool ok = testWeatherProvider(provider, endpoint, key, location, lat, lon, message, sizeof(message));
+    cJSON *json = cJSON_CreateObject();
+    cJSON_AddBoolToObject(json, "ok", ok);
+    cJSON_AddStringToObject(json, "provider", provider);
+    cJSON_AddStringToObject(json, "endpoint", endpoint);
+    cJSON_AddStringToObject(json, "message", message);
+    writeJsonToBuffer(json, jsonbuffer, sizeof(jsonbuffer));
+    cJSON_Delete(json);
+    cJSON_Delete(root);
+    server.send(ok ? 200 : 502, "application/json", jsonbuffer);
+}
+
 #include "webserver/favicon.h"
 #include "webserver/index.h"
 #include "webserver/js.h"
@@ -1910,6 +1960,7 @@ void HAL::start_webserver()
         ESP.restart(); 
     });
     server.on("/config.json", handleJson);
+    server.on("/weather_test", HTTP_POST, handleWeatherTest);
 
     server.on("/favicon.ico", HTTP_GET, []() { 
         server.sendHeader("Content-Encoding", "gzip", true);

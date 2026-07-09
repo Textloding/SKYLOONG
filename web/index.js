@@ -176,9 +176,13 @@ const weatherProviderIds = Object.keys(weatherSources);
 function defaultWeatherProviderEndpoints() {
   const endpoints = {};
   weatherProviderIds.forEach(id => {
-    endpoints[id] = weatherSources[id].endpoint;
+    endpoints[id] = defaultWeatherProviderEndpointFor(id);
   });
   return endpoints;
+}
+
+function defaultWeatherProviderEndpointFor(provider) {
+  return (weatherSources[provider] || weatherSources.aliyun_72158).endpoint;
 }
 
 function defaultWeatherProviderKeyValues() {
@@ -204,6 +208,7 @@ const state = {
   scan: { status: "idle", networks: [] },
   selectedSsid: "",
   pending: new Set(),
+  weatherTest: { status: "idle", message: "" },
   upload: null,
   ffmpeg: { status: "idle", message: "" },
   videoTask: null,
@@ -1021,9 +1026,12 @@ function viewSystem() {
       </section>
       <section class="panel">
         <div class="panel-head"><span>天气服务</span><small>城市和数据源</small></div>
-        <div class="field-stack">
+        <div class="weather-layout">
           ${weatherSettingsCard(cfg)}
           ${weatherConsoleDocs()}
+        </div>
+        <div class="button-row weather-actions">
+          <button class="btn subtle" data-test-weather ${busy("weather-test") ? "disabled" : ""}>${I.refresh}<span>${busy("weather-test") ? "测试中" : "测试当前天气源"}</span></button>
           <button class="btn primary" data-save-appcfg>保存天气参数</button>
         </div>
       </section>
@@ -1075,6 +1083,7 @@ function weatherSettingsCard(cfg) {
         <label class="field"><span>纬度</span><input data-cfg="weather_lat" inputmode="decimal" value="${esc(cfg.weatherLat)}" placeholder="39.9042"></label>
         <label class="field"><span>经度</span><input data-cfg="weather_lon" inputmode="decimal" value="${esc(cfg.weatherLon)}" placeholder="116.4074"></label>
           </div>
+      ${state.weatherTest.message ? `<div class="weather-test-result ${state.weatherTest.status === "ok" ? "ok" : state.weatherTest.status === "error" ? "error" : ""}">${esc(state.weatherTest.message)}</div>` : ""}
       <small>${state.weatherDetect.message ? esc(state.weatherDetect.message) : weatherStatusText(cfg)}</small>
     </div>
   `;
@@ -1308,7 +1317,6 @@ function bindSystem() {
       state.weatherEndpointDrafts[state.appCfg.weatherProvider] = endpoint.value;
     }
     const provider = ev.target.value;
-    const source = weatherSources[provider] || weatherSources.aliyun_72158;
     const nextKey = Object.prototype.hasOwnProperty.call(state.weatherKeyDrafts, provider)
       ? state.weatherKeyDrafts[provider]
       : (state.appCfg?.weatherProviderKeyValues?.[provider] || "");
@@ -1318,8 +1326,9 @@ function bindSystem() {
     if (state.appCfg?.weatherProvider && endpoint) {
       nextEndpoints[state.appCfg.weatherProvider] = endpoint.value;
     }
-    const nextEndpoint = state.weatherEndpointDrafts[provider] || nextEndpoints[provider] || source.endpoint;
+    const nextEndpoint = nextEndpoints[provider] || defaultWeatherProviderEndpointFor(provider);
     nextEndpoints[provider] = nextEndpoint;
+    state.weatherEndpointDrafts[provider] = nextEndpoint;
     if (endpoint) endpoint.value = nextEndpoint;
     state.dirtyAppCfg.add("weather_provider");
     state.dirtyAppCfg.add("weather_endpoint");
@@ -1340,6 +1349,7 @@ function bindSystem() {
     btn.onclick = () => runAction("language", () => postForm("/config_language", { language: btn.dataset.language }), "语言已更新");
   });
   $("[data-detect-city]")?.addEventListener("click", detectWeatherCity);
+  $("[data-test-weather]")?.addEventListener("click", testWeatherSource);
   $$("[data-city-pick]").forEach(btn => {
     btn.onclick = () => {
       const input = $("[data-cfg=\"city\"]");
@@ -1536,6 +1546,53 @@ async function saveAppConfig() {
     delete state.weatherKeyDrafts[cfg.weather_provider];
     delete state.weatherEndpointDrafts[cfg.weather_provider];
     state.dirtyAppCfg.clear();
+    render();
+  }
+}
+
+function collectWeatherDraft() {
+  const provider = $("[data-weather-provider]")?.value || state.appCfg?.weatherProvider || "aliyun_72158";
+  const source = weatherSources[provider] || weatherSources.aliyun_72158;
+  return {
+    weather_provider: provider,
+    weather_endpoint: ($("[data-cfg=\"weather_endpoint\"]")?.value || state.appCfg?.weatherProviderEndpoints?.[provider] || source.endpoint || "").trim(),
+    weather: ($("[data-cfg=\"weather\"]")?.value || state.appCfg?.weatherProviderKeyValues?.[provider] || "").trim(),
+    city: ($("[data-cfg=\"city\"]")?.value || state.appCfg?.city || "").trim(),
+    weather_lat: ($("[data-cfg=\"weather_lat\"]")?.value || state.appCfg?.weatherLat || "").trim(),
+    weather_lon: ($("[data-cfg=\"weather_lon\"]")?.value || state.appCfg?.weatherLon || "").trim(),
+  };
+}
+
+async function testWeatherSource() {
+  const cfg = collectWeatherDraft();
+  if (!cfg.city) {
+    state.weatherTest = { status: "error", message: "请先填写城市再测试" };
+    render();
+    return;
+  }
+  if (!cfg.weather) {
+    state.weatherTest = { status: "error", message: "请先填写当前天气源的 API Key / AppCode" };
+    render();
+    return;
+  }
+  setPending("weather-test", true);
+  state.weatherTest = { status: "testing", message: "正在让设备测试天气接口..." };
+  render();
+  try {
+    const res = await fetch("/weather_test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    });
+    const data = await res.json().catch(() => ({}));
+    state.weatherTest = {
+      status: data.ok ? "ok" : "error",
+      message: data.message || (res.ok ? "测试完成，但设备没有返回详情" : `测试失败：HTTP ${res.status}`),
+    };
+  } catch (err) {
+    state.weatherTest = { status: "error", message: "测试失败：无法连接设备天气测试接口" };
+  } finally {
+    setPending("weather-test", false);
     render();
   }
 }

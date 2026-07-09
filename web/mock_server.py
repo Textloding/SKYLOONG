@@ -164,6 +164,15 @@ class Handler(BaseHTTPRequestHandler):
             STATE["jpg_mode"] = args.get("jpg_mode", "roll")
             STATE["jpg_file"] = args.get("jpg_file", "")
             STATE["time_roll"] = int(args.get("time_roll", 5000)); return self._send()
+        if path == "/weather_test":
+            incoming = json.loads(body.decode("utf-8") or "{}")
+            provider = incoming.get("weather_provider", "aliyun_72158")
+            city = incoming.get("city", "北京")
+            endpoint = incoming.get("weather_endpoint", "")
+            key = incoming.get("weather", "")
+            if not city or not key:
+                return self._send(502, json.dumps({"ok": False, "provider": provider, "endpoint": endpoint, "message": "测试失败：城市和 Key / AppCode 不能为空"}, ensure_ascii=False), "application/json")
+            return self._send(body=json.dumps({"ok": True, "provider": provider, "endpoint": endpoint, "message": f"测试成功：{city} 26° 晴"}, ensure_ascii=False), ctype="application/json")
         if path == "/config.json":
             incoming = json.loads(body.decode("utf-8"))
             provider = incoming.get("weather_provider", APP_SETTINGS.get("weather_provider", "aliyun_72158"))
