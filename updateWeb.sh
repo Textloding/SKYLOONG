@@ -93,6 +93,9 @@ xxd -i ./web/theme2.png.gz ./main/include/webserver/theme2.h
 gzip -9kf ./web/theme3.png
 xxd -i ./web/theme3.png.gz ./main/include/webserver/theme3.h
 
+gzip -9kf ./web/theme4.png
+xxd -i ./web/theme4.png.gz ./main/include/webserver/theme4.h
+
 gzip -9kf ./web/time_bg.png
 xxd -i ./web/time_bg.png.gz ./main/include/webserver/time_bg.h
 
@@ -142,6 +145,7 @@ sed -i '1i\const ' ./main/include/webserver/stop.h
 sed -i '1i\const ' ./main/include/webserver/theme1.h
 sed -i '1i\const ' ./main/include/webserver/theme2.h
 sed -i '1i\const ' ./main/include/webserver/theme3.h
+sed -i '1i\const ' ./main/include/webserver/theme4.h
 sed -i '1i\const ' ./main/include/webserver/time_bg.h
 sed -i '1i\const ' ./main/include/webserver/time_ic.h
 sed -i '1i\const ' ./main/include/webserver/video2.h

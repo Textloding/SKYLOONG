@@ -722,10 +722,10 @@ function viewDisplay() {
       <section class="panel">
         <div class="panel-head"><span>主题</span><small>屏幕主界面</small></div>
         <div class="theme-grid">
-          ${[0, 1, 2].map(i => `
+          ${Array.from({ length: 4 }, (_, i) => `
             <button class="theme-card ${info.theme === i ? "active" : ""}" data-theme="${i}">
-              <img src="/theme${i + 1}.png" alt="主题 ${i + 1}">
-              <span>${info.theme === i ? I.check : ""}</span>
+              <img src="/theme${i + 1}.png?v=theme-fix-20260709b" alt="主题 ${i + 1}">
+              ${info.theme === i ? `<span>${I.check}</span>` : ""}
             </button>
           `).join("")}
         </div>

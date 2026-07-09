@@ -1271,6 +1271,7 @@ void handleJson()
 #include "webserver/theme1.h"
 #include "webserver/theme2.h"
 #include "webserver/theme3.h"
+#include "webserver/theme4.h"
 #include "webserver/time_bg.h"
 #include "webserver/time_ic.h"
 #include "webserver/video2.h"
@@ -1688,6 +1689,10 @@ void HAL::start_webserver()
     server.on("/theme3.png", HTTP_GET, []() {
         server.sendHeader("Content-Encoding", "gzip", true);
         server.send_P(200, "image/png", (const char *)__web_theme3_png_gz, sizeof(__web_theme3_png_gz));
+    });
+    server.on("/theme4.png", HTTP_GET, []() {
+        server.sendHeader("Content-Encoding", "gzip", true);
+        server.send_P(200, "image/png", (const char *)__web_theme4_png_gz, sizeof(__web_theme4_png_gz));
     });
     server.on("/time_bg.png", HTTP_GET, []() {
         server.sendHeader("Content-Encoding", "gzip", true);
