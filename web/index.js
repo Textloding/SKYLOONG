@@ -1024,7 +1024,7 @@ function viewSystem() {
           </label>
         </div>
       </section>
-      <section class="panel">
+      <section class="panel span-two">
         <div class="panel-head"><span>天气服务</span><small>城市和数据源</small></div>
         <div class="weather-layout">
           ${weatherSettingsCard(cfg)}
@@ -1291,6 +1291,7 @@ function bindSystem() {
     input.addEventListener("input", ev => {
       const key = ev.target.dataset.cfg;
       if (!key) return;
+      if (key === "weather_provider") return;
       if (key === "weather" && state.appCfg?.weatherProvider) {
         state.weatherKeyDrafts[state.appCfg.weatherProvider] = ev.target.value;
       }
@@ -1303,29 +1304,36 @@ function bindSystem() {
         weather_provider_endpoints: key === "weather_endpoint" && state.appCfg?.weatherProvider
           ? { ...(state.appCfg.weatherProviderEndpoints || {}), [state.appCfg.weatherProvider]: ev.target.value }
           : state.appCfg?.weatherProviderEndpoints,
+        weather_provider_key_values: key === "weather" && state.appCfg?.weatherProvider
+          ? { ...(state.appCfg.weatherProviderKeyValues || {}), [state.appCfg.weatherProvider]: ev.target.value }
+          : state.appCfg?.weatherProviderKeyValues,
         [key]: ev.target.type === "number" ? Number(ev.target.value) : ev.target.value,
       });
     });
   });
   $("[data-weather-provider]")?.addEventListener("change", ev => {
+    const previousProvider = state.appCfg?.weatherProvider || "aliyun_72158";
     const keyInput = $("[data-cfg=\"weather\"]");
-    if (keyInput && state.appCfg?.weatherProvider) {
-      state.weatherKeyDrafts[state.appCfg.weatherProvider] = keyInput.value;
+    if (keyInput) {
+      state.weatherKeyDrafts[previousProvider] = keyInput.value;
     }
     const endpoint = $("[data-cfg=\"weather_endpoint\"]");
-    if (endpoint && state.appCfg?.weatherProvider) {
-      state.weatherEndpointDrafts[state.appCfg.weatherProvider] = endpoint.value;
+    if (endpoint) {
+      state.weatherEndpointDrafts[previousProvider] = endpoint.value;
     }
     const provider = ev.target.value;
-    const nextKey = Object.prototype.hasOwnProperty.call(state.weatherKeyDrafts, provider)
-      ? state.weatherKeyDrafts[provider]
-      : (state.appCfg?.weatherProviderKeyValues?.[provider] || "");
-    const nextEndpoints = {
-      ...(state.appCfg?.weatherProviderEndpoints || defaultWeatherProviderEndpoints()),
+    const nextKeyValues = {
+      ...defaultWeatherProviderKeyValues(),
+      ...(state.appCfg?.weatherProviderKeyValues || {}),
+      ...state.weatherKeyDrafts,
     };
-    if (state.appCfg?.weatherProvider && endpoint) {
-      nextEndpoints[state.appCfg.weatherProvider] = endpoint.value;
-    }
+    const nextKey = nextKeyValues[provider] || "";
+    nextKeyValues[provider] = nextKey;
+    const nextEndpoints = {
+      ...defaultWeatherProviderEndpoints(),
+      ...(state.appCfg?.weatherProviderEndpoints || {}),
+      ...state.weatherEndpointDrafts,
+    };
     const nextEndpoint = nextEndpoints[provider] || defaultWeatherProviderEndpointFor(provider);
     nextEndpoints[provider] = nextEndpoint;
     state.weatherEndpointDrafts[provider] = nextEndpoint;
@@ -1335,12 +1343,12 @@ function bindSystem() {
     state.appCfg = normalizeAppCfg({
       ...state.appCfg,
       weather_provider_endpoints: nextEndpoints,
+      weather_provider_key_values: nextKeyValues,
+      weather_provider: provider,
+      weather_endpoint: nextEndpoint,
+      weather: nextKey,
       weatherProvider: provider,
       weatherEndpoint: nextEndpoint,
-      weather_provider_key_values: {
-        ...(state.appCfg?.weatherProviderKeyValues || {}),
-        [provider]: nextKey,
-      },
       weatherConfigured: !!state.appCfg?.weatherProviderKeys?.[provider] || !!nextKey,
     });
     render();
@@ -1500,6 +1508,7 @@ async function saveAppConfig() {
   const providerEndpoints = {
     ...defaultWeatherProviderEndpoints(),
     ...(state.appCfg?.weatherProviderEndpoints || {}),
+    ...state.weatherEndpointDrafts,
     ...(cfg.weather_provider_endpoints || {}),
     [cfg.weather_provider]: cfg.weather_endpoint,
   };
@@ -1516,6 +1525,7 @@ async function saveAppConfig() {
   const providerKeyValues = {
     ...defaultWeatherProviderKeyValues(),
     ...(state.appCfg?.weatherProviderKeyValues || {}),
+    ...state.weatherKeyDrafts,
     ...(cfg.weather_provider_key_values || {}),
     [cfg.weather_provider]: cfg.weather,
   };
@@ -1526,6 +1536,10 @@ async function saveAppConfig() {
   });
   cfg.weather_provider_key_values = providerKeyValues;
   const hasSavedKey = !!providerKeys[cfg.weather_provider];
+  const nextProviderKeys = { ...providerKeys };
+  weatherProviderIds.forEach(id => {
+    if (providerKeyValues[id]) nextProviderKeys[id] = true;
+  });
   if (!cfg.weather && !hasSavedKey) {
     toast("这个天气源需要 API Key / AppCode，请先填写", "danger");
     return;
@@ -1535,16 +1549,13 @@ async function saveAppConfig() {
     ...cfg,
     weather_provider_endpoints: providerEndpoints,
     weather_provider_key_values: providerKeyValues,
-    weather_provider_keys: {
-      ...providerKeys,
-      [cfg.weather_provider]: !!cfg.weather || hasSavedKey,
-    },
+    weather_provider_keys: nextProviderKeys,
   });
   const saved = await runAction("appcfg", () => postPlain("/config.json", JSON.stringify(cfg)), "应用参数已保存");
   if (saved) {
     state.appCfg = nextAppCfg;
-    delete state.weatherKeyDrafts[cfg.weather_provider];
-    delete state.weatherEndpointDrafts[cfg.weather_provider];
+    state.weatherKeyDrafts = {};
+    state.weatherEndpointDrafts = {};
     state.dirtyAppCfg.clear();
     render();
   }
