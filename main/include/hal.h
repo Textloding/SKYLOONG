@@ -60,6 +60,12 @@ struct app_setting
     char weather_city[64];
     char weather_provider[32];
     char weather_endpoint[128];
+    char weather_endpoint_seniverse[128];
+    char weather_endpoint_qweather[128];
+    char weather_endpoint_aliyun_72158[128];
+    char weather_endpoint_aliyun_10812[128];
+    char weather_endpoint_aliyun_50139[128];
+    char weather_endpoint_aliyun_71988[128];
     char weather_lat[24];
     char weather_lon[24];
     char weather_key_seniverse[64];

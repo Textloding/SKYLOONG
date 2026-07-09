@@ -5,6 +5,7 @@ $halCpp = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "main\hal.cpp")
 $halH = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "main\include\hal.h")
 $weatherCpp = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "main\apps\Weather.cpp")
 $web = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "web_new\index.js")
+$readme = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "README.md")
 
 function Assert-Contains($Text, $Pattern, $Message) {
     if ($Text -notmatch $Pattern) {
@@ -40,9 +41,27 @@ foreach ($field in @(
     Assert-Contains $halCpp $field "HAL serialization must preserve $field."
 }
 
+foreach ($field in @(
+    "weather_endpoint_seniverse",
+    "weather_endpoint_qweather",
+    "weather_endpoint_aliyun_72158",
+    "weather_endpoint_aliyun_10812",
+    "weather_endpoint_aliyun_50139",
+    "weather_endpoint_aliyun_71988"
+)) {
+    Assert-Contains $halH $field "App settings must persist per-provider endpoint field $field."
+    Assert-Contains $halCpp $field "HAL serialization must preserve $field."
+}
+
 Assert-Contains $weatherCpp 'String\s+auth\s*=\s*String\("APPCODE "\)\s*\+\s*appCode[\s\S]*?addHeader\("Authorization",\s*auth\)' "Aliyun weather requests must send Authorization: APPCODE."
 Assert-Contains $web 'weatherProviderKeys' "Web UI must track configured keys per weather source."
 Assert-Contains $web 'weatherKeyDrafts' "Web UI must keep user-entered keys while switching sources."
+Assert-Contains $web 'weatherProviderEndpoints' "Web UI must track saved endpoint per weather source."
+Assert-Contains $web 'weatherEndpointDrafts' "Web UI must keep endpoint drafts while switching sources."
 Assert-Contains $web 'isWeatherEditing' "Web UI polling must not overwrite active weather edits."
+Assert-Contains $readme 'AppCode' "README must explain how Aliyun AppCode is used."
+Assert-Contains $readme 'Host \+ Path' "README must tell users where to find Aliyun API debug/interface details."
+Assert-Contains $readme 'cmapi00072158' "README must list Aliyun market product links."
+Assert-Contains $readme 'weather01\.market\.alicloudapi\.com' "README must explain weather endpoint addresses."
 
 Write-Host "Weather source checks passed."

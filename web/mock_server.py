@@ -25,6 +25,14 @@ APP_SETTINGS = {
     "weather_endpoint": "https://getweather.market.alicloudapi.com/lundear/weather1d",
     "weather_lat": "39.9042",
     "weather_lon": "116.4074",
+    "weather_provider_endpoints": {
+        "seniverse": "http://api.seniverse.com",
+        "qweather": "https://devapi.qweather.com",
+        "aliyun_72158": "https://getweather.market.alicloudapi.com/lundear/weather1d",
+        "aliyun_10812": "https://ali-weather.showapi.com/spot-to-weather",
+        "aliyun_50139": "https://weather01.market.alicloudapi.com/weather",
+        "aliyun_71988": "https://kzweather.market.alicloudapi.com/weather",
+    },
     "weather_provider_keys": {
         "seniverse": False,
         "qweather": False,
@@ -147,9 +155,20 @@ class Handler(BaseHTTPRequestHandler):
             STATE["time_roll"] = int(args.get("time_roll", 5000)); return self._send()
         if path == "/config.json":
             incoming = json.loads(body.decode("utf-8"))
+            provider = incoming.get("weather_provider", APP_SETTINGS.get("weather_provider", "aliyun_72158"))
+            endpoints = APP_SETTINGS.setdefault("weather_provider_endpoints", {})
+            if isinstance(incoming.get("weather_provider_endpoints"), dict):
+                endpoints.update({k: v for k, v in incoming["weather_provider_endpoints"].items() if v})
+            for key, value in list(incoming.items()):
+                if key.startswith("weather_endpoint_") and value:
+                    endpoints[key.replace("weather_endpoint_", "", 1)] = value
+            if incoming.get("weather_endpoint"):
+                endpoints[provider] = incoming.get("weather_endpoint")
+            incoming["weather_provider_endpoints"] = endpoints
+            incoming["weather_endpoint"] = endpoints.get(provider, incoming.get("weather_endpoint", APP_SETTINGS.get("weather_endpoint", "")))
             if incoming.get("weather"):
                 keys = APP_SETTINGS.setdefault("weather_provider_keys", {})
-                keys[incoming.get("weather_provider", APP_SETTINGS.get("weather_provider"))] = True
+                keys[provider] = True
             else:
                 incoming.pop("weather", None)
             APP_SETTINGS.update(incoming); return self._send()

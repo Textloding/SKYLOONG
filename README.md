@@ -259,7 +259,7 @@ fn + ~
 
 ### 天气
 
-系统页支持设置天气城市、天气源、接口地址、API Key / AppCode、纬度和经度。每个天气源会独立记住自己的 Key；切换到其他源再切回来时，只要该源已经保存过 Key，就可以留空直接保存，不需要反复填写。
+系统页支持设置天气城市、天气源、接口地址、API Key / AppCode、纬度和经度。每个天气源会独立记住自己的 Key 和接口地址；切换到其他源再切回来时，只要该源已经保存过 Key，就可以留空直接保存，不需要反复填写。
 
 当前管理台提供：
 
@@ -270,7 +270,44 @@ fn + ~
 - 阿里云市场 50139 实时多天天气：需要在阿里云云市场开通商品并复制 AppCode。
 - 阿里云市场 71988 快证天气：需要在阿里云云市场开通商品并复制 AppCode。
 
-阿里云市场天气源使用 `Authorization: APPCODE <你的 AppCode>` 请求头。不同厂商的接口地址和返回字段可能会调整，管理台允许手动修改接口地址；如果商品页文档给出的接口地址和默认值不同，请以商品页为准。当前主分支已弃用 Open-Meteo，因为它在国内网络下不稳定且可能返回参数错误。
+#### 心知天气
+
+1. 打开心知天气文档：<https://docs.seniverse.com/api/weather/now.html>。
+2. 注册并登录心知天气控制台，创建免费或付费产品。
+3. 复制产品里的私钥 Key。
+4. 管理台选择“心知天气”，`API Key` 填私钥 Key。
+5. `接口地址` 默认填 `http://api.seniverse.com`。固件会自动拼接 `/v3/weather/now.json`、`/v3/weather/daily.json` 等路径，普通用户不需要改。
+
+#### QWeather 和风天气
+
+1. 打开 QWeather 认证文档：<https://dev.qweather.com/docs/configuration/authentication/>。
+2. 登录 QWeather 开发平台，创建项目并添加 Web API Key。
+3. 复制 API KEY。
+4. 管理台选择“QWeather 和风天气”，`API Key` 填 API KEY。
+5. `接口地址` 默认填 `https://devapi.qweather.com`。固件会自动访问 `/v7/weather/now`、`/v7/weather/3d`、`/v7/indices/1d`。
+
+#### 阿里云云市场天气源通用步骤
+
+阿里云源不是填阿里云账号密码，也不是填 AccessKey。这里必须填对应商品的 `AppCode`。
+
+1. 打开对应商品页，登录阿里云。
+2. 开通免费规格或购买套餐。
+3. 进入阿里云云市场控制台，找到“已购买的服务”或该商品的调用凭证，复制 `AppCode`。
+4. 回到商品页，打开“API接口”“接口文档”或“API调试”区域。
+5. 复制该接口的 `Host + Path` 完整请求地址，填入管理台的 `接口地址`。
+6. 管理台 `API Key / AppCode` 输入框只填 AppCode 本身，不要手动加 `APPCODE` 前缀。
+7. 保存后，固件会自动使用 `Authorization: APPCODE <你的 AppCode>` 请求头。
+
+当前内置的阿里云商品入口和默认接口地址如下：
+
+| 天气源 | 商品页 | 默认接口地址 |
+| --- | --- | --- |
+| 阿里云 72158 精准天气 | <https://market.aliyun.com/detail/cmapi00072158.html> | `https://getweather.market.alicloudapi.com/lundear/weather1d` |
+| 阿里云 10812 万维易源 | <https://market.aliyun.com/detail/cmapi010812.html> | `https://ali-weather.showapi.com/spot-to-weather` |
+| 阿里云 50139 实时多天天气 | <https://market.aliyun.com/detail/cmapi00050139.html> | `https://weather01.market.alicloudapi.com/weather` |
+| 阿里云 71988 快证天气 | <https://market.aliyun.com/detail/cmapi00071988.html> | `https://kzweather.market.alicloudapi.com/weather` |
+
+注意：阿里云云市场不同厂商的接口地址、参数名、返回字段可能会调整。管理台允许手动修改接口地址；如果商品页“API接口/调试”里展示的地址和上表默认值不同，请以商品页为准。每个天气源的接口地址会独立保存，不会再因为切换天气源而互相覆盖。当前主分支已弃用 Open-Meteo，因为它在国内网络下不稳定且可能返回参数错误。
 
 自动识别城市依赖浏览器定位或网络 IP 定位，可能受浏览器权限、代理、网络环境和第三方定位服务影响。不准确时请手动填写城市和经纬度。
 

@@ -1164,6 +1164,43 @@ p {
   text-decoration: underline;
 }
 
+.weather-guide {
+  border: 1px solid rgba(125, 211, 252, .18);
+  border-radius: 14px;
+  background: rgba(8, 18, 32, .52);
+  padding: 12px;
+}
+
+.weather-guide-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.weather-guide-title b {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.weather-guide-title a {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.weather-guide ol {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.weather-guide li + li {
+  margin-top: 4px;
+}
+
 .weather-card-head {
   display: flex;
   align-items: center;

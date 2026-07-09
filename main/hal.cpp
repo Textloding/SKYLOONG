@@ -948,7 +948,7 @@ void handleTime()
 //////////////////////////////////主页APP JSON处理
 #include <cJSON.h>
 
-static char jsonbuffer[1024];
+static char jsonbuffer[4096];
 const char default_weather_key[] = "SoC098cCa8Ih-GWTb";
 const char default_weather_city[] = "北京";
 const char default_weather_provider[] = "aliyun_72158";
@@ -967,6 +967,22 @@ struct app_setting_v2
     char weather_endpoint[96];
     char weather_lat[24];
     char weather_lon[24];
+};
+
+struct app_setting_v3
+{
+    char weather_secret[64];
+    char weather_city[64];
+    char weather_provider[32];
+    char weather_endpoint[128];
+    char weather_lat[24];
+    char weather_lon[24];
+    char weather_key_seniverse[64];
+    char weather_key_qweather[64];
+    char weather_key_aliyun_72158[64];
+    char weather_key_aliyun_10812[64];
+    char weather_key_aliyun_50139[64];
+    char weather_key_aliyun_71988[64];
 };
 
 struct extended_app_setting
@@ -1079,9 +1095,34 @@ static char *weatherKeySlotForProvider(const char *provider)
     return NULL;
 }
 
+static char *weatherEndpointSlotForProvider(const char *provider)
+{
+    if (provider == NULL)
+        return NULL;
+    if (strcmp(provider, "seniverse") == 0)
+        return app_settings_save.weather_endpoint_seniverse;
+    if (strcmp(provider, "qweather") == 0)
+        return app_settings_save.weather_endpoint_qweather;
+    if (strcmp(provider, "aliyun_72158") == 0)
+        return app_settings_save.weather_endpoint_aliyun_72158;
+    if (strcmp(provider, "aliyun_10812") == 0)
+        return app_settings_save.weather_endpoint_aliyun_10812;
+    if (strcmp(provider, "aliyun_50139") == 0)
+        return app_settings_save.weather_endpoint_aliyun_50139;
+    if (strcmp(provider, "aliyun_71988") == 0)
+        return app_settings_save.weather_endpoint_aliyun_71988;
+    return NULL;
+}
+
 static const char *constWeatherKeySlotForProvider(const char *provider)
 {
     char *slot = weatherKeySlotForProvider(provider);
+    return slot == NULL ? "" : slot;
+}
+
+static const char *constWeatherEndpointSlotForProvider(const char *provider)
+{
+    char *slot = weatherEndpointSlotForProvider(provider);
     return slot == NULL ? "" : slot;
 }
 
@@ -1094,6 +1135,15 @@ static void syncActiveWeatherKeyFromProvider()
         app_settings_save.weather_secret[0] = '\0';
 }
 
+static void syncActiveWeatherEndpointFromProvider()
+{
+    const char *saved = constWeatherEndpointSlotForProvider(app_settings_save.weather_provider);
+    if (saved != NULL && strlen(saved) > 0)
+        copySettingString(app_settings_save.weather_endpoint, sizeof(app_settings_save.weather_endpoint), saved);
+    else
+        copySettingString(app_settings_save.weather_endpoint, sizeof(app_settings_save.weather_endpoint), defaultWeatherEndpointForProvider(app_settings_save.weather_provider));
+}
+
 static void saveActiveWeatherKeyForProvider(const char *provider, const char *key)
 {
     char *slot = weatherKeySlotForProvider(provider);
@@ -1103,10 +1153,67 @@ static void saveActiveWeatherKeyForProvider(const char *provider, const char *ke
     copySettingString(app_settings_save.weather_secret, sizeof(app_settings_save.weather_secret), key);
 }
 
+static void saveActiveWeatherEndpointForProvider(const char *provider, const char *endpoint)
+{
+    char *slot = weatherEndpointSlotForProvider(provider);
+    if (slot == NULL || endpoint == NULL || strlen(endpoint) == 0)
+        return;
+    copySettingString(slot, 128, endpoint);
+    if (strcmp(provider, app_settings_save.weather_provider) == 0)
+        copySettingString(app_settings_save.weather_endpoint, sizeof(app_settings_save.weather_endpoint), endpoint);
+}
+
 static bool isProviderKeyConfigured(const char *provider)
 {
     const char *saved = constWeatherKeySlotForProvider(provider);
     return saved != NULL && strlen(saved) > 0;
+}
+
+static void fillWeatherEndpointDefaults()
+{
+    const char *providers[] = {
+        "seniverse",
+        "qweather",
+        "aliyun_72158",
+        "aliyun_10812",
+        "aliyun_50139",
+        "aliyun_71988",
+    };
+    for (size_t i = 0; i < sizeof(providers) / sizeof(providers[0]); i++)
+    {
+        char *slot = weatherEndpointSlotForProvider(providers[i]);
+        if (slot != NULL && strlen(slot) == 0)
+            copySettingString(slot, 128, defaultWeatherEndpointForProvider(providers[i]));
+    }
+}
+
+static void parseWeatherEndpointField(cJSON *root, const char *provider, const char *field)
+{
+    const char *endpoint = jsonStringValue(root, field);
+    if (endpoint != NULL && strlen(endpoint) > 0)
+        saveActiveWeatherEndpointForProvider(provider, endpoint);
+}
+
+static void parseWeatherEndpointMap(cJSON *root)
+{
+    cJSON *map = cJSON_GetObjectItem(root, "weather_provider_endpoints");
+    if (map == NULL || !cJSON_IsObject(map))
+        return;
+
+    const char *providers[] = {
+        "seniverse",
+        "qweather",
+        "aliyun_72158",
+        "aliyun_10812",
+        "aliyun_50139",
+        "aliyun_71988",
+    };
+    for (size_t i = 0; i < sizeof(providers) / sizeof(providers[0]); i++)
+    {
+        const char *endpoint = jsonStringValue(map, providers[i]);
+        if (endpoint != NULL && strlen(endpoint) > 0)
+            saveActiveWeatherEndpointForProvider(providers[i], endpoint);
+    }
 }
 
 static void fillWeatherDefaultsIfMissing()
@@ -1114,8 +1221,8 @@ static void fillWeatherDefaultsIfMissing()
     if (!isKnownWeatherProvider(app_settings_save.weather_provider))
         copySettingString(app_settings_save.weather_provider, sizeof(app_settings_save.weather_provider), default_weather_provider);
 
-    if (strlen(app_settings_save.weather_endpoint) == 0)
-        copySettingString(app_settings_save.weather_endpoint, sizeof(app_settings_save.weather_endpoint), defaultWeatherEndpointForProvider(app_settings_save.weather_provider));
+    fillWeatherEndpointDefaults();
+    syncActiveWeatherEndpointFromProvider();
 
     if (strlen(app_settings_save.weather_city) == 0)
         copySettingString(app_settings_save.weather_city, sizeof(app_settings_save.weather_city), default_weather_city);
@@ -1136,6 +1243,7 @@ static void migrateLegacyAppSettings(const legacy_app_setting &legacy)
         copySettingString(app_settings_save.weather_secret, sizeof(app_settings_save.weather_secret), legacy.weather_secret);
         copySettingString(app_settings_save.weather_provider, sizeof(app_settings_save.weather_provider), "seniverse");
         copySettingString(app_settings_save.weather_endpoint, sizeof(app_settings_save.weather_endpoint), "http://api.seniverse.com");
+        saveActiveWeatherEndpointForProvider("seniverse", "http://api.seniverse.com");
         saveActiveWeatherKeyForProvider("seniverse", legacy.weather_secret);
     }
     else
@@ -1143,6 +1251,7 @@ static void migrateLegacyAppSettings(const legacy_app_setting &legacy)
         app_settings_save.weather_secret[0] = '\0';
         copySettingString(app_settings_save.weather_provider, sizeof(app_settings_save.weather_provider), default_weather_provider);
         copySettingString(app_settings_save.weather_endpoint, sizeof(app_settings_save.weather_endpoint), default_weather_endpoint);
+        saveActiveWeatherEndpointForProvider(default_weather_provider, default_weather_endpoint);
         app_settings_save.weather_lat[0] = '\0';
         app_settings_save.weather_lon[0] = '\0';
         if (strlen(app_settings_save.weather_city) == 0 || strcmp(app_settings_save.weather_city, default_weather_city) == 0)
@@ -1160,6 +1269,7 @@ static void migrateExtendedAppSettings(const extended_app_setting &legacy)
     copySettingString(app_settings_save.weather_city, sizeof(app_settings_save.weather_city), legacy.weather_city);
     copySettingString(app_settings_save.weather_provider, sizeof(app_settings_save.weather_provider), legacy.weather_provider);
     copySettingString(app_settings_save.weather_endpoint, sizeof(app_settings_save.weather_endpoint), legacy.weather_endpoint);
+    saveActiveWeatherEndpointForProvider(app_settings_save.weather_provider, legacy.weather_endpoint);
     copySettingString(app_settings_save.weather_lat, sizeof(app_settings_save.weather_lat), legacy.weather_lat);
     copySettingString(app_settings_save.weather_lon, sizeof(app_settings_save.weather_lon), legacy.weather_lon);
     if (strlen(legacy.weather_secret) > 0 && strcmp(legacy.weather_secret, default_weather_key) != 0)
@@ -1173,8 +1283,30 @@ static void migrateAppSettingsV2(const app_setting_v2 &legacy)
     copySettingString(app_settings_save.weather_city, sizeof(app_settings_save.weather_city), legacy.weather_city);
     copySettingString(app_settings_save.weather_provider, sizeof(app_settings_save.weather_provider), legacy.weather_provider);
     copySettingString(app_settings_save.weather_endpoint, sizeof(app_settings_save.weather_endpoint), legacy.weather_endpoint);
+    saveActiveWeatherEndpointForProvider(app_settings_save.weather_provider, legacy.weather_endpoint);
     copySettingString(app_settings_save.weather_lat, sizeof(app_settings_save.weather_lat), legacy.weather_lat);
     copySettingString(app_settings_save.weather_lon, sizeof(app_settings_save.weather_lon), legacy.weather_lon);
+    if (strlen(legacy.weather_secret) > 0 && strcmp(legacy.weather_secret, default_weather_key) != 0)
+        saveActiveWeatherKeyForProvider(app_settings_save.weather_provider, legacy.weather_secret);
+    fillWeatherDefaultsIfMissing();
+}
+
+static void migrateAppSettingsV3(const app_setting_v3 &legacy)
+{
+    parseAppSettings(default_app_setting);
+    copySettingString(app_settings_save.weather_secret, sizeof(app_settings_save.weather_secret), legacy.weather_secret);
+    copySettingString(app_settings_save.weather_city, sizeof(app_settings_save.weather_city), legacy.weather_city);
+    copySettingString(app_settings_save.weather_provider, sizeof(app_settings_save.weather_provider), legacy.weather_provider);
+    copySettingString(app_settings_save.weather_endpoint, sizeof(app_settings_save.weather_endpoint), legacy.weather_endpoint);
+    saveActiveWeatherEndpointForProvider(app_settings_save.weather_provider, legacy.weather_endpoint);
+    copySettingString(app_settings_save.weather_lat, sizeof(app_settings_save.weather_lat), legacy.weather_lat);
+    copySettingString(app_settings_save.weather_lon, sizeof(app_settings_save.weather_lon), legacy.weather_lon);
+    copySettingString(app_settings_save.weather_key_seniverse, sizeof(app_settings_save.weather_key_seniverse), legacy.weather_key_seniverse);
+    copySettingString(app_settings_save.weather_key_qweather, sizeof(app_settings_save.weather_key_qweather), legacy.weather_key_qweather);
+    copySettingString(app_settings_save.weather_key_aliyun_72158, sizeof(app_settings_save.weather_key_aliyun_72158), legacy.weather_key_aliyun_72158);
+    copySettingString(app_settings_save.weather_key_aliyun_10812, sizeof(app_settings_save.weather_key_aliyun_10812), legacy.weather_key_aliyun_10812);
+    copySettingString(app_settings_save.weather_key_aliyun_50139, sizeof(app_settings_save.weather_key_aliyun_50139), legacy.weather_key_aliyun_50139);
+    copySettingString(app_settings_save.weather_key_aliyun_71988, sizeof(app_settings_save.weather_key_aliyun_71988), legacy.weather_key_aliyun_71988);
     if (strlen(legacy.weather_secret) > 0 && strcmp(legacy.weather_secret, default_weather_key) != 0)
         saveActiveWeatherKeyForProvider(app_settings_save.weather_provider, legacy.weather_secret);
     fillWeatherDefaultsIfMissing();
@@ -1198,9 +1330,17 @@ void parseAppSettings(const char *input)
     if (weather_provider != NULL && strlen(weather_provider) > 0)
         copySettingString(app_settings_save.weather_provider, sizeof(app_settings_save.weather_provider), weather_provider);
 
+    parseWeatherEndpointMap(root);
+    parseWeatherEndpointField(root, "seniverse", "weather_endpoint_seniverse");
+    parseWeatherEndpointField(root, "qweather", "weather_endpoint_qweather");
+    parseWeatherEndpointField(root, "aliyun_72158", "weather_endpoint_aliyun_72158");
+    parseWeatherEndpointField(root, "aliyun_10812", "weather_endpoint_aliyun_10812");
+    parseWeatherEndpointField(root, "aliyun_50139", "weather_endpoint_aliyun_50139");
+    parseWeatherEndpointField(root, "aliyun_71988", "weather_endpoint_aliyun_71988");
+
     const char *weather_endpoint = jsonStringValue(root, "weather_endpoint");
     if (weather_endpoint != NULL && strlen(weather_endpoint) > 0)
-        copySettingString(app_settings_save.weather_endpoint, sizeof(app_settings_save.weather_endpoint), weather_endpoint);
+        saveActiveWeatherEndpointForProvider(app_settings_save.weather_provider, weather_endpoint);
 
     const char *weather_lat = jsonStringValue(root, "weather_lat");
     if (weather_lat != NULL)
@@ -1247,6 +1387,22 @@ void appSettingsToJson(char *result)
     cJSON *item = cJSON_CreateObject();
     cJSON_AddStringToObject(item, "weather_provider", app_settings_save.weather_provider);
     cJSON_AddStringToObject(item, "weather_endpoint", app_settings_save.weather_endpoint);
+    cJSON_AddStringToObject(item, "weather_endpoint_seniverse", constWeatherEndpointSlotForProvider("seniverse"));
+    cJSON_AddStringToObject(item, "weather_endpoint_qweather", constWeatherEndpointSlotForProvider("qweather"));
+    cJSON_AddStringToObject(item, "weather_endpoint_aliyun_72158", constWeatherEndpointSlotForProvider("aliyun_72158"));
+    cJSON_AddStringToObject(item, "weather_endpoint_aliyun_10812", constWeatherEndpointSlotForProvider("aliyun_10812"));
+    cJSON_AddStringToObject(item, "weather_endpoint_aliyun_50139", constWeatherEndpointSlotForProvider("aliyun_50139"));
+    cJSON_AddStringToObject(item, "weather_endpoint_aliyun_71988", constWeatherEndpointSlotForProvider("aliyun_71988"));
+    cJSON *endpoints = cJSON_AddObjectToObject(item, "weather_provider_endpoints");
+    if (endpoints != NULL)
+    {
+        cJSON_AddStringToObject(endpoints, "seniverse", constWeatherEndpointSlotForProvider("seniverse"));
+        cJSON_AddStringToObject(endpoints, "qweather", constWeatherEndpointSlotForProvider("qweather"));
+        cJSON_AddStringToObject(endpoints, "aliyun_72158", constWeatherEndpointSlotForProvider("aliyun_72158"));
+        cJSON_AddStringToObject(endpoints, "aliyun_10812", constWeatherEndpointSlotForProvider("aliyun_10812"));
+        cJSON_AddStringToObject(endpoints, "aliyun_50139", constWeatherEndpointSlotForProvider("aliyun_50139"));
+        cJSON_AddStringToObject(endpoints, "aliyun_71988", constWeatherEndpointSlotForProvider("aliyun_71988"));
+    }
     cJSON_AddStringToObject(item, "weather_lat", app_settings_save.weather_lat);
     cJSON_AddStringToObject(item, "weather_lon", app_settings_save.weather_lon);
     cJSON_AddBoolToObject(item, "weather_configured", isProviderKeyConfigured(app_settings_save.weather_provider));
@@ -1261,7 +1417,7 @@ void appSettingsToJson(char *result)
         cJSON_AddBoolToObject(keys, "aliyun_71988", isProviderKeyConfigured("aliyun_71988"));
     }
     cJSON_AddStringToObject(item, "city", app_settings_save.weather_city);
-    writeJsonToBuffer(item, result, 1024);
+    writeJsonToBuffer(item, result, 4096);
     cJSON_Delete(item);
 }
 
@@ -1293,6 +1449,17 @@ void HAL::loadAppSettings()
             }
             file.close();
             fillWeatherDefaultsIfMissing();
+            return;
+        }
+        if (fileSize == sizeof(app_setting_v3))
+        {
+            app_setting_v3 legacy;
+            int sz = file.read((uint8_t *)&legacy, sizeof(legacy));
+            file.close();
+            if (sz != sizeof(legacy))
+                goto reset;
+            migrateAppSettingsV3(legacy);
+            saveAppSettings();
             return;
         }
         if (fileSize == sizeof(app_setting_v2))
