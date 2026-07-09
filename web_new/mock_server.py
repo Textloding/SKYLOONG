@@ -13,20 +13,19 @@ os.makedirs(FS_DIR, exist_ok=True)
 STATE = {
     "mode": "STA", "ssid": "MyHomeWiFi", "ip": "192.168.1.100",
     "theme": 0, "aps_enable": True, "weather_enable": True,
-    "sysinfo_enable": False, "gif_enable": True, "jpg_enable": True,
-    "pet_enable": True,
-    "pet_name": "键盘宠物", "pet_theme": 0, "pet_reactivity": 2, "pet_bark_sound": True,
+    "gif_enable": True, "jpg_enable": True,
     "time_roll": 5000, "jpg_mode": "roll", "jpg_file": "",
     "timezone": 8, "language": 0, "keytone": 1, "keytone_file": "",
     "volume": 6, "video_fit": "contain", "video_audio": False,
-    "pomodoro_enable": False, "pomodoro_focus_min": 25, "pomodoro_short_break_min": 5,
-    "pomodoro_long_break_min": 15, "pomodoro_long_break_every": 4,
-    "pomodoro_auto_switch": True, "pomodoro_tone": 1, "pomodoro_tone_file": "",
-    "pomodoro_theme": 0,
 }
-APP_SETTINGS = {"ip": "192.168.1.1", "port": 1648,
-                "weather": "SoC098cCa8Ih-GWTb", "city": "北京",
-                "userdata": "请在网页端\n自定义文本"}
+APP_SETTINGS = {
+    "weather": "",
+    "city": "北京",
+    "weather_provider": "openmeteo",
+    "weather_endpoint": "http://api.open-meteo.com",
+    "weather_lat": "39.9042",
+    "weather_lon": "116.4074",
+}
 TOTAL_BYTES = 9 * 1024 * 1024
 
 MIME = {".html": "text/html", ".js": "application/javascript",
@@ -123,7 +122,7 @@ class Handler(BaseHTTPRequestHandler):
             STATE["keytone_file"] = args.get("keytone_file", ""); return self._send()
         if path == "/config_volume":
             STATE["volume"] = max(0, min(9, int(args.get("volume", 6)))); return self._send()
-        for app in ("aps", "gif", "weather", "sysinfo", "pet"):
+        for app in ("aps", "gif", "weather"):
             if path == f"/config_app_{app}":
                 if "enable" in args:
                     STATE[f"{app}_enable"] = args.get("enable") == "true"
@@ -132,37 +131,12 @@ class Handler(BaseHTTPRequestHandler):
                         STATE["video_fit"] = args.get("video_fit")
                     if "video_audio" in args:
                         STATE["video_audio"] = args.get("video_audio") == "true"
-                if app == "pet":
-                    STATE["pet_name"] = (args.get("name") or STATE["pet_name"] or "键盘宠物")[:12]
-                    STATE["pet_theme"] = max(0, min(3, int(args.get("theme", STATE["pet_theme"]))))
-                    STATE["pet_reactivity"] = max(1, min(3, int(args.get("reactivity", STATE["pet_reactivity"]))))
-                    STATE["pet_bark_sound"] = args.get("bark_sound", str(STATE["pet_bark_sound"]).lower()) == "true"
                 return self._send()
         if path == "/config_app_jpg":
             STATE["jpg_enable"] = args.get("enable") == "true"
             STATE["jpg_mode"] = args.get("jpg_mode", "roll")
             STATE["jpg_file"] = args.get("jpg_file", "")
             STATE["time_roll"] = int(args.get("time_roll", 5000)); return self._send()
-        if path == "/config_app_pomodoro":
-            STATE["pomodoro_enable"] = args.get("enable") == "true"
-            STATE["pomodoro_focus_min"] = max(1, min(90, int(args.get("focus_min", STATE["pomodoro_focus_min"]))))
-            STATE["pomodoro_short_break_min"] = max(1, min(30, int(args.get("short_break_min", STATE["pomodoro_short_break_min"]))))
-            STATE["pomodoro_long_break_min"] = max(1, min(60, int(args.get("long_break_min", STATE["pomodoro_long_break_min"]))))
-            STATE["pomodoro_long_break_every"] = max(1, min(8, int(args.get("long_break_every", STATE["pomodoro_long_break_every"]))))
-            STATE["pomodoro_auto_switch"] = args.get("auto_switch", str(STATE["pomodoro_auto_switch"]).lower()) == "true"
-            STATE["pomodoro_tone"] = max(1, min(5, int(args.get("tone", STATE["pomodoro_tone"]))))
-            STATE["pomodoro_tone_file"] = args.get("tone_file", STATE["pomodoro_tone_file"])
-            STATE["pomodoro_theme"] = max(0, min(2, int(args.get("theme", STATE["pomodoro_theme"]))))
-            return self._send()
-        if path == "/reset_pomodoro_timer":
-            print("** Pomodoro current timer reset **")
-            return self._send()
-        if path == "/reset_pomodoro_rounds":
-            print("** Pomodoro rounds reset **")
-            return self._send()
-        if path == "/preview_pomodoro_tone":
-            print(f"** Pomodoro tone preview tone={args.get('tone')} file={args.get('tone_file', '')} **")
-            return self._send()
         if path == "/config.json":
             incoming = json.loads(body.decode("utf-8"))
             if not incoming.get("weather"):

@@ -63,42 +63,6 @@ public:
     void destroy();
 };
 
-class AppSysinfo : public BaseApp
-{
-public:
-    void init()
-    {
-        appid = 6;
-    }
-    void setup();
-    void loop();
-    void destroy();
-};
-
-class AppPomodoro : public BaseApp
-{
-public:
-    void init()
-    {
-        appid = 7;
-    }
-    void setup();
-    void loop();
-    void destroy();
-};
-
-class AppPet : public BaseApp
-{
-public:
-    void init()
-    {
-        appid = 8;
-    }
-    void setup();
-    void loop();
-    void destroy();
-};
-
 class AppSettings : public BaseApp
 {
 public:

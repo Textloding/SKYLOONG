@@ -10,17 +10,11 @@
 #include "keytone/keytone4.h"
 #include "keytone/keytone5.h"
 #include "keytone/keytone6.h"
-#include "pomodoro_tone/pomodoro_tone1.h"
-#include "pomodoro_tone/pomodoro_tone2.h"
-#include "pomodoro_tone/pomodoro_tone3.h"
-#include "pomodoro_tone/pomodoro_tone4.h"
 
 I2SClass i2s;
 
 es8311_handle_t es_handle = es8311_create(I2C_NUM_0, ES8311_ADDRRES_0);
 static char *TAG = "audio_init";
-extern void pomodoro_reset_current();
-extern void pomodoro_reset_rounds();
 
 #include <TFT_eSPI.h>
 TFT_eSPI tft = TFT_eSPI(); 
@@ -193,8 +187,6 @@ static void task_systemctl(void *p)
             hal.APMChanged = true;
             break;
         case EVENT_KB_KEYPRESS:
-            if (event.data == 0)
-                hal.pet_keypress_seq++;
             if (hal.config_keytone == 1) {
                 hal.keytone_play =  true;
                 i2s.playWAV(__keytone_keytone1_wav, __keytone_keytone1_wav_len);
@@ -224,9 +216,6 @@ static void task_systemctl(void *p)
                 i2s.playWAV(__keytone_keytone6_wav, __keytone_keytone6_wav_len);
                 hal.keytone_play =  false;
             }
-            break;
-        case EVENT_POMODORO_CONFIRM:
-            hal.confirmPomodoro();
             break;
         case EVENT_SERVERCTL:
             if (event.data == 1)
@@ -357,73 +346,6 @@ void HAL::audio_stop()
     i2s.stop();
 }
 
-static volatile bool pomodoro_waiting_confirm = false;
-static volatile bool pomodoro_confirm_requested = false;
-static volatile bool pomodoro_auto_switch_requested = false;
-
-bool HAL::pomodoroWaitingForConfirm()
-{
-    return pomodoro_waiting_confirm;
-}
-
-bool HAL::confirmPomodoro()
-{
-    if (!pomodoro_waiting_confirm)
-        return false;
-
-    pomodoro_confirm_requested = true;
-    return true;
-}
-
-void HAL::setPomodoroWaiting(bool waiting)
-{
-    pomodoro_waiting_confirm = waiting;
-    if (waiting == false)
-    {
-        pomodoro_confirm_requested = false;
-        pomodoro_auto_switch_requested = false;
-    }
-}
-
-bool HAL::consumePomodoroAutoSwitch()
-{
-    if (!pomodoro_auto_switch_requested)
-        return false;
-
-    pomodoro_auto_switch_requested = false;
-    return true;
-}
-
-void HAL::requestPomodoroAutoSwitch()
-{
-    pomodoro_auto_switch_requested = true;
-}
-
-bool consumePomodoroConfirmRequest()
-{
-    if (!pomodoro_confirm_requested)
-        return false;
-
-    pomodoro_confirm_requested = false;
-    return true;
-}
-
-void HAL::playPomodoroTone()
-{
-    keytone_play = true;
-    if (pomodoro_tone == 1)
-        i2s.playWAV(__pomodoro_tone1_wav, __pomodoro_tone1_wav_len);
-    else if (pomodoro_tone == 2)
-        i2s.playWAV(__pomodoro_tone2_wav, __pomodoro_tone2_wav_len);
-    else if (pomodoro_tone == 3)
-        i2s.playWAV(__pomodoro_tone3_wav, __pomodoro_tone3_wav_len);
-    else if (pomodoro_tone == 4)
-        i2s.playWAV(__pomodoro_tone4_wav, __pomodoro_tone4_wav_len);
-    else if (pomodoro_tone == 5)
-        playAudioFileFromLittleFS(pomodoro_tone_file);
-    keytone_play = false;
-}
-
 void HAL::init()
 {
     memset(&datetime, 0, sizeof(DS1302_DateTime));
@@ -456,35 +378,13 @@ void HAL::init()
     strcpy(hal.config_keytone_file, pref.getString("keytone_file", "").c_str());
     hal.aps_enable = pref.getBool("aps_enable", true);
     hal.weather_enable = pref.getBool("weather_enable", true);
-    hal.sysinfo_enable = pref.getBool("sysinfo_enable", true);
     hal.gif_enable = pref.getBool("gif_enable", true);
     hal.jpg_enable = pref.getBool("jpg_enable", true);
-    hal.pomodoro_enable = pref.getBool("pomodoro_enable", false);
-    hal.pet_enable = pref.getBool("pet_enable", true);
-    hal.pet_bark_sound = pref.getBool("pet_bark_sound", true);
-    uint32_t stored_pet_theme = pref.getUInt("pet_theme", 0);
-    uint32_t stored_pet_reactivity = pref.getUInt("pet_reactivity", 2);
-    hal.pet_theme = (uint8_t)(stored_pet_theme > 3 ? 3 : stored_pet_theme);
-    hal.pet_reactivity = (uint8_t)(stored_pet_reactivity < 1 ? 1 : (stored_pet_reactivity > 3 ? 3 : stored_pet_reactivity));
-    String stored_pet_name = pref.getString("pet_name", "键盘宠物");
-    stored_pet_name.trim();
-    if (stored_pet_name.length() == 0)
-        stored_pet_name = "键盘宠物";
-    strncpy(hal.pet_name, stored_pet_name.c_str(), sizeof(hal.pet_name) - 1);
-    hal.pet_name[sizeof(hal.pet_name) - 1] = '\0';
     hal.config_time_roll = pref.getInt("t_r", 5000);
     hal.config_video_audio = pref.getBool("video_audio", false);
     setVideoFitConfig(pref.getString("video_fit", "contain"));
     strcpy(hal.config_jpg_mode, pref.getString("jpg_mode", "roll").c_str());
     strcpy(hal.config_jpg_file, pref.getString("jpg_file", "").c_str());
-    hal.pomodoro_focus_min = pref.getUInt("pomo_focus", 25);
-    hal.pomodoro_short_break_min = pref.getUInt("pomo_short", 5);
-    hal.pomodoro_long_break_min = pref.getUInt("pomo_long", 15);
-    hal.pomodoro_long_break_every = pref.getUInt("pomo_every", 4);
-    hal.pomodoro_auto_switch = pref.getBool("pomo_auto", true);
-    hal.pomodoro_tone = pref.getUInt("pomo_tone", 1);
-    strcpy(hal.pomodoro_tone_file, pref.getString("pomo_file", "").c_str());
-    hal.pomodoro_theme = pref.getUInt("pomo_theme", 0);
     i18n::setLanguage(pref.getUInt("lang", 0));
     i18n::setNTPOffset(pref.getInt("ntp", 3600 * 8));
     static lv_disp_draw_buf_t draw_buf;
@@ -1055,9 +955,22 @@ const char default_weather_provider[] = "openmeteo";
 const char default_weather_endpoint[] = "http://api.open-meteo.com";
 const char default_weather_lat[] = "39.9042";
 const char default_weather_lon[] = "116.4074";
-const char default_app_setting[] = "{\"ip\":\"192.168.1.1\",\"port\":1648,\"weather\":\"\",\"city\":\"北京\",\"weather_provider\":\"openmeteo\",\"weather_endpoint\":\"http://api.open-meteo.com\",\"weather_lat\":\"39.9042\",\"weather_lon\":\"116.4074\",\"userdata\":\"请在网页端\n自定义文本\"}";
+const char default_app_setting[] = "{\"weather\":\"\",\"city\":\"北京\",\"weather_provider\":\"openmeteo\",\"weather_endpoint\":\"http://api.open-meteo.com\",\"weather_lat\":\"39.9042\",\"weather_lon\":\"116.4074\"}";
 
 struct app_setting app_settings_save;
+
+struct extended_app_setting
+{
+    char remote_ip[64];
+    uint16_t remote_port;
+    char weather_secret[64];
+    char weather_city[64];
+    char weather_provider[16];
+    char weather_endpoint[96];
+    char weather_lat[24];
+    char weather_lon[24];
+    char userdata[256];
+};
 
 struct legacy_app_setting
 {
@@ -1151,11 +1064,7 @@ static void fillWeatherDefaultsIfMissing()
 static void migrateLegacyAppSettings(const legacy_app_setting &legacy)
 {
     parseAppSettings(default_app_setting);
-    copySettingString(app_settings_save.remote_ip, sizeof(app_settings_save.remote_ip), legacy.remote_ip);
-    if (legacy.remote_port > 0 && legacy.remote_port <= 65535)
-        app_settings_save.remote_port = legacy.remote_port;
     copySettingString(app_settings_save.weather_city, sizeof(app_settings_save.weather_city), legacy.weather_city);
-    copySettingString(app_settings_save.userdata, sizeof(app_settings_save.userdata), legacy.userdata);
 
     if (strlen(legacy.weather_secret) > 0 && strcmp(legacy.weather_secret, default_weather_key) != 0)
     {
@@ -1178,6 +1087,18 @@ static void migrateLegacyAppSettings(const legacy_app_setting &legacy)
     }
 }
 
+static void migrateExtendedAppSettings(const extended_app_setting &legacy)
+{
+    parseAppSettings(default_app_setting);
+    copySettingString(app_settings_save.weather_secret, sizeof(app_settings_save.weather_secret), legacy.weather_secret);
+    copySettingString(app_settings_save.weather_city, sizeof(app_settings_save.weather_city), legacy.weather_city);
+    copySettingString(app_settings_save.weather_provider, sizeof(app_settings_save.weather_provider), legacy.weather_provider);
+    copySettingString(app_settings_save.weather_endpoint, sizeof(app_settings_save.weather_endpoint), legacy.weather_endpoint);
+    copySettingString(app_settings_save.weather_lat, sizeof(app_settings_save.weather_lat), legacy.weather_lat);
+    copySettingString(app_settings_save.weather_lon, sizeof(app_settings_save.weather_lon), legacy.weather_lon);
+    fillWeatherDefaultsIfMissing();
+}
+
 void parseAppSettings(const char *input)
 {
     cJSON *root = cJSON_Parse(input);
@@ -1187,14 +1108,6 @@ void parseAppSettings(const char *input)
         cJSON_Delete(root);
         root = cJSON_Parse(default_app_setting);
     }
-
-    const char *ip = jsonStringValue(root, "ip");
-    if (ip != NULL && strlen(ip) > 0)
-        copySettingString(app_settings_save.remote_ip, sizeof(app_settings_save.remote_ip), ip);
-
-    cJSON *port = cJSON_GetObjectItem(root, "port");
-    if (port != NULL && cJSON_IsNumber(port) && port->valueint > 0 && port->valueint <= 65535)
-        app_settings_save.remote_port = port->valueint;
 
     const char *weather = jsonStringValue(root, "weather");
     if (weather != NULL && strlen(weather) > 0)
@@ -1220,10 +1133,6 @@ void parseAppSettings(const char *input)
     if (weather_lon != NULL)
         copySettingString(app_settings_save.weather_lon, sizeof(app_settings_save.weather_lon), weather_lon);
 
-    const char *userdata = jsonStringValue(root, "userdata");
-    if (userdata != NULL)
-        copySettingString(app_settings_save.userdata, sizeof(app_settings_save.userdata), userdata);
-
     fillWeatherDefaultsIfMissing();
     cJSON_Delete(root);
 }
@@ -1231,15 +1140,12 @@ void parseAppSettings(const char *input)
 void appSettingsToJson(char *result)
 {
     cJSON *item = cJSON_CreateObject();
-    cJSON_AddStringToObject(item, "ip", app_settings_save.remote_ip);
-    cJSON_AddNumberToObject(item, "port", app_settings_save.remote_port);
     cJSON_AddStringToObject(item, "weather_provider", app_settings_save.weather_provider);
     cJSON_AddStringToObject(item, "weather_endpoint", app_settings_save.weather_endpoint);
     cJSON_AddStringToObject(item, "weather_lat", app_settings_save.weather_lat);
     cJSON_AddStringToObject(item, "weather_lon", app_settings_save.weather_lon);
     cJSON_AddBoolToObject(item, "weather_configured", strlen(app_settings_save.weather_secret) > 0 || strcmp(app_settings_save.weather_provider, "openmeteo") == 0);
     cJSON_AddStringToObject(item, "city", app_settings_save.weather_city);
-    cJSON_AddStringToObject(item, "userdata", app_settings_save.userdata);
     writeJsonToBuffer(item, result, 1024);
     cJSON_Delete(item);
 }
@@ -1272,6 +1178,17 @@ void HAL::loadAppSettings()
             }
             file.close();
             fillWeatherDefaultsIfMissing();
+            return;
+        }
+        if (fileSize == sizeof(extended_app_setting))
+        {
+            extended_app_setting legacy;
+            int sz = file.read((uint8_t *)&legacy, sizeof(legacy));
+            file.close();
+            if (sz != sizeof(legacy))
+                goto reset;
+            migrateExtendedAppSettings(legacy);
+            saveAppSettings();
             return;
         }
         if (fileSize == sizeof(legacy_app_setting))
@@ -1311,7 +1228,6 @@ void handleJson()
         parseAppSettings(server.arg("plain").c_str());
         hal.saveAppSettings();
         hal.weather_update = false;
-        hal.sysinfo_update = false;  
         server.send(200, "text/plain", "OK");
         return;
     }
@@ -1339,7 +1255,6 @@ void handleJson()
 #include "webserver/arrow_right.h"
 #include "webserver/check.h"
 #include "webserver/check2.h"
-#include "webserver/cpu.h"
 #include "webserver/demo.h"
 #include "webserver/error_bg.h"
 #include "webserver/error_m.h"
@@ -1360,7 +1275,6 @@ void handleJson()
 #include "webserver/time_ic.h"
 #include "webserver/video2.h"
 #include "webserver/weather.h"
-#include "webserver/dog_medium.h"
 #include "webserver/worker.h"
 
 void HAL::start_webserver()
@@ -1414,15 +1328,8 @@ void HAL::start_webserver()
         cJSON_AddNumberToObject(json, "theme", hal.config_theme);
         cJSON_AddBoolToObject(json, "aps_enable", hal.aps_enable);
         cJSON_AddBoolToObject(json, "weather_enable", hal.weather_enable);
-        cJSON_AddBoolToObject(json, "sysinfo_enable", hal.sysinfo_enable);
         cJSON_AddBoolToObject(json, "gif_enable", hal.gif_enable);
         cJSON_AddBoolToObject(json, "jpg_enable", hal.jpg_enable);
-        cJSON_AddBoolToObject(json, "pomodoro_enable", hal.pomodoro_enable);
-        cJSON_AddBoolToObject(json, "pet_enable", hal.pet_enable);
-        cJSON_AddBoolToObject(json, "pet_bark_sound", hal.pet_bark_sound);
-        cJSON_AddNumberToObject(json, "pet_theme", hal.pet_theme);
-        cJSON_AddNumberToObject(json, "pet_reactivity", hal.pet_reactivity);
-        cJSON_AddStringToObject(json, "pet_name", hal.pet_name);
         cJSON_AddBoolToObject(json, "wifi_connected", WiFi.status() == WL_CONNECTED);
         cJSON_AddNumberToObject(json, "wifi_saved_count", WiFiMgr.count());
         cJSON_AddNumberToObject(json, "screen_width", screenWidth);
@@ -1442,14 +1349,6 @@ void HAL::start_webserver()
         cJSON_AddNumberToObject(json, "heap_free", ESP.getFreeHeap());
         cJSON_AddNumberToObject(json, "webserver_uptime_ms", hal.webserver_last_alive_ms);
         cJSON_AddNumberToObject(json, "webserver_stack_free", hal.webserver_task != NULL ? uxTaskGetStackHighWaterMark(hal.webserver_task) : 0);
-        cJSON_AddNumberToObject(json, "pomodoro_focus_min", hal.pomodoro_focus_min);
-        cJSON_AddNumberToObject(json, "pomodoro_short_break_min", hal.pomodoro_short_break_min);
-        cJSON_AddNumberToObject(json, "pomodoro_long_break_min", hal.pomodoro_long_break_min);
-        cJSON_AddNumberToObject(json, "pomodoro_long_break_every", hal.pomodoro_long_break_every);
-        cJSON_AddBoolToObject(json, "pomodoro_auto_switch", hal.pomodoro_auto_switch);
-        cJSON_AddNumberToObject(json, "pomodoro_tone", hal.pomodoro_tone);
-        cJSON_AddStringToObject(json, "pomodoro_tone_file", hal.pomodoro_tone_file);
-        cJSON_AddNumberToObject(json, "pomodoro_theme", hal.pomodoro_theme);
 
         writeJsonToBuffer(json, jsonbuffer, sizeof(jsonbuffer));
         cJSON_Delete(json);
@@ -1467,7 +1366,6 @@ void HAL::start_webserver()
         cJSON_AddNumberToObject(json, "webserver_alive_ms", hal.webserver_last_alive_ms);
         cJSON_AddNumberToObject(json, "webserver_stack_free", hal.webserver_task != NULL ? uxTaskGetStackHighWaterMark(hal.webserver_task) : 0);
         cJSON_AddNumberToObject(json, "current_app", appManagerLite.currentApp != NULL ? appManagerLite.currentApp->appid : 0);
-        cJSON_AddNumberToObject(json, "pet_keypress_seq", hal.pet_keypress_seq);
         writeJsonToBuffer(json, jsonbuffer, sizeof(jsonbuffer));
         cJSON_Delete(json);
         server.send(200, "application/json", jsonbuffer);
@@ -1650,126 +1548,6 @@ void HAL::start_webserver()
         }
     });
 
-    server.on("/config_app_sysinfo", HTTP_POST, []() {
-        if (server.hasArg("enable")) {
-            hal.sysinfo_enable = server.arg("enable").toBool();
-            hal.pref.putBool("sysinfo_enable", hal.sysinfo_enable);
-            server.send(200, "text/plain", "OK");
-        } else {
-            server.send(500, "text/plain", "ERR 500");
-        }
-    });
-
-    server.on("/config_app_pet", HTTP_POST, []() {
-        if (server.hasArg("enable") || server.hasArg("theme") || server.hasArg("reactivity") || server.hasArg("name") || server.hasArg("bark_sound")) {
-            if (server.hasArg("enable")) {
-                hal.pet_enable = server.arg("enable").toBool();
-                hal.pref.putBool("pet_enable", hal.pet_enable);
-            }
-            if (server.hasArg("bark_sound")) {
-                hal.pet_bark_sound = server.arg("bark_sound").toBool();
-                hal.pref.putBool("pet_bark_sound", hal.pet_bark_sound);
-            }
-            if (server.hasArg("theme")) {
-                hal.pet_theme = constrain(server.arg("theme").toInt(), 0, 3);
-                hal.pref.putUInt("pet_theme", hal.pet_theme);
-            }
-            if (server.hasArg("reactivity")) {
-                hal.pet_reactivity = constrain(server.arg("reactivity").toInt(), 1, 3);
-                hal.pref.putUInt("pet_reactivity", hal.pet_reactivity);
-            }
-            if (server.hasArg("name")) {
-                String pet_name = server.arg("name");
-                pet_name.trim();
-                if (pet_name.length() == 0)
-                    pet_name = "键盘宠物";
-                strncpy(hal.pet_name, pet_name.c_str(), sizeof(hal.pet_name) - 1);
-                hal.pet_name[sizeof(hal.pet_name) - 1] = '\0';
-                hal.pref.putString("pet_name", hal.pet_name);
-            }
-            server.send(200, "text/plain", "OK");
-        } else {
-            server.send(500, "text/plain", "ERR 500");
-        }
-    });
-
-    server.on("/config_app_pomodoro", HTTP_POST, []() {
-        if (server.hasArg("enable")) {
-            hal.pomodoro_enable = server.arg("enable").toBool();
-            hal.pref.putBool("pomodoro_enable", hal.pomodoro_enable);
-
-            if (server.hasArg("focus_min")) {
-                hal.pomodoro_focus_min = constrain(server.arg("focus_min").toInt(), 1, 90);
-                hal.pref.putUInt("pomo_focus", hal.pomodoro_focus_min);
-            }
-            if (server.hasArg("short_break_min")) {
-                hal.pomodoro_short_break_min = constrain(server.arg("short_break_min").toInt(), 1, 30);
-                hal.pref.putUInt("pomo_short", hal.pomodoro_short_break_min);
-            }
-            if (server.hasArg("long_break_min")) {
-                hal.pomodoro_long_break_min = constrain(server.arg("long_break_min").toInt(), 1, 60);
-                hal.pref.putUInt("pomo_long", hal.pomodoro_long_break_min);
-            }
-            if (server.hasArg("long_break_every")) {
-                hal.pomodoro_long_break_every = constrain(server.arg("long_break_every").toInt(), 1, 8);
-                hal.pref.putUInt("pomo_every", hal.pomodoro_long_break_every);
-            }
-            if (server.hasArg("auto_switch")) {
-                hal.pomodoro_auto_switch = server.arg("auto_switch").toBool();
-                hal.pref.putBool("pomo_auto", hal.pomodoro_auto_switch);
-            }
-            if (server.hasArg("tone")) {
-                hal.pomodoro_tone = constrain(server.arg("tone").toInt(), 1, 5);
-                hal.pref.putUInt("pomo_tone", hal.pomodoro_tone);
-            }
-            if (server.hasArg("tone_file")) {
-                strncpy(hal.pomodoro_tone_file, server.arg("tone_file").c_str(), sizeof(hal.pomodoro_tone_file) - 1);
-                hal.pomodoro_tone_file[sizeof(hal.pomodoro_tone_file) - 1] = '\0';
-                hal.pref.putString("pomo_file", hal.pomodoro_tone_file);
-            }
-            if (server.hasArg("theme")) {
-                hal.pomodoro_theme = constrain(server.arg("theme").toInt(), 0, 2);
-                hal.pref.putUInt("pomo_theme", hal.pomodoro_theme);
-            }
-
-            server.send(200, "text/plain", "OK");
-        } else {
-            server.send(500, "text/plain", "ERR 500");
-        }
-    });
-
-    server.on("/reset_pomodoro_timer", HTTP_POST, []() {
-        pomodoro_reset_current();
-        server.send(200, "text/plain", "OK");
-    });
-
-    server.on("/reset_pomodoro_rounds", HTTP_POST, []() {
-        pomodoro_reset_rounds();
-        server.send(200, "text/plain", "OK");
-    });
-
-    server.on("/preview_pomodoro_tone", HTTP_POST, []() {
-        const uint8_t old_tone = hal.pomodoro_tone;
-        char old_file[sizeof(hal.pomodoro_tone_file)];
-        strncpy(old_file, hal.pomodoro_tone_file, sizeof(old_file) - 1);
-        old_file[sizeof(old_file) - 1] = '\0';
-
-        if (server.hasArg("tone")) {
-            hal.pomodoro_tone = constrain(server.arg("tone").toInt(), 1, 5);
-        }
-        if (server.hasArg("tone_file")) {
-            strncpy(hal.pomodoro_tone_file, server.arg("tone_file").c_str(), sizeof(hal.pomodoro_tone_file) - 1);
-            hal.pomodoro_tone_file[sizeof(hal.pomodoro_tone_file) - 1] = '\0';
-        }
-
-        hal.playPomodoroTone();
-
-        hal.pomodoro_tone = old_tone;
-        strncpy(hal.pomodoro_tone_file, old_file, sizeof(hal.pomodoro_tone_file) - 1);
-        hal.pomodoro_tone_file[sizeof(hal.pomodoro_tone_file) - 1] = '\0';
-        server.send(200, "text/plain", "OK");
-    });
-
     server.on("/list", HTTP_GET, handleFileList);
     server.on("/edit", HTTP_PUT, handleFileCreate);    // create file
     server.on("/edit", HTTP_DELETE, handleFileDelete); // delete file
@@ -1846,10 +1624,6 @@ void HAL::start_webserver()
     server.on("/check2.png", HTTP_GET, []() {
         server.sendHeader("Content-Encoding", "gzip", true);
         server.send_P(200, "image/png", (const char *)__web_check2_png_gz, sizeof(__web_check2_png_gz));
-    });
-    server.on("/cpu.png", HTTP_GET, []() {
-        server.sendHeader("Content-Encoding", "gzip", true);
-        server.send_P(200, "image/png", (const char *)__web_cpu_png_gz, sizeof(__web_cpu_png_gz));
     });
     server.on("/demo.png", HTTP_GET, []() {
         server.sendHeader("Content-Encoding", "gzip", true);
@@ -1930,9 +1704,6 @@ void HAL::start_webserver()
     server.on("/weather.png", HTTP_GET, []() {
         server.sendHeader("Content-Encoding", "gzip", true);
         server.send_P(200, "image/png", (const char *)__web_weather_png_gz, sizeof(__web_weather_png_gz));
-    });
-    server.on("/dog_medium.png", HTTP_GET, []() {
-        sendGzippedAsset("image/png", __web_dog_medium_png_gz, sizeof(__web_dog_medium_png_gz));
     });
     server.on("/assets/worker-224792ee.js", HTTP_GET, []() {
         server.sendHeader("Content-Encoding", "gzip", true);

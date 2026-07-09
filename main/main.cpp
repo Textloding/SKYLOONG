@@ -115,13 +115,9 @@ AppAPS appAPS;
 AppGIF appGIF;
 AppJPG appJPG;
 AppWeather appWeather;
-AppSysinfo appSysinfo;
-AppPomodoro appPomodoro;
-AppPet appPet;
 AppSettings appSettings;
 AppQRCode appQRCode;
 extern void add_to_app_list(BaseApp *app);
-extern void pomodoro_init();
 uint32_t RTC_DATA_ATTR last_appid = 0;
 #include "boot_animation.h"
 #include <driver/rtc_io.h>
@@ -140,9 +136,6 @@ extern "C" void app_main()
     appGIF.init();
     appJPG.init();
     appWeather.init();
-    appSysinfo.init();
-    appPomodoro.init();
-    appPet.init();
     appSettings.init();
     appQRCode.init();
     appManagerLite.appHome = &appHome;
@@ -150,16 +143,13 @@ extern "C" void app_main()
     appManagerLite.appGIF = &appGIF;
     appManagerLite.appJPG = &appJPG;
     appManagerLite.appWeather = &appWeather;
-    appManagerLite.appSysinfo = &appSysinfo;
-    appManagerLite.appPomodoro = &appPomodoro;
-    appManagerLite.appPet = &appPet;
     appManagerLite.appSettings = &appSettings;
     appManagerLite.appQRCode = &appQRCode;
 
     if (last_appid == 0) {
         last_appid = hal.pref.getInt("last_appid", 1);
     }
-    if (last_appid == 100) {
+    if (last_appid == 100 || last_appid == 6 || last_appid == 7 || last_appid == 8) {
         last_appid = 1;
     }
     // 开机动画
@@ -171,7 +161,6 @@ extern "C" void app_main()
             videoPlayer.playBuffer(__boot_mpeg, sizeof(__boot_mpeg));
     }
     protocol_init();
-    pomodoro_init();
     xTaskCreatePinnedToCore(task_lvgl_update, "lvgl_update", 1024 * 6, NULL, 2, NULL, 1);
     xTaskCreatePinnedToCore(debug_USB_UART, "debug_USB_UART", 1024 * 4, NULL, 6, NULL, 1);
     xTaskCreatePinnedToCore(task_webserver_autostart, "web_autostart", 4096, NULL, 1, NULL, 0);

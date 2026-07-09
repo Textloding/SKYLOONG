@@ -15,12 +15,6 @@ BaseApp *AppManagerLite::getAppByName(const uint32_t appid)
     return appJPG;
      if (appid == 5)
     return appWeather;
-     if (appid == 6)
-    return appSysinfo;
-    if (appid == 7)
-        return appPomodoro;
-    if (appid == 8)
-        return appPet;
     if (appid == 50)
         return appSettings;
     if (appid == 100)
@@ -115,11 +109,6 @@ void AppManagerLite::switchApp(BaseApp *app)
 
 void AppManagerLite::loop()
 {
-    if (hal.consumePomodoroAutoSwitch() && appPomodoro != NULL && currentApp != appPomodoro)
-    {
-        switchApp(appPomodoro);
-        return;
-    }
     if (currentApp != NULL)
     {
         xSemaphoreTake(_mutex, portMAX_DELAY);

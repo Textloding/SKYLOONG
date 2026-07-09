@@ -294,19 +294,6 @@ void AppSettings::setup()
             lv_obj_clear_state(o, LV_STATE_CHECKED);
     }
 
-    o = create_settings_switch(_appScreen, _tr(I18N_ID_ENABLE_PERF_APP), _tr(I18N_ID_ENABLE_PERF_APP_DESC), [](lv_event_t *e)
-                               {
-        if (e->code == LV_EVENT_VALUE_CHANGED){
-            reboot_needed = true;
-            hal.pref.putBool("sysinfo_enable", lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED));
-        }
-        if (e->code == LV_EVENT_FOCUSED)
-            lv_obj_scroll_to_view(e->target->parent, LV_ANIM_OFF); });
-    if (hal.pref.getBool("sysinfo_enable", true))
-        lv_obj_add_state(o, LV_STATE_CHECKED);
-    else
-        lv_obj_clear_state(o, LV_STATE_CHECKED);
-
     ota_update_btn = create_settings_button(_appScreen, _tr(I18N_ID_FIRMWARE_VERSION), FIRMWARE_VERSION, _tr(I18N_ID_CHECK_UPDATE), [](lv_event_t *e)
                                             {
         if (e->code == LV_EVENT_CLICKED)

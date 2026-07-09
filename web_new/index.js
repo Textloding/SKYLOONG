@@ -98,26 +98,6 @@ const weatherSources = {
     keyPlaceholder: "粘贴 QWeather API KEY，留空不修改",
   },
 };
-const pomodoroToneOptions = [
-  { id: 1, name: "清脆铃声", desc: "短促清亮，适合专注结束" },
-  { id: 2, name: "柔和木琴", desc: "更轻，不容易吓到人" },
-  { id: 3, name: "轻提示音", desc: "低打扰，适合办公室" },
-  { id: 4, name: "完成上扬音", desc: "更像任务完成反馈" },
-  { id: 5, name: "自定义音频", desc: "上传 MP3/WAV 后使用" },
-];
-const pomodoroThemeOptions = [
-  { id: 0, name: "番茄红", desc: "暖色高对比，适合专注提醒", colors: ["#ff6b7a", "#33191d", "#ffc857"] },
-  { id: 1, name: "深海蓝", desc: "冷静低干扰，适合长时间使用", colors: ["#41d3bd", "#0d2233", "#7dd3fc"] },
-  { id: 2, name: "森林绿", desc: "柔和护眼，休息段更放松", colors: ["#7ee787", "#13291d", "#b8d8bd"] },
-];
-const petThemeOptions = [
-  { id: 0, name: "清透蓝", desc: "像素狗原色，清爽高对比舞台", colors: ["#38bdf8", "#07111f", "#0f172a", "#facc15"] },
-  { id: 1, name: "薄荷绿", desc: "柔和护眼，适合长时间挂屏", colors: ["#2dd4bf", "#061b18", "#10231f", "#86efac"] },
-  { id: 2, name: "蜜桃粉", desc: "更可爱，打字反馈更醒目", colors: ["#fb7185", "#201016", "#2a1720", "#fde047"] },
-  { id: 3, name: "星云紫", desc: "偏游戏风，夜间氛围更强", colors: ["#a78bfa", "#100b1d", "#171228", "#22d3ee"] },
-];
-const PET_SPRITE_URL = "/dog_medium.png?v=modern-20260707j";
-
 const state = {
   route: "overview",
   mediaTab: "images",
@@ -248,17 +228,8 @@ function normalizeInfo(info = {}) {
     ip: info.ip || "",
     theme: Number(info.theme || 0),
     aps_enable: !!info.aps_enable,
-    weather_enable: !!info.weather_enable,
-    sysinfo_enable: !!info.sysinfo_enable,
-    gif_enable: !!info.gif_enable,
-    jpg_enable: !!info.jpg_enable,
-    pomodoro_enable: !!info.pomodoro_enable,
-    pet_enable: info.pet_enable !== false,
-    pet_bark_sound: info.pet_bark_sound !== false,
-    pet_name: info.pet_name || "键盘宠物",
-    pet_theme: clamp(Number(info.pet_theme || 0), 0, 3),
-    pet_reactivity: clamp(Number(info.pet_reactivity || 2), 1, 3),
-    wifi_connected: info.wifi_connected !== false,
+    weather_enable: !!info.weather_enable,    gif_enable: !!info.gif_enable,
+    jpg_enable: !!info.jpg_enable,    wifi_connected: info.wifi_connected !== false,
     wifi_saved_count: Number(info.wifi_saved_count || 0),
     screen_width: Number(info.screen_width || SCREEN_W),
     screen_height: Number(info.screen_height || SCREEN_H),
@@ -271,16 +242,7 @@ function normalizeInfo(info = {}) {
     language: Number(info.language || 0),
     keytone: Number(info.keytone || 0),
     keytone_file: info.keytone_file || "",
-    volume: clamp(Number(info.volume ?? 6), 0, 9),
-    pomodoro_focus_min: clamp(Number(info.pomodoro_focus_min || 25), 1, 90),
-    pomodoro_short_break_min: clamp(Number(info.pomodoro_short_break_min || 5), 1, 30),
-    pomodoro_long_break_min: clamp(Number(info.pomodoro_long_break_min || 15), 1, 60),
-    pomodoro_long_break_every: clamp(Number(info.pomodoro_long_break_every || 4), 1, 8),
-    pomodoro_auto_switch: info.pomodoro_auto_switch !== false,
-    pomodoro_tone: clamp(Number(info.pomodoro_tone || 1), 1, 5),
-    pomodoro_tone_file: info.pomodoro_tone_file || "",
-    pomodoro_theme: clamp(Number(info.pomodoro_theme || 0), 0, 2),
-  };
+    volume: clamp(Number(info.volume ?? 6), 0, 9),  };
 }
 
 function markInfoDirty(...keys) {
@@ -316,15 +278,12 @@ function normalizeAppCfg(cfg = {}) {
   const provider = weatherSources[rawProvider] ? rawProvider : "openmeteo";
   const source = weatherSources[provider];
   return {
-    ip: cfg?.ip || "192.168.1.1",
-    port: Number(cfg?.port || 1648),
     weatherConfigured: !!(cfg?.weather_configured || cfg?.weather),
     weatherProvider: provider,
     weatherEndpoint: cfg?.weather_endpoint || cfg?.weatherEndpoint || source.endpoint,
     weatherLat: cfg?.weather_lat || cfg?.weatherLat || "",
     weatherLon: cfg?.weather_lon || cfg?.weatherLon || "",
     city: cfg?.city || "",
-    userdata: cfg?.userdata || "",
   };
 }
 
@@ -549,27 +508,11 @@ function viewOverview() {
       ${metricCard("已存 Wi-Fi", String(info.wifi_saved_count || 0), info.wifi_connected ? "自动联网已启用" : "当前未联网", info.wifi_connected ? "good" : "warn")}
     </div>
 
-    <section class="panel pet-overview-panel">
-      <div>
-        <div class="panel-head"><span>键盘宠物</span><small>${info.pet_enable ? "会加入 fn+~ 轮换" : "当前未加入轮换"}</small></div>
-        ${petPreview(info)}
-      </div>
-      <div class="pet-overview-copy">
-        <b>它是一只会看你打字节奏的开源像素狗</b>
-        <small>素材来自 CC0 开源 sprite。打字越快越兴奋，会从摇尾、行走、奔跑切到汪汪提示，自定义项保存后会同步到屏幕端。</small>
-        <button class="btn primary" data-route="system">${I.system}<span>自定义宠物</span></button>
-      </div>
-    </section>
-
     <section class="panel">
       <div class="panel-head"><span>小应用</span><small>直接开关屏幕功能</small></div>
       <div class="app-switches">
         ${appToggle("aps", "手速监测", info.aps_enable)}
-        ${appToggle("weather", "本地天气", info.weather_enable)}
-        ${appToggle("sysinfo", "电脑监控", info.sysinfo_enable)}
-        ${appToggle("pomodoro", "番茄钟", info.pomodoro_enable)}
-        ${appToggle("pet", "键盘宠物", info.pet_enable)}
-        ${appToggle("gif", "视频/GIF", info.gif_enable)}
+        ${appToggle("weather", "本地天气", info.weather_enable)}        ${appToggle("gif", "视频/GIF", info.gif_enable)}
         ${appToggle("jpg", "图片相册", info.jpg_enable)}
       </div>
     </section>
@@ -587,52 +530,6 @@ function appToggle(appId, label, checked) {
       <input type="checkbox" data-app-toggle="${appId}" ${checked ? "checked" : ""} ${busy(`app-${appId}`) ? "disabled" : ""}>
       <i></i>
     </label>
-  `;
-}
-
-function petTheme(id = 0) {
-  return petThemeOptions.find(t => t.id === Number(id)) || petThemeOptions[0];
-}
-
-function petPreviewStyle(info = state.info || {}) {
-  const theme = petTheme(info.pet_theme);
-  return `--pet-accent:${theme.colors[0]};--pet-bg:${theme.colors[1]};--pet-ground:${theme.colors[2]};--pet-spark:${theme.colors[3]};`;
-}
-
-function petMoodLabel(info = state.info || {}) {
-  const value = clamp(Number(info.pet_reactivity || 2), 1, 3);
-  if (value === 1) return "安静";
-  if (value === 3) return "活泼";
-  return "平衡";
-}
-
-function petPreview(info = state.info || {}) {
-  const name = info.pet_name || "键盘宠物";
-  return `
-    <div class="pet-preview" data-pet-preview-live style="${petPreviewStyle(info)}">
-      <div class="pet-screen-mini">
-        <span class="pet-star s1"></span><span class="pet-star s2"></span><span class="pet-star s3"></span>
-        <span class="pet-sprite" style="background-image:url('${PET_SPRITE_URL}')" aria-hidden="true"></span>
-        <span class="pet-source-badge">CC0</span>
-        <div class="pet-key-row"><i></i><i></i><i></i><i></i><i></i></div>
-      </div>
-      <div class="pet-preview-meta">
-        <b data-pet-preview-name>${esc(name)}</b>
-        <small><span data-pet-preview-theme>${esc(petTheme(info.pet_theme).name)}</span> · <span data-pet-preview-reactivity>${petMoodLabel(info)}</span></small>
-      </div>
-    </div>
-  `;
-}
-
-function petThemeCard(option) {
-  const selected = state.info.pet_theme === option.id;
-  return `
-    <button class="pet-theme-card ${selected ? "active" : ""}" data-pet-theme="${option.id}">
-      <span class="theme-swatches">${option.colors.map(color => `<i style="background:${color}"></i>`).join("")}</span>
-      <b>${esc(option.name)}</b>
-      <small>${esc(option.desc)}</small>
-      <em>${selected ? I.check : ""}</em>
-    </button>
   `;
 }
 
@@ -718,9 +615,7 @@ function mediaVideos() {
   `;
 }
 
-function mediaTones() {
-  const { tones } = fileLists();
-  return `
+function mediaTones() {  return `
     <div class="grid media-layout">
       <section class="panel upload-panel">
         <div class="panel-head"><span>上传按键音</span><small>MP3 或 WAV</small></div>
@@ -761,47 +656,6 @@ function toneRow(file) {
         <button class="icon-button danger-text" data-delete="${esc(name)}" aria-label="删除 ${esc(name)}">${I.trash}</button>
       </div>
     </article>
-  `;
-}
-
-function pomodoroToneCard(option) {
-  const selected = state.info.pomodoro_tone === option.id;
-  const customName = fileName(state.info.pomodoro_tone_file || "");
-  return `
-    <article class="pomodoro-tone-card ${selected ? "active" : ""}" data-pomodoro-tone-card="${option.id}">
-      <button class="tone-main" data-select-pomodoro-tone="${option.id}">
-        <span class="tone-mark">${option.id === 5 ? I.music : I.timer}</span>
-        <span><b>${esc(option.name)}</b><small>${option.id === 5 && customName ? esc(customName) : esc(option.desc)}</small></span>
-      </button>
-      <button class="icon-button" data-play-pomodoro-tone="${option.id}" aria-label="试听 ${esc(option.name)}">${I.play}</button>
-    </article>
-  `;
-}
-
-function pomodoroToneRow(file) {
-  const name = fileName(file.name);
-  const inUse = state.info.pomodoro_tone === 5 && fileName(state.info.pomodoro_tone_file) === name;
-  return `
-    <article class="file-row compact" data-file="${esc(name)}">
-      <span class="file-icon">${I.music}</span>
-      <div><b>${esc(name)}</b><small>${fmtSize(file.size)}${inUse ? " · 番茄钟在用" : ""}</small></div>
-      <div class="row-actions">
-        <button class="icon-button" data-play-tone="${esc(name)}" aria-label="浏览器试听 ${esc(name)}">${state.playing === name ? I.stop : I.play}</button>
-        <button class="btn mini ${inUse ? "primary" : "subtle"}" data-use-pomodoro-tone="${esc(name)}">${inUse ? "在用" : "设为提醒音"}</button>
-        <button class="icon-button danger-text" data-delete="${esc(name)}" aria-label="删除 ${esc(name)}">${I.trash}</button>
-      </div>
-    </article>
-  `;
-}
-
-function pomodoroThemeCard(option) {
-  const selected = state.info.pomodoro_theme === option.id;
-  return `
-    <button class="pomodoro-theme-card ${selected ? "active" : ""}" data-pomodoro-theme="${option.id}">
-      <span class="theme-swatches">${option.colors.map(color => `<i style="background:${color}"></i>`).join("")}</span>
-      <span><b>${esc(option.name)}</b><small>${esc(option.desc)}</small></span>
-      <em>${selected ? I.check : ""}</em>
-    </button>
   `;
 }
 
@@ -1019,85 +873,10 @@ function viewSystem() {
         </div>
       </section>
       <section class="panel">
-        <div class="panel-head"><span>番茄钟</span><small>独立倒计时</small></div>
-        <div class="field-stack pomodoro-panel">
-          <label class="toggle-row wide-toggle">
-            <span><b>启用番茄钟</b><small>${info.pomodoro_enable ? "会加入 fn+~ 轮换页面" : "关闭后不参与页面轮换"}</small></span>
-            <input type="checkbox" data-pomodoro-enable ${info.pomodoro_enable ? "checked" : ""}>
-            <i></i>
-          </label>
-          <div class="mini-grid">
-            <label class="field"><span>专注分钟</span><input data-pomodoro="focus_min" type="number" min="1" max="90" value="${info.pomodoro_focus_min}"></label>
-            <label class="field"><span>短休息</span><input data-pomodoro="short_break_min" type="number" min="1" max="30" value="${info.pomodoro_short_break_min}"></label>
-            <label class="field"><span>长休息</span><input data-pomodoro="long_break_min" type="number" min="1" max="60" value="${info.pomodoro_long_break_min}"></label>
-            <label class="field"><span>长休息轮次</span><input data-pomodoro="long_break_every" type="number" min="1" max="8" value="${info.pomodoro_long_break_every}"></label>
-          </div>
-          <label class="toggle-row wide-toggle">
-            <span><b>到点切回番茄钟</b><small>响铃时自动显示确认页面</small></span>
-            <input type="checkbox" data-pomodoro-auto-switch ${info.pomodoro_auto_switch ? "checked" : ""}>
-            <i></i>
-          </label>
-          <div class="pomodoro-theme-panel">
-            <div class="subhead"><span>倒计时主题</span><small>只影响屏幕番茄钟页面</small></div>
-            <div class="pomodoro-theme-grid">
-              ${pomodoroThemeOptions.map(pomodoroThemeCard).join("")}
-            </div>
-          </div>
-          <div class="pomodoro-tone-panel">
-            <div class="subhead"><span>提醒音</span><small>内置音由屏幕试听，自定义音频可在网页内试听</small></div>
-            <div class="pomodoro-tone-grid">
-              ${pomodoroToneOptions.map(pomodoroToneCard).join("")}
-            </div>
-            <div class="pomodoro-custom-tone">
-              <div class="upload-inline" data-upload-pomodoro-tone>
-                ${dropzone("pomodoro-tone", "上传自定义提醒音", "支持 MP3/WAV，上传后自动设为番茄钟提醒音", "audio/mpeg,audio/wav,.mp3,.wav")}
-              </div>
-              <div class="tone-library-mini">
-                ${tones.length ? `<div class="file-list">${tones.map(pomodoroToneRow).join("")}</div>` : emptyState(I.music, "还没有自定义提醒音", "可以直接在这里上传，或者去媒体页管理音效库")}
-              </div>
-            </div>
-          </div>
-          <div class="hint-strip">${I.timer}<span>到点后屏幕会显示 00:00 并播放声音，按 <b>fn+~</b> 确认并进入下一段倒计时。</span></div>
-          <div class="button-row pomodoro-actions">
-            <button class="btn primary" data-save-pomodoro>保存番茄钟</button>
-            <button class="btn subtle" data-reset-pomodoro>${I.refresh}<span>重置当前倒计时</span></button>
-            <button class="btn subtle" data-reset-pomodoro-rounds>${I.timer}<span>重置轮次</span></button>
-          </div>
-        </div>
-      </section>
-      <section class="panel">
-        <div class="panel-head"><span>小应用参数</span><small>天气、宠物和电脑监控</small></div>
+        <div class="panel-head"><span>天气服务</span><small>城市和数据源</small></div>
         <div class="field-stack">
-          <label class="toggle-row wide-toggle">
-            <span><b>启用键盘宠物</b><small>${info.pet_enable ? "会加入 fn+~ 轮换页面，随打字节奏变化表情" : "关闭后不参与页面轮换"}</small></span>
-            <input type="checkbox" data-app-toggle="pet" ${info.pet_enable ? "checked" : ""}>
-            <i></i>
-          </label>
-          <div class="pet-settings-card">
-            ${petPreview(info)}
-            <div class="mini-grid">
-              <label class="field"><span>宠物名字</span><input data-pet-name maxlength="12" value="${esc(info.pet_name)}" placeholder="键盘宠物"></label>
-              <label class="field range-field">
-                <span>互动灵敏度 <b class="range-value" data-pet-reactivity-value>${petMoodLabel(info)}</b></span>
-                <input data-pet-reactivity type="range" min="1" max="3" step="1" value="${info.pet_reactivity}">
-                <small>越高越容易兴奋，适合想要更强反馈的玩家。</small>
-              </label>
-            </div>
-            <label class="toggle-row pet-sound-toggle">
-              <span><b>汪汪音效</b><small>${info.pet_bark_sound ? "宠物兴奋汪汪叫时会播放内置短音效" : "只显示动画，不播放宠物叫声"}</small></span>
-              <input type="checkbox" data-pet-bark-sound ${info.pet_bark_sound ? "checked" : ""}>
-              <i></i>
-            </label>
-            <div class="pet-theme-grid">
-              ${petThemeOptions.map(petThemeCard).join("")}
-            </div>
-            <button class="btn primary" data-save-pet>保存宠物设置</button>
-          </div>
           ${weatherSettingsCard(cfg)}
-          <label class="field"><span>电脑 IP</span><input data-cfg="ip" value="${esc(cfg.ip)}"></label>
-          <label class="field"><span>端口</span><input data-cfg="port" type="number" min="1" max="65535" value="${esc(cfg.port)}"></label>
-          <label class="field"><span>屏幕文字</span><textarea data-cfg="userdata" rows="3">${esc(cfg.userdata)}</textarea></label>
-          <button class="btn primary" data-save-appcfg>保存参数</button>
+          <button class="btn primary" data-save-appcfg>保存天气参数</button>
         </div>
       </section>
       <section class="panel span-two danger-zone">
@@ -1285,55 +1064,8 @@ function bindSystem() {
   $("[data-video-audio]")?.addEventListener("change", ev => setVideoAudio(ev.target.checked));
   $$("[data-app-toggle]").forEach(bindAppToggle);
   bindDropzones();
-  $("[data-pet-name]")?.addEventListener("input", ev => {
-    state.info.pet_name = ev.target.value.trim() || "键盘宠物";
-    markInfoDirty("pet_name");
-    updatePetPreview();
-  });
-  $("[data-pet-reactivity]")?.addEventListener("input", ev => {
-    state.info.pet_reactivity = clamp(Number(ev.target.value || 2), 1, 3);
-    markInfoDirty("pet_reactivity");
-    const value = $("[data-pet-reactivity-value]");
-    if (value) value.textContent = petMoodLabel(state.info);
-    updatePetPreview();
-  });
-  $("[data-pet-bark-sound]")?.addEventListener("change", ev => {
-    state.info.pet_bark_sound = ev.target.checked;
-    markInfoDirty("pet_bark_sound");
-  });
-  $$("[data-pet-theme]").forEach(btn => btn.onclick = () => setPetTheme(Number(btn.dataset.petTheme)));
-  $("[data-save-pet]")?.addEventListener("click", () => savePetSettings());
-  $("[data-pomodoro-enable]")?.addEventListener("change", ev => {
-    state.info.pomodoro_enable = ev.target.checked;
-    markInfoDirty("pomodoro_enable");
-  });
-  $$("[data-pomodoro]").forEach(input => {
-    input.addEventListener("input", ev => {
-      const map = {
-        focus_min: "pomodoro_focus_min",
-        short_break_min: "pomodoro_short_break_min",
-        long_break_min: "pomodoro_long_break_min",
-        long_break_every: "pomodoro_long_break_every",
-      };
-      const key = map[ev.target.dataset.pomodoro];
-      if (!key) return;
-      state.info[key] = Number(ev.target.value);
-      markInfoDirty(key);
-    });
-  });
-  $("[data-pomodoro-auto-switch]")?.addEventListener("change", ev => {
-    state.info.pomodoro_auto_switch = ev.target.checked;
-    markInfoDirty("pomodoro_auto_switch");
-  });
-  $$("[data-pomodoro-theme]").forEach(btn => btn.onclick = () => setPomodoroTheme(Number(btn.dataset.pomodoroTheme)));
-  $$("[data-select-pomodoro-tone]").forEach(btn => btn.onclick = () => setPomodoroTone(Number(btn.dataset.selectPomodoroTone)));
-  $$("[data-play-pomodoro-tone]").forEach(btn => btn.onclick = () => previewPomodoroTone(Number(btn.dataset.playPomodoroTone)));
-  $$("[data-use-pomodoro-tone]").forEach(btn => btn.onclick = () => usePomodoroTone(btn.dataset.usePomodoroTone));
   $$("[data-play-tone]").forEach(btn => btn.onclick = () => playTone(btn.dataset.playTone));
   $$("[data-delete]").forEach(btn => btn.onclick = () => confirmDelete(btn.dataset.delete));
-  $("[data-save-pomodoro]")?.addEventListener("click", () => savePomodoroSettings());
-  $("[data-reset-pomodoro]")?.addEventListener("click", resetPomodoroTimer);
-  $("[data-reset-pomodoro-rounds]")?.addEventListener("click", resetPomodoroRounds);
   $$("[data-cfg]").forEach(input => {
     input.addEventListener("input", ev => {
       const key = ev.target.dataset.cfg;
@@ -1384,34 +1116,6 @@ function bindAppToggle(input) {
   input.onchange = () => {
     const appId = input.dataset.appToggle;
     const enabled = input.checked;
-  if (appId === "pomodoro") {
-    state.info.pomodoro_enable = enabled;
-    markInfoDirty("pomodoro_enable");
-    runAction(`app-${appId}`, () => postForm("/config_app_pomodoro", pomodoroPayload({ enable: enabled })), "应用状态已更新")
-      .then(saved => {
-        clearInfoDirty("pomodoro_enable");
-        if (!saved) refreshAll(true).then(render);
-    });
-    return;
-  }
-  if (appId === "pet") {
-    state.info.pet_enable = enabled;
-    markInfoDirty("pet_enable");
-    const payload = petPayload({ enable: enabled });
-    runAction(`app-${appId}`, () => postForm("/config_app_pet", payload), "应用状态已更新")
-      .then(saved => {
-        if (saved) {
-          state.info.pet_enable = payload.enable === "true";
-          state.info.pet_name = payload.name;
-          state.info.pet_theme = Number(payload.theme);
-          state.info.pet_reactivity = Number(payload.reactivity);
-          state.info.pet_bark_sound = payload.bark_sound === "true";
-          clearInfoDirty("pet_enable", "pet_name", "pet_theme", "pet_reactivity", "pet_bark_sound");
-        }
-        if (!saved) refreshAll(true).then(render);
-      });
-    return;
-  }
     runAction(`app-${appId}`, () => postForm(`/config_app_${appId}`, { enable: String(enabled) }), "应用状态已更新");
   };
 }
@@ -1509,151 +1213,6 @@ async function useTone(name) {
   await runAction("tone", () => postForm("/config_keytone", { keytone: "4", keytone_file: name }), "已选用音效");
 }
 
-function setPomodoroTone(value) {
-  state.info.pomodoro_tone = clamp(Number(value || 1), 1, 5);
-  if (state.info.pomodoro_tone === 5 && !state.info.pomodoro_tone_file) {
-    state.info.pomodoro_tone_file = fileName(fileLists().tones[0]?.name || "");
-  }
-  markInfoDirty("pomodoro_tone", "pomodoro_tone_file");
-  render();
-}
-
-function setPomodoroTheme(value) {
-  state.info.pomodoro_theme = clamp(Number(value || 0), 0, 2);
-  markInfoDirty("pomodoro_theme");
-  render();
-}
-
-async function usePomodoroTone(name) {
-  state.info.pomodoro_tone = 5;
-  state.info.pomodoro_tone_file = fileName(name);
-  markInfoDirty("pomodoro_tone", "pomodoro_tone_file");
-  await savePomodoroSettings("已设为番茄钟提醒音");
-}
-
-async function previewPomodoroTone(value) {
-  const tone = clamp(Number(value || state.info.pomodoro_tone), 1, 5);
-  const toneFile = tone === 5 ? fileName(state.info.pomodoro_tone_file || fileLists().tones[0]?.name || "") : "";
-  if (tone === 5 && !toneFile) {
-    toast("请先上传或选择自定义音频", "danger");
-    return;
-  }
-  try {
-    await postForm("/preview_pomodoro_tone", { tone: String(tone), tone_file: toneFile });
-    toast("已发送到屏幕试听");
-  } catch (err) {
-    toast("试听失败", "danger");
-  }
-}
-
-function updatePetPreview() {
-  const preview = $("[data-pet-preview-live]");
-  if (preview) preview.setAttribute("style", petPreviewStyle(state.info));
-  const name = $("[data-pet-preview-name]");
-  if (name) name.textContent = state.info.pet_name || "键盘宠物";
-  const theme = $("[data-pet-preview-theme]");
-  if (theme) theme.textContent = petTheme(state.info.pet_theme).name;
-  const reactivity = $("[data-pet-preview-reactivity]");
-  if (reactivity) reactivity.textContent = petMoodLabel(state.info);
-}
-
-function setPetTheme(value) {
-  state.info.pet_theme = clamp(Number(value || 0), 0, 3);
-  markInfoDirty("pet_theme");
-  render();
-}
-
-function petPayload(overrides = {}) {
-  const nameInput = $("[data-pet-name]");
-  const reactivityInput = $("[data-pet-reactivity]");
-  const barkSoundInput = $("[data-pet-bark-sound]");
-  return {
-    enable: String(overrides.enable ?? state.info.pet_enable),
-    name: String(overrides.name ?? nameInput?.value?.trim() ?? state.info.pet_name ?? "键盘宠物").slice(0, 12) || "键盘宠物",
-    theme: String(clamp(Number(overrides.theme ?? state.info.pet_theme), 0, 3)),
-    reactivity: String(clamp(Number(overrides.reactivity ?? reactivityInput?.value ?? state.info.pet_reactivity), 1, 3)),
-    bark_sound: String(overrides.bark_sound ?? barkSoundInput?.checked ?? state.info.pet_bark_sound),
-  };
-}
-
-async function savePetSettings(okMessage = "宠物设置已保存") {
-  const payload = petPayload();
-  const saved = await runAction("pet-settings", () => postForm("/config_app_pet", payload), okMessage);
-  if (!saved) return;
-  state.info.pet_enable = payload.enable === "true";
-  state.info.pet_name = payload.name;
-  state.info.pet_theme = Number(payload.theme);
-  state.info.pet_reactivity = Number(payload.reactivity);
-  state.info.pet_bark_sound = payload.bark_sound === "true";
-  clearInfoDirty("pet_enable", "pet_name", "pet_theme", "pet_reactivity", "pet_bark_sound");
-}
-
-function pomodoroPayload(overrides = {}) {
-  const readNumber = (key, fallback) => {
-    const input = $(`[data-pomodoro="${key}"]`);
-    return input ? Number(input.value) : fallback;
-  };
-  const enabledInput = $("[data-pomodoro-enable]");
-  const autoSwitchInput = $("[data-pomodoro-auto-switch]");
-  return {
-    enable: String(overrides.enable ?? enabledInput?.checked ?? state.info.pomodoro_enable),
-    focus_min: String(clamp(readNumber("focus_min", state.info.pomodoro_focus_min), 1, 90)),
-    short_break_min: String(clamp(readNumber("short_break_min", state.info.pomodoro_short_break_min), 1, 30)),
-    long_break_min: String(clamp(readNumber("long_break_min", state.info.pomodoro_long_break_min), 1, 60)),
-    long_break_every: String(clamp(readNumber("long_break_every", state.info.pomodoro_long_break_every), 1, 8)),
-    auto_switch: String(autoSwitchInput?.checked ?? state.info.pomodoro_auto_switch),
-    tone: String(clamp(Number(overrides.tone ?? state.info.pomodoro_tone), 1, 5)),
-    tone_file: fileName(overrides.tone_file ?? state.info.pomodoro_tone_file ?? ""),
-    theme: String(clamp(Number(overrides.theme ?? state.info.pomodoro_theme), 0, 2)),
-  };
-}
-
-async function savePomodoroSettings(okMessage = "番茄钟已保存") {
-  const payload = pomodoroPayload();
-  const saved = await runAction("pomodoro", () => postForm("/config_app_pomodoro", payload), okMessage);
-  if (!saved) return;
-  state.info.pomodoro_enable = payload.enable === "true";
-  state.info.pomodoro_focus_min = Number(payload.focus_min);
-  state.info.pomodoro_short_break_min = Number(payload.short_break_min);
-  state.info.pomodoro_long_break_min = Number(payload.long_break_min);
-  state.info.pomodoro_long_break_every = Number(payload.long_break_every);
-  state.info.pomodoro_auto_switch = payload.auto_switch === "true";
-  state.info.pomodoro_tone = Number(payload.tone);
-  state.info.pomodoro_tone_file = payload.tone_file;
-  state.info.pomodoro_theme = Number(payload.theme);
-  clearInfoDirty(
-    "pomodoro_enable",
-    "pomodoro_focus_min",
-    "pomodoro_short_break_min",
-    "pomodoro_long_break_min",
-    "pomodoro_long_break_every",
-    "pomodoro_auto_switch",
-    "pomodoro_tone",
-    "pomodoro_tone_file",
-    "pomodoro_theme",
-  );
-}
-
-async function resetPomodoroTimer() {
-  const ok = await confirmDialog({
-    title: "重置当前倒计时",
-    body: "屏幕会把当前这一段番茄钟重新从满时间开始，不会修改你的番茄钟设置。",
-    ok: "重置",
-  });
-  if (!ok) return;
-  await runAction("pomodoro-reset", () => postForm("/reset_pomodoro_timer"), "当前倒计时已重置");
-}
-
-async function resetPomodoroRounds() {
-  const ok = await confirmDialog({
-    title: "重置番茄钟轮次？",
-    body: "屏幕会回到第 1 轮专注并从完整专注时间重新开始，当前提醒音也会停止。",
-    ok: "重置轮次",
-  });
-  if (!ok) return;
-  await runAction("pomodoro-reset-rounds", () => postForm("/reset_pomodoro_rounds"), "番茄钟轮次已重置");
-}
-
 function playTone(name) {
   if (state.audio) {
     state.audio.pause();
@@ -1677,10 +1236,6 @@ async function saveAppConfig() {
   $$("[data-cfg]").forEach(input => {
     cfg[input.dataset.cfg] = input.type === "number" ? Number(input.value) : input.value;
   });
-  if (!cfg.port || cfg.port < 1 || cfg.port > 65535) {
-    toast("端口需要是 1 到 65535", "danger");
-    return;
-  }
   cfg.city = (cfg.city || "").trim();
   if (!cfg.city) {
     toast("请填写天气城市", "danger");
@@ -1833,9 +1388,7 @@ async function handleFiles(type, files) {
   if (!file) return;
   if (type === "image") return openCropper(file);
   if (type === "video") return startVideoUpload(file);
-  if (type === "tone") return uploadTone(file);
-  if (type === "pomodoro-tone") return uploadPomodoroTone(file);
-}
+  if (type === "tone") return uploadTone(file);}
 
 function safeName(original, ext) {
   const names = new Set((state.list?.data || []).map(f => fileName(f.name)));
@@ -1944,15 +1497,6 @@ async function uploadBlobWithProgress(blob, name, host) {
 
 async function uploadTone(file) {
   await uploadToneFile(file);
-}
-
-async function uploadPomodoroTone(file) {
-  const name = await uploadToneFile(file, "自定义提醒音已上传");
-  if (!name) return;
-  state.info.pomodoro_tone = 5;
-  state.info.pomodoro_tone_file = name;
-  markInfoDirty("pomodoro_tone", "pomodoro_tone_file");
-  await savePomodoroSettings("自定义提醒音已设为番茄钟");
 }
 
 async function uploadToneFile(file, okMessage = "音效已上传") {
@@ -2140,13 +1684,6 @@ async function confirmDelete(name) {
       state.info.keytone = 0;
       state.info.keytone_file = "";
       try { await postForm("/config_keytone", { keytone: "0", keytone_file: "" }); } catch (err) {}
-    }
-    if (fileName(state.info?.pomodoro_tone_file || "") === name) {
-      state.info.pomodoro_tone = 1;
-      state.info.pomodoro_tone_file = "";
-      markInfoDirty("pomodoro_tone", "pomodoro_tone_file");
-      try { await postForm("/config_app_pomodoro", pomodoroPayload({ tone: 1, tone_file: "" })); } catch (err) {}
-      clearInfoDirty("pomodoro_tone", "pomodoro_tone_file");
     }
     await refreshAll(true);
     toast("已删除");
