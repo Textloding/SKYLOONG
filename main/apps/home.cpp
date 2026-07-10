@@ -803,6 +803,7 @@ namespace theme_space
     lv_obj_t *lbl_weather_cond;
     lv_obj_t *lbl_weather_temp;
     lv_obj_t *lbl_weather_meta;
+    lv_obj_t *star_layer;
     lv_obj_t *img_astronaut;
     lv_obj_t *status_cells[6];
     lv_obj_t *status_icons[6];
@@ -810,9 +811,37 @@ namespace theme_space
     bool weather_loaded;
     bool toggle_connection;
     uint8_t anim_frame;
+    uint8_t twinkle_frame;
     uint32_t last_anim_ms;
+    uint32_t last_twinkle_ms;
     uint32_t last_weather_ms;
     const lv_img_dsc_t *channel_icons[4] = {&img_rf, &img_bt1, &img_bt2, &img_usb};
+
+    struct TwinkleStar
+    {
+        int16_t x;
+        int16_t y;
+        uint8_t size;
+        uint8_t phase;
+        uint8_t color;
+    };
+
+    static const TwinkleStar twinkle_stars[] = {
+        {6, 20, 1, 0, 0},
+        {64, 24, 2, 7, 1},
+        {136, 6, 1, 13, 0},
+        {205, 14, 2, 20, 2},
+        {225, 9, 2, 26, 0},
+        {268, 21, 1, 4, 1},
+        {306, 11, 1, 17, 0},
+        {18, 54, 1, 23, 2},
+        {75, 50, 1, 10, 0},
+        {238, 48, 1, 29, 1},
+        {278, 48, 1, 15, 0},
+        {300, 54, 1, 2, 2},
+        {264, 65, 1, 24, 1},
+        {278, 78, 2, 6, 0},
+    };
 
     void reset()
     {
@@ -824,6 +853,7 @@ namespace theme_space
         lbl_weather_cond = NULL;
         lbl_weather_temp = NULL;
         lbl_weather_meta = NULL;
+        star_layer = NULL;
         img_astronaut = NULL;
         for (uint8_t i = 0; i < 6; i++)
         {
@@ -1052,15 +1082,84 @@ namespace theme_space
             lv_label_set_text(lbl_weather_meta, "数据已同步");
     }
 
+    uint8_t twinkle_wave(const TwinkleStar &star)
+    {
+        uint8_t step = (twinkle_frame + star.phase) & 31;
+        return step < 16 ? step : 31 - step;
+    }
+
+    void draw_twinkling_stars(lv_event_t *event)
+    {
+        lv_draw_ctx_t *draw_ctx = lv_event_get_draw_ctx(event);
+        lv_obj_t *layer = lv_event_get_target(event);
+        if (draw_ctx == NULL || layer == NULL)
+            return;
+
+        lv_area_t layer_coords;
+        lv_obj_get_coords(layer, &layer_coords);
+        for (const TwinkleStar &star : twinkle_stars)
+        {
+            uint8_t wave = twinkle_wave(star);
+            int16_t glow = wave >= 13 ? 1 : 0;
+            lv_area_t area = {
+                (lv_coord_t)(layer_coords.x1 + star.x - glow),
+                (lv_coord_t)(layer_coords.y1 + star.y - glow),
+                (lv_coord_t)(layer_coords.x1 + star.x + star.size - 1 + glow),
+                (lv_coord_t)(layer_coords.y1 + star.y + star.size - 1 + glow),
+            };
+            const lv_area_t *clip = draw_ctx->clip_area;
+            if (clip != NULL && (area.x2 < clip->x1 || area.x1 > clip->x2 || area.y2 < clip->y1 || area.y1 > clip->y2))
+                continue;
+
+            lv_draw_rect_dsc_t rect;
+            lv_draw_rect_dsc_init(&rect);
+            rect.bg_color = star.color == 1 ? lv_color_hex(0x8cecff) : (star.color == 2 ? lv_color_hex(0xfff1ce) : lv_color_hex(0xffffff));
+            rect.bg_opa = (lv_opa_t)(24 + wave * 14);
+            rect.radius = LV_RADIUS_CIRCLE;
+            rect.border_opa = LV_OPA_TRANSP;
+            lv_draw_rect(draw_ctx, &rect, &area);
+        }
+    }
+
+    void animate_stars()
+    {
+        if (star_layer == NULL || millis() - last_twinkle_ms < 180)
+            return;
+        last_twinkle_ms = millis();
+        twinkle_frame = (twinkle_frame + 1) & 31;
+
+        lv_area_t layer_coords;
+        lv_obj_get_coords(star_layer, &layer_coords);
+        for (const TwinkleStar &star : twinkle_stars)
+        {
+            lv_area_t area = {
+                (lv_coord_t)(layer_coords.x1 + star.x - 1),
+                (lv_coord_t)(layer_coords.y1 + star.y - 1),
+                (lv_coord_t)(layer_coords.x1 + star.x + star.size),
+                (lv_coord_t)(layer_coords.y1 + star.y + star.size),
+            };
+            lv_obj_invalidate_area(star_layer, &area);
+        }
+    }
+
     void setup(lv_obj_t *home_appScreen)
     {
         anim_frame = 0;
+        twinkle_frame = 0;
         last_anim_ms = 0;
+        last_twinkle_ms = 0;
         last_weather_ms = 0;
         weather_loaded = false;
         toggle_connection = true;
         lv_obj_set_style_bg_color(home_appScreen, lv_color_hex(0x030815), 0);
         lv_obj_set_style_bg_img_src(home_appScreen, &img_space_bg, 0);
+
+        star_layer = lv_obj_create(home_appScreen);
+        lv_obj_remove_style_all(star_layer);
+        lv_obj_set_pos(star_layer, 0, 0);
+        lv_obj_set_size(star_layer, 320, 240);
+        lv_obj_clear_flag(star_layer, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_add_event_cb(star_layer, draw_twinkling_stars, LV_EVENT_DRAW_MAIN, NULL);
 
         img_astronaut = lv_img_create(home_appScreen);
         lv_img_set_src(img_astronaut, img_space_taikonaut_frames[0]);
@@ -1096,6 +1195,7 @@ namespace theme_space
 
     void animate()
     {
+        animate_stars();
         if (img_astronaut == NULL || millis() - last_anim_ms < 90)
             return;
         static const int8_t bob_x[] = {0, 2, 3, 2, 0, -2, -3, -2};
