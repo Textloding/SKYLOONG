@@ -4,6 +4,7 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $halCpp = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "main\hal.cpp")
 $halH = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "main\include\hal.h")
 $weatherCpp = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "main\apps\Weather.cpp")
+$homeCpp = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "main\apps\home.cpp")
 $web = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "web_new\index.js")
 $readme = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "README.md")
 
@@ -97,6 +98,13 @@ Assert-Contains $web 'weather_provider_key_values:\s*nextKeyValues' "Switching w
 Assert-Contains $web '/weather_test' "Management UI must call the firmware weather test endpoint."
 Assert-Contains $halCpp 'server\.on\("/weather_test"' "Firmware must expose a weather test endpoint."
 Assert-Contains $weatherCpp 'testWeatherProvider' "Firmware weather app must expose a reusable provider test function."
+Assert-Contains $halCpp '"webserver",\s*12288' "Webserver task needs enough stack for TLS weather tests."
+Assert-NotContains $weatherCpp 'LittleFS\.open\("\.weather"' "LittleFS weather cache paths must start with /."
+Assert-Contains $weatherCpp 'LittleFS\.open\("/\.weather"' "Weather cache must use an absolute LittleFS path."
+Assert-NotContains $homeCpp 'LittleFS\.open\("\.weather"' "Home weather cache paths must start with /."
+Assert-Contains $homeCpp 'LittleFS\.open\("/\.weather"' "Home weather cache must use an absolute LittleFS path."
+Assert-Contains $weatherCpp 'LittleFS\.open\("/\.weather",\s*"a"\)' "Weather cache reads must create a quiet placeholder before checking size."
+Assert-Contains $homeCpp 'LittleFS\.open\("/\.weather",\s*"a"\)' "Home weather cache reads must create a quiet placeholder before checking size."
 Assert-Contains $web 'weather-layout' "Weather settings and tutorial must support side-by-side layout."
 Assert-NotContains $web 'data-cfg="weather" type="password"' "Weather API Key/AppCode input must be visible text, not a password box."
 Assert-NotContains $web 'type="password" data-cfg="weather"' "Weather API Key/AppCode input must be visible text, not a password box."

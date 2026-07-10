@@ -29,6 +29,7 @@ Assert-Contains $homeCpp '(?s)namespace theme_fox.*?lv_obj_set_pos\(img_am,\s*86
 Assert-NotContains $homeCpp '(?s)namespace theme_space.*?lv_img_set_zoom\(img_astronaut' "Space theme must not use runtime LVGL image zoom; it can allocate transform buffers and reset on low memory."
 Assert-Contains $homeCpp '(?s)namespace theme_space.*?void reset\(\).*?lv_img_cache_invalidate_src\(&img_space_bg\)' "Space theme must clear static LVGL pointers and invalidate cached image state on teardown."
 Assert-Contains $homeCpp '(?s)void AppHome::destroy\(\).*?theme_space::reset\(\)' "Home app destroy must reset space-theme LVGL object pointers before the old screen is deleted."
+Assert-NotContains $homeCpp '(?s)if \(current_theme != hal\.config_theme\).*?current_theme = hal\.config_theme;.*?return;' "Theme refresh must preserve the old current_theme until destroy() tears down the old theme."
 Assert-Contains $web 'theme-layout-20260709d' "Theme preview cache key must change when preview assets change."
 
 foreach ($name in @("theme1.png", "theme2.png", "theme3.png", "theme4.png")) {

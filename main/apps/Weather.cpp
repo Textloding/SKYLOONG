@@ -1341,14 +1341,18 @@ void AppWeather::setup()
     hal.UNLOCKLV();
     if (loadWeather == false)
     {
-        File f = LittleFS.open(".weather", "r");
+        File f = LittleFS.open("/.weather", "a");
+        size_t cacheSize = f ? f.size() : 0;
         if (f)
-        {
-            if (f.readBytes((char *)&weatherData, sizeof(weatherData)) == sizeof(weatherData))
-            {
-                loadWeather = true;
-            }
             f.close();
+        if (cacheSize == sizeof(weatherData))
+        {
+            f = LittleFS.open("/.weather", "r");
+            if (f)
+            {
+                loadWeather = f.readBytes((char *)&weatherData, sizeof(weatherData)) == sizeof(weatherData);
+                f.close();
+            }
         }  
     }
     if (loadWeather == true)
@@ -1408,7 +1412,7 @@ void AppWeather::loop()
             ++weather_update_cnt;
             if (weather_update_cnt % 5 == 0)
             {
-                File f = LittleFS.open(".weather", "w");
+                File f = LittleFS.open("/.weather", "w");
                 f.write((const uint8_t *)&weatherData, sizeof(weatherData));
                 f.close();
             }

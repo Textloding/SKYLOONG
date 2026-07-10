@@ -1015,14 +1015,19 @@ namespace theme_space
         if (!force && millis() - last_weather_ms < 60000)
             return;
         last_weather_ms = millis();
-        File f = LittleFS.open(".weather", "r");
-        if (!f)
+        File f = LittleFS.open("/.weather", "a");
+        size_t cacheSize = f ? f.size() : 0;
+        if (f)
+            f.close();
+        if (cacheSize != sizeof(weather_cache))
         {
             weather_loaded = false;
             return;
         }
-        weather_loaded = f.readBytes((char *)&weather_cache, sizeof(weather_cache)) == sizeof(weather_cache);
-        f.close();
+        f = LittleFS.open("/.weather", "r");
+        weather_loaded = f && f.readBytes((char *)&weather_cache, sizeof(weather_cache)) == sizeof(weather_cache);
+        if (f)
+            f.close();
         if (weather_cache.weatherCode_today >= 40)
             weather_cache.weatherCode_today = 39;
     }
@@ -1196,7 +1201,6 @@ void AppHome::loop()
 {
     if (current_theme != hal.config_theme) {
         hal.send_sysctl(EVENT_HOME_REFRESH);
-        current_theme = hal.config_theme;
         return;
     }
     hal.getTime();

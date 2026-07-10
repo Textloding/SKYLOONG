@@ -1873,8 +1873,12 @@ void handleWeatherTest()
     if (lon == NULL)
         lon = app_settings_save.weather_lon;
 
+    UBaseType_t stackBefore = uxTaskGetStackHighWaterMark(NULL);
+    ESP_LOGI("WEATHER_TEST", "begin stack_free=%u internal_heap=%" PRIu32, (unsigned)stackBefore, esp_get_free_internal_heap_size());
     char message[192];
     bool ok = testWeatherProvider(provider, endpoint, key, appKey, appSecret, location, lat, lon, message, sizeof(message));
+    UBaseType_t stackAfter = uxTaskGetStackHighWaterMark(NULL);
+    ESP_LOGI("WEATHER_TEST", "end ok=%d stack_free=%u internal_heap=%" PRIu32, ok, (unsigned)stackAfter, esp_get_free_internal_heap_size());
     cJSON *json = cJSON_CreateObject();
     cJSON_AddBoolToObject(json, "ok", ok);
     cJSON_AddStringToObject(json, "provider", provider);
@@ -2379,7 +2383,7 @@ void HAL::start_webserver()
             }
             vTaskDelay(5);
         }
-    }, "webserver", 4096, NULL, 3, &webserver_task, 1);
+    }, "webserver", 12288, NULL, 3, &webserver_task, 1);
 
     if (webserver_task_status != pdPASS)
     {
