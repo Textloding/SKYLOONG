@@ -822,25 +822,47 @@ namespace theme_space
         int16_t x;
         int16_t y;
         uint8_t size;
-        uint8_t phase;
         uint8_t color;
     };
 
     static const TwinkleStar twinkle_stars[] = {
-        {6, 20, 1, 0, 0},
-        {64, 24, 2, 7, 1},
-        {136, 6, 1, 13, 0},
-        {205, 14, 2, 20, 2},
-        {225, 9, 2, 26, 0},
-        {268, 21, 1, 4, 1},
-        {306, 11, 1, 17, 0},
-        {18, 54, 1, 23, 2},
-        {75, 50, 1, 10, 0},
-        {238, 48, 1, 29, 1},
-        {278, 48, 1, 15, 0},
-        {300, 54, 1, 2, 2},
-        {264, 65, 1, 24, 1},
-        {278, 78, 2, 6, 0},
+        {136, 6, 1, 0}, {224, 8, 3, 0}, {306, 10, 1, 0}, {211, 11, 3, 2}, {204, 13, 3, 0},
+        {7, 20, 1, 0}, {62, 21, 1, 1}, {268, 21, 1, 0}, {166, 23, 1, 2}, {66, 26, 1, 0},
+        {5, 28, 1, 1}, {278, 33, 1, 0}, {250, 40, 1, 2}, {237, 47, 1, 0}, {148, 49, 1, 1},
+        {75, 50, 1, 0}, {300, 51, 1, 0}, {18, 55, 1, 2}, {207, 58, 3, 0}, {267, 59, 1, 1},
+        {160, 71, 1, 0}, {263, 71, 1, 2}, {275, 77, 1, 0}, {247, 78, 3, 0}, {81, 84, 1, 1},
+        {125, 89, 1, 0}, {0, 91, 2, 2}, {278, 91, 1, 0}, {265, 96, 1, 1}, {226, 102, 1, 0},
+        {231, 112, 1, 2}, {65, 123, 1, 0}, {245, 124, 1, 1}, {189, 132, 1, 0}, {172, 133, 1, 2},
+        {145, 134, 3, 0}, {101, 135, 1, 1}, {170, 135, 1, 0}, {29, 139, 1, 2}, {51, 142, 1, 0},
+        {183, 144, 1, 1}, {82, 147, 1, 0}, {186, 148, 1, 2}, {317, 150, 1, 0}, {120, 153, 3, 0},
+        {125, 155, 3, 1}, {150, 155, 1, 0}, {134, 161, 1, 2}, {64, 165, 3, 1}, {4, 166, 3, 0},
+        {106, 170, 3, 2}, {8, 171, 1, 0}, {55, 173, 1, 1}, {38, 175, 1, 0}, {29, 180, 1, 2},
+        {39, 195, 1, 0}, {131, 195, 1, 1},
+    };
+
+    struct TwinkleShape
+    {
+        int16_t x;
+        int16_t y;
+        uint8_t radius;
+        uint8_t inner;
+        uint8_t color;
+        bool four_point;
+    };
+
+    static const TwinkleShape twinkle_shapes[] = {
+        {164, 40, 14, 3, 0, true},
+        {242, 65, 5, 2, 1, false},
+        {51, 171, 6, 2, 0, false},
+        {98, 168, 7, 2, 2, true},
+        {140, 202, 5, 2, 1, false},
+    };
+
+    static const lv_area_t twinkle_regions[] = {
+        {0, 4, 140, 30}, {145, 5, 230, 56}, {232, 10, 319, 61},
+        {0, 49, 130, 96}, {145, 58, 210, 102}, {220, 58, 285, 114},
+        {20, 120, 110, 153}, {115, 120, 200, 165}, {225, 118, 319, 155},
+        {0, 160, 75, 198}, {85, 160, 150, 210},
     };
 
     void reset()
@@ -1082,10 +1104,20 @@ namespace theme_space
             lv_label_set_text(lbl_weather_meta, "数据已同步");
     }
 
-    uint8_t twinkle_wave(const TwinkleStar &star)
+    uint8_t twinkle_wave()
     {
-        uint8_t step = (twinkle_frame + star.phase) & 31;
+        uint8_t step = twinkle_frame & 31;
         return step < 16 ? step : 31 - step;
+    }
+
+    lv_color_t twinkle_color(uint8_t color)
+    {
+        return color == 1 ? lv_color_hex(0x8cecff) : (color == 2 ? lv_color_hex(0xfff1ce) : lv_color_hex(0xffffff));
+    }
+
+    bool area_visible(const lv_area_t &area, const lv_area_t *clip)
+    {
+        return clip == NULL || !(area.x2 < clip->x1 || area.x1 > clip->x2 || area.y2 < clip->y1 || area.y1 > clip->y2);
     }
 
     void draw_twinkling_stars(lv_event_t *event)
@@ -1097,9 +1129,9 @@ namespace theme_space
 
         lv_area_t layer_coords;
         lv_obj_get_coords(layer, &layer_coords);
+        uint8_t wave = twinkle_wave();
         for (const TwinkleStar &star : twinkle_stars)
         {
-            uint8_t wave = twinkle_wave(star);
             int16_t glow = wave >= 13 ? 1 : 0;
             lv_area_t area = {
                 (lv_coord_t)(layer_coords.x1 + star.x - glow),
@@ -1108,16 +1140,59 @@ namespace theme_space
                 (lv_coord_t)(layer_coords.y1 + star.y + star.size - 1 + glow),
             };
             const lv_area_t *clip = draw_ctx->clip_area;
-            if (clip != NULL && (area.x2 < clip->x1 || area.x1 > clip->x2 || area.y2 < clip->y1 || area.y1 > clip->y2))
+            if (!area_visible(area, clip))
                 continue;
 
             lv_draw_rect_dsc_t rect;
             lv_draw_rect_dsc_init(&rect);
-            rect.bg_color = star.color == 1 ? lv_color_hex(0x8cecff) : (star.color == 2 ? lv_color_hex(0xfff1ce) : lv_color_hex(0xffffff));
+            rect.bg_color = twinkle_color(star.color);
             rect.bg_opa = (lv_opa_t)(24 + wave * 14);
             rect.radius = LV_RADIUS_CIRCLE;
             rect.border_opa = LV_OPA_TRANSP;
             lv_draw_rect(draw_ctx, &rect, &area);
+        }
+
+        for (const TwinkleShape &shape : twinkle_shapes)
+        {
+            lv_area_t bounds = {
+                (lv_coord_t)(layer_coords.x1 + shape.x - shape.radius),
+                (lv_coord_t)(layer_coords.y1 + shape.y - shape.radius),
+                (lv_coord_t)(layer_coords.x1 + shape.x + shape.radius),
+                (lv_coord_t)(layer_coords.y1 + shape.y + shape.radius),
+            };
+            if (!area_visible(bounds, draw_ctx->clip_area))
+                continue;
+
+            lv_draw_rect_dsc_t shape_dsc;
+            lv_draw_rect_dsc_init(&shape_dsc);
+            shape_dsc.bg_color = twinkle_color(shape.color);
+            shape_dsc.bg_opa = (lv_opa_t)(12 + wave * 12);
+            shape_dsc.border_opa = LV_OPA_TRANSP;
+
+            if (shape.four_point)
+            {
+                lv_point_t points[8] = {
+                    {(lv_coord_t)(layer_coords.x1 + shape.x), (lv_coord_t)(layer_coords.y1 + shape.y - shape.radius)},
+                    {(lv_coord_t)(layer_coords.x1 + shape.x + shape.inner), (lv_coord_t)(layer_coords.y1 + shape.y - shape.inner)},
+                    {(lv_coord_t)(layer_coords.x1 + shape.x + shape.radius), (lv_coord_t)(layer_coords.y1 + shape.y)},
+                    {(lv_coord_t)(layer_coords.x1 + shape.x + shape.inner), (lv_coord_t)(layer_coords.y1 + shape.y + shape.inner)},
+                    {(lv_coord_t)(layer_coords.x1 + shape.x), (lv_coord_t)(layer_coords.y1 + shape.y + shape.radius)},
+                    {(lv_coord_t)(layer_coords.x1 + shape.x - shape.inner), (lv_coord_t)(layer_coords.y1 + shape.y + shape.inner)},
+                    {(lv_coord_t)(layer_coords.x1 + shape.x - shape.radius), (lv_coord_t)(layer_coords.y1 + shape.y)},
+                    {(lv_coord_t)(layer_coords.x1 + shape.x - shape.inner), (lv_coord_t)(layer_coords.y1 + shape.y - shape.inner)},
+                };
+                lv_draw_polygon(draw_ctx, &shape_dsc, points, 8);
+            }
+            else
+            {
+                lv_point_t points[4] = {
+                    {(lv_coord_t)(layer_coords.x1 + shape.x), (lv_coord_t)(layer_coords.y1 + shape.y - shape.radius)},
+                    {(lv_coord_t)(layer_coords.x1 + shape.x + shape.radius), (lv_coord_t)(layer_coords.y1 + shape.y)},
+                    {(lv_coord_t)(layer_coords.x1 + shape.x), (lv_coord_t)(layer_coords.y1 + shape.y + shape.radius)},
+                    {(lv_coord_t)(layer_coords.x1 + shape.x - shape.radius), (lv_coord_t)(layer_coords.y1 + shape.y)},
+                };
+                lv_draw_polygon(draw_ctx, &shape_dsc, points, 4);
+            }
         }
     }
 
@@ -1130,13 +1205,13 @@ namespace theme_space
 
         lv_area_t layer_coords;
         lv_obj_get_coords(star_layer, &layer_coords);
-        for (const TwinkleStar &star : twinkle_stars)
+        for (const lv_area_t &region : twinkle_regions)
         {
             lv_area_t area = {
-                (lv_coord_t)(layer_coords.x1 + star.x - 1),
-                (lv_coord_t)(layer_coords.y1 + star.y - 1),
-                (lv_coord_t)(layer_coords.x1 + star.x + star.size),
-                (lv_coord_t)(layer_coords.y1 + star.y + star.size),
+                (lv_coord_t)(layer_coords.x1 + region.x1),
+                (lv_coord_t)(layer_coords.y1 + region.y1),
+                (lv_coord_t)(layer_coords.x1 + region.x2),
+                (lv_coord_t)(layer_coords.y1 + region.y2),
             };
             lv_obj_invalidate_area(star_layer, &area);
         }

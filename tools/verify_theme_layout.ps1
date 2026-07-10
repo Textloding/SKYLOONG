@@ -31,6 +31,8 @@ Assert-Contains $homeCpp '(?s)namespace theme_space.*?void reset\(\).*?lv_img_ca
 Assert-Contains $homeCpp '(?s)namespace theme_space.*?lv_obj_add_event_cb\(star_layer,\s*draw_twinkling_stars,\s*LV_EVENT_DRAW_MAIN' "Space-theme stars must share one lightweight draw layer."
 Assert-Contains $homeCpp '(?s)namespace theme_space.*?lv_obj_invalidate_area\(star_layer' "Space-theme twinkle animation must invalidate only the small star regions."
 Assert-NotContains $homeCpp '(?s)namespace theme_space.*?lv_canvas_create' "Space-theme twinkle animation must not allocate a full-screen canvas."
+Assert-Contains $homeCpp '(?s)namespace theme_space.*?uint8_t twinkle_wave\(\)' "All space-theme stars must share one breathing phase."
+Assert-NotContains $homeCpp 'twinkle_frame\s*\+\s*star\.phase' "Space-theme stars must breathe together instead of using staggered phases."
 Assert-Contains $homeCpp '(?s)void AppHome::destroy\(\).*?theme_space::reset\(\)' "Home app destroy must reset space-theme LVGL object pointers before the old screen is deleted."
 Assert-NotContains $homeCpp '(?s)if \(current_theme != hal\.config_theme\).*?current_theme = hal\.config_theme;.*?return;' "Theme refresh must preserve the old current_theme until destroy() tears down the old theme."
 Assert-Contains $web 'theme-layout-20260709d' "Theme preview cache key must change when preview assets change."
