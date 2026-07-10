@@ -814,6 +814,28 @@ namespace theme_space
     uint32_t last_weather_ms;
     const lv_img_dsc_t *channel_icons[4] = {&img_rf, &img_bt1, &img_bt2, &img_usb};
 
+    void reset()
+    {
+        lbl_time = NULL;
+        lbl_date = NULL;
+        lbl_week = NULL;
+        lbl_lunar = NULL;
+        lbl_location = NULL;
+        lbl_weather_cond = NULL;
+        lbl_weather_temp = NULL;
+        lbl_weather_meta = NULL;
+        img_astronaut = NULL;
+        for (uint8_t i = 0; i < 6; i++)
+        {
+            status_cells[i] = NULL;
+            status_icons[i] = NULL;
+        }
+        weather_loaded = false;
+        lv_img_cache_invalidate_src(&img_space_bg);
+        for (uint8_t i = 0; i < 10; i++)
+            lv_img_cache_invalidate_src(img_space_taikonaut_frames[i]);
+    }
+
     const char *weekday_name(uint8_t day)
     {
         static const char *names[] = {
@@ -1037,7 +1059,6 @@ namespace theme_space
 
         img_astronaut = lv_img_create(home_appScreen);
         lv_img_set_src(img_astronaut, img_space_taikonaut_frames[0]);
-        lv_img_set_zoom(img_astronaut, 286);
         lv_obj_set_pos(img_astronaut, 238, -2);
 
         lbl_time = make_label(home_appScreen, 14, 36, 174, &lv_font_montserrat_32, lv_color_hex(0xffffff));
@@ -1219,4 +1240,8 @@ void AppHome::loop()
 
 void AppHome::destroy()
 {
+    hal.LOCKLV();
+    if (current_theme == 3)
+        theme_space::reset();
+    hal.UNLOCKLV();
 }

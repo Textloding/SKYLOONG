@@ -42,6 +42,20 @@ foreach ($field in @(
 }
 
 foreach ($field in @(
+    "weather_appkey_aliyun_72158",
+    "weather_appkey_aliyun_10812",
+    "weather_appkey_aliyun_50139",
+    "weather_appkey_aliyun_71988",
+    "weather_appsecret_aliyun_72158",
+    "weather_appsecret_aliyun_10812",
+    "weather_appsecret_aliyun_50139",
+    "weather_appsecret_aliyun_71988"
+)) {
+    Assert-Contains $halH $field "App settings must persist Aliyun credential field $field."
+    Assert-Contains $halCpp $field "HAL serialization must preserve Aliyun credential field $field."
+}
+
+foreach ($field in @(
     "weather_endpoint_seniverse",
     "weather_endpoint_qweather",
     "weather_endpoint_aliyun_72158",
@@ -54,9 +68,23 @@ foreach ($field in @(
 }
 
 Assert-Contains $weatherCpp 'String\s+auth\s*=\s*String\("APPCODE "\)\s*\+\s*appCode[\s\S]*?addHeader\("Authorization",\s*auth\)' "Aliyun weather requests must send Authorization: APPCODE."
+Assert-Contains $weatherCpp 'X-Ca-Key' "Aliyun weather requests must support AppKey/AppSecret digest auth."
+Assert-Contains $weatherCpp 'X-Ca-Signature' "Aliyun weather requests must send the digest signature header when AppKey/AppSecret are configured."
+Assert-Contains $weatherCpp 'mbedtls_md_hmac' "Aliyun digest auth must compute HMAC signatures on-device."
+Assert-Contains $weatherCpp 'canonicalPathAndParameters' "Aliyun digest auth must sign the sorted path and query string."
+Assert-Contains $halCpp 'if \(slot == NULL \|\| key == NULL\)[\s\S]{0,40}return;' "HAL must accept an empty AppCode/API key to clear stale provider credentials."
+Assert-Contains $halCpp 'if \(slot == NULL \|\| appKey == NULL\)[\s\S]{0,40}return;' "HAL must accept an empty Aliyun AppKey to clear stale provider credentials."
+Assert-Contains $halCpp 'if \(slot == NULL \|\| appSecret == NULL\)[\s\S]{0,40}return;' "HAL must accept an empty Aliyun AppSecret to clear stale provider credentials."
+Assert-Contains $halCpp 'if \(appCode != NULL\)\s*key = appCode;' "Weather test endpoint must respect an explicitly empty AppCode instead of falling back to a saved one."
 Assert-Contains $web 'weatherProviderKeys' "Web UI must track configured keys per weather source."
 Assert-Contains $web 'weatherProviderKeyValues' "Web UI must receive and show saved weather keys per source."
 Assert-Contains $web 'weatherKeyDrafts' "Web UI must keep user-entered keys while switching sources."
+Assert-Contains $web 'weatherCredentialDrafts' "Web UI must keep Aliyun AppCode/AppKey/AppSecret drafts while switching sources."
+Assert-Contains $web 'weather_provider_credentials' "Web UI must save all Aliyun credential fields per source."
+Assert-Contains $web 'data-weather-credential="appcode"' "Web UI must expose Aliyun AppCode separately."
+Assert-Contains $web 'data-weather-credential="appkey"' "Web UI must expose Aliyun AppKey separately."
+Assert-Contains $web 'data-weather-credential="appsecret"' "Web UI must expose Aliyun AppSecret separately."
+Assert-Contains $web 'hasOwn\(cfg,\s*"weather_appcode"\)' "Web UI normalization must preserve explicit empty Aliyun AppCode values so stale credentials can be cleared."
 Assert-Contains $web 'weatherProviderEndpoints' "Web UI must track saved endpoint per weather source."
 Assert-Contains $web 'weatherEndpointDrafts' "Web UI must keep endpoint drafts while switching sources."
 Assert-Contains $web 'isWeatherEditing' "Web UI polling must not overwrite active weather edits."
@@ -76,10 +104,12 @@ Assert-NotContains $web 'hasSavedKey && !keyDraft' "Weather API Key/AppCode must
 Assert-Contains $web 'type="text" autocomplete="off" value' "Management UI must show the saved weather key as editable text."
 Assert-Contains $halCpp "weather_provider_key_values" "HAL JSON must return saved weather key values because the management UI needs to show them."
 Assert-Contains $halCpp "weather_key_seniverse" "HAL JSON must return saved Seniverse key."
-Assert-Contains $halCpp "jsonbuffer\[8192\]" "HAL JSON buffer must have enough room for per-source endpoints, visible keys, and weather tutorial settings."
+Assert-Contains $halCpp "jsonbuffer\[16384\]" "HAL JSON buffer must have enough room for per-source endpoints, visible keys, and Aliyun credentials."
 Assert-Contains $web "weather-docs" "Management UI must include in-console weather source tutorial docs."
 Assert-Contains $web "Host \+ Path" "Management UI must tell Aliyun users to copy Host + Path from API debug/interface docs."
 Assert-Contains $readme "AppCode" "README must explain how Aliyun AppCode is used."
+Assert-Contains $readme "AppKey" "README must explain how Aliyun AppKey is used."
+Assert-Contains $readme "AppSecret" "README must explain how Aliyun AppSecret is used."
 Assert-Contains $readme "Host \+ Path" "README must tell users where to find Aliyun API debug/interface details."
 Assert-Contains $readme "cmapi00072158" "README must list Aliyun market product links."
 Assert-Contains $readme "weather01\.market\.alicloudapi\.com" "README must explain weather endpoint addresses."

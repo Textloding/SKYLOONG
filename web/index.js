@@ -104,74 +104,79 @@ const weatherSources = {
   },
   aliyun_72158: {
     name: "阿里云 72158 精准天气",
-    desc: "阿里云市场 APPCODE 鉴权，适合国内网络；按城市名查询实时和多天天气。",
+    desc: "阿里云市场天气商品，支持 AppCode 简单认证，也支持 AppKey/AppSecret 签名认证。",
     endpointLabel: "接口地址",
     endpoint: "https://getweather.market.alicloudapi.com/lundear/weather1d",
-    keyHelp: "在阿里云市场购买/开通免费规格后，进入控制台复制 AppCode；接口地址通常不用改。",
+    keyHelp: "在阿里云市场购买/开通免费规格后，进入控制台复制 AppCode、AppKey、AppSecret；接口地址通常不用改。",
     keyUrl: "https://market.aliyun.com/detail/cmapi00072158.html",
     endpointHelp: "默认接口地址是该商品的 Host + Path。若商品页“API接口/调试”里展示的新请求地址不同，请把完整 https 地址复制到这里。",
     guideTitle: "阿里云 72158 获取方式",
     guideSteps: [
       "打开 72158 商品页，登录阿里云并开通免费规格或购买套餐。",
-      "进入阿里云云市场控制台的已购买服务，复制该商品的 AppCode。",
+      "进入阿里云云市场控制台的已购买服务，复制该商品的 AppCode、AppKey、AppSecret。",
       "在商品页“API接口/调试”查看请求地址；管理台接口地址填 Host + Path 的完整 https 链接。",
-      "API Key / AppCode 输入框只填 AppCode 本身，不要加 APPCODE 前缀。",
+      "优先填写 AppCode；如果只想用签名认证，也可以留空 AppCode，只填写 AppKey 和 AppSecret。",
     ],
     keyPlaceholder: "粘贴阿里云 AppCode，留空不修改",
+    aliyun: true,
   },
   aliyun_10812: {
     name: "阿里云 10812 万维易源",
-    desc: "万维易源天气服务，使用阿里云市场 AppCode，请求时自动添加 APPCODE 请求头。",
+    desc: "万维易源天气服务，支持阿里云市场 AppCode 或 AppKey/AppSecret 签名认证。",
     endpointLabel: "接口地址",
     endpoint: "https://ali-weather.showapi.com/spot-to-weather",
-    keyHelp: "在阿里云市场开通该商品后复制 AppCode；固件会按 ShowAPI 常见结构解析返回。",
+    keyHelp: "在阿里云市场开通该商品后复制 AppCode、AppKey、AppSecret；固件会按 ShowAPI 常见结构解析返回。",
     keyUrl: "https://market.aliyun.com/detail/cmapi010812.html",
     endpointHelp: "默认接口地址是万维易源 ShowAPI 的天气路径。若商品页 API 调试给出不同 Host 或 Path，请按商品页覆盖。",
     guideTitle: "阿里云 10812 获取方式",
     guideSteps: [
       "打开 10812 商品页并开通对应规格。",
-      "到阿里云云市场控制台复制该商品 AppCode。",
+      "到阿里云云市场控制台复制该商品 AppCode、AppKey、AppSecret。",
       "在商品页“API接口/调试”复制请求地址；这里填完整接口地址，例如 https://ali-weather.showapi.com/spot-to-weather。",
-      "固件会自动添加 Authorization: APPCODE <AppCode> 请求头。",
+      "填写 AppCode 时固件会自动添加 APPCODE 请求头；填写 AppKey/AppSecret 时会自动生成签名头。",
     ],
     keyPlaceholder: "粘贴阿里云 AppCode，留空不修改",
+    aliyun: true,
   },
   aliyun_50139: {
     name: "阿里云 50139 实时多天天气",
-    desc: "阿里云市场实时、多天天气与空气质量服务；如商品页接口地址变化，可在这里手动替换。",
+    desc: "阿里云市场实时、多天天气与空气质量服务；支持三项云市场凭据。",
     endpointLabel: "接口地址",
     endpoint: "https://weather01.market.alicloudapi.com/weather",
-    keyHelp: "在阿里云市场开通免费规格后复制 AppCode；若接口文档给出专用地址，请粘贴到接口地址。",
+    keyHelp: "在阿里云市场开通免费规格后复制 AppCode、AppKey、AppSecret；若接口文档给出专用地址，请粘贴到接口地址。",
     keyUrl: "https://market.aliyun.com/detail/cmapi00050139.html",
     endpointHelp: "默认接口地址适配 cmapi00050139。阿里云市场厂商可能调整路径，最终以商品页“API接口/调试”的 Host + Path 为准。",
     guideTitle: "阿里云 50139 获取方式",
     guideSteps: [
       "打开 50139 商品页，开通免费规格或购买套餐。",
-      "在云市场控制台复制 AppCode。",
+      "在云市场控制台复制 AppCode、AppKey、AppSecret。",
       "回到商品页“API接口/调试”，复制接口请求地址并填入管理台接口地址。",
-      "如果天气获取失败，优先核对 AppCode 是否属于当前商品，以及接口地址是否和商品页一致。",
+      "如果天气获取失败，优先核对三项凭据是否属于当前商品，以及接口地址是否和商品页一致。",
     ],
     keyPlaceholder: "粘贴阿里云 AppCode，留空不修改",
+    aliyun: true,
   },
   aliyun_71988: {
     name: "阿里云 71988 快证天气",
-    desc: "阿里云市场快证 API 天气源；适合用户已有该商品 AppCode 的场景。",
+    desc: "阿里云市场快证 API 天气源；支持 AppCode 或 AppKey/AppSecret。",
     endpointLabel: "接口地址",
     endpoint: "https://kzweather.market.alicloudapi.com/weather",
-    keyHelp: "在阿里云市场开通该商品后复制 AppCode；如商品文档接口地址不同，请在这里覆盖。",
+    keyHelp: "在阿里云市场开通该商品后复制 AppCode、AppKey、AppSecret；如商品文档接口地址不同，请在这里覆盖。",
     keyUrl: "https://market.aliyun.com/detail/cmapi00071988.html",
     endpointHelp: "默认接口地址适配 cmapi00071988。该类云市场接口经常以商品页 API 调试为准，地址变化时请手动更新。",
     guideTitle: "阿里云 71988 获取方式",
     guideSteps: [
       "打开 71988 商品页并开通服务。",
-      "进入云市场控制台复制 AppCode。",
+      "进入云市场控制台复制 AppCode、AppKey、AppSecret。",
       "在商品页“API接口/调试”确认请求地址，管理台接口地址填完整 https 链接。",
-      "保存后固件会用 APPCODE 请求头访问该地址。",
+      "保存后固件会优先用 AppCode 访问；AppCode 留空时会用 AppKey/AppSecret 签名访问。",
     ],
     keyPlaceholder: "粘贴阿里云 AppCode，留空不修改",
+    aliyun: true,
   },
 };
 const weatherProviderIds = Object.keys(weatherSources);
+const aliyunWeatherProviderIds = weatherProviderIds.filter(id => weatherSources[id]?.aliyun);
 
 function defaultWeatherProviderEndpoints() {
   const endpoints = {};
@@ -193,6 +198,36 @@ function defaultWeatherProviderKeyValues() {
   return keys;
 }
 
+function defaultWeatherProviderCredentials() {
+  const credentials = {};
+  aliyunWeatherProviderIds.forEach(id => {
+    credentials[id] = { appcode: "", appkey: "", appsecret: "" };
+  });
+  return credentials;
+}
+
+function isAliyunProvider(provider) {
+  return !!weatherSources[provider]?.aliyun;
+}
+
+function normalizedCredential(value = {}) {
+  return {
+    appcode: value.appcode || value.appCode || "",
+    appkey: value.appkey || value.appKey || "",
+    appsecret: value.appsecret || value.appSecret || "",
+  };
+}
+
+function hasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj || {}, key);
+}
+
+function providerHasCredential(provider, credentials = {}, keyValue = "") {
+  if (!isAliyunProvider(provider)) return !!keyValue;
+  const item = normalizedCredential(credentials[provider] || {});
+  return !!(item.appcode || (item.appkey && item.appsecret));
+}
+
 const state = {
   route: "overview",
   mediaTab: "images",
@@ -202,6 +237,7 @@ const state = {
   dirtyInfo: new Set(),
   dirtyAppCfg: new Set(),
   weatherKeyDrafts: {},
+  weatherCredentialDrafts: {},
   weatherEndpointDrafts: {},
   online: true,
   booted: false,
@@ -414,15 +450,44 @@ function normalizeAppCfg(cfg = {}) {
     ...defaultWeatherProviderKeyValues(),
     ...(cfg?.weather_provider_key_values || cfg?.weatherProviderKeyValues || {}),
   };
+  const weatherProviderCredentials = {
+    ...defaultWeatherProviderCredentials(),
+    ...(cfg?.weather_provider_credentials || cfg?.weatherProviderCredentials || {}),
+  };
+  aliyunWeatherProviderIds.forEach(id => {
+    weatherProviderCredentials[id] = normalizedCredential(weatherProviderCredentials[id]);
+  });
   weatherProviderIds.forEach(id => {
     const snakeKey = `weather_key_${id}`;
-    if (cfg?.[snakeKey]) weatherProviderKeyValues[id] = cfg[snakeKey];
+    if (hasOwn(cfg, snakeKey)) weatherProviderKeyValues[id] = cfg[snakeKey] || "";
   });
-  if (cfg?.weather) weatherProviderKeyValues[provider] = cfg.weather;
+  aliyunWeatherProviderIds.forEach(id => {
+    const appCodeKey = `weather_appcode_${id}`;
+    const appKeyKey = `weather_appkey_${id}`;
+    const appSecretKey = `weather_appsecret_${id}`;
+    const appCode = hasOwn(cfg, appCodeKey) ? (cfg[appCodeKey] || "") : (weatherProviderKeyValues[id] || weatherProviderCredentials[id]?.appcode || "");
+    const appKey = hasOwn(cfg, appKeyKey) ? (cfg[appKeyKey] || "") : (weatherProviderCredentials[id]?.appkey || "");
+    const appSecret = hasOwn(cfg, appSecretKey) ? (cfg[appSecretKey] || "") : (weatherProviderCredentials[id]?.appsecret || "");
+    weatherProviderCredentials[id] = { appcode: appCode, appkey: appKey, appsecret: appSecret };
+    weatherProviderKeyValues[id] = appCode;
+    weatherProviderKeys[id] = !!(weatherProviderKeys[id] || providerHasCredential(id, weatherProviderCredentials, appCode));
+  });
+  if (hasOwn(cfg, "weather")) weatherProviderKeyValues[provider] = cfg.weather || "";
+  if (isAliyunProvider(provider)) {
+    const activeCredential = normalizedCredential(weatherProviderCredentials[provider]);
+    if (hasOwn(cfg, "weather_appcode")) activeCredential.appcode = cfg.weather_appcode || "";
+    if (hasOwn(cfg, "weather_appkey")) activeCredential.appkey = cfg.weather_appkey || "";
+    if (hasOwn(cfg, "weather_appsecret")) activeCredential.appsecret = cfg.weather_appsecret || "";
+    if (hasOwn(cfg, "weather")) activeCredential.appcode = cfg.weather || "";
+    weatherProviderCredentials[provider] = activeCredential;
+    weatherProviderKeyValues[provider] = activeCredential.appcode;
+    weatherProviderKeys[provider] = !!(weatherProviderKeys[provider] || providerHasCredential(provider, weatherProviderCredentials, activeCredential.appcode));
+  }
   return {
-    weatherConfigured: !!(cfg?.weather_configured || cfg?.weatherConfigured || cfg?.weather || weatherProviderKeys[provider] || weatherProviderKeyValues[provider]),
+    weatherConfigured: !!(cfg?.weather_configured || cfg?.weatherConfigured || cfg?.weather || weatherProviderKeys[provider] || providerHasCredential(provider, weatherProviderCredentials, weatherProviderKeyValues[provider])),
     weatherProviderKeys,
     weatherProviderKeyValues,
+    weatherProviderCredentials,
     weatherProviderEndpoints,
     weatherProvider: provider,
     weatherEndpoint: activeEndpoint,
@@ -1048,6 +1113,10 @@ function weatherSettingsCard(cfg) {
   const keyDraft = Object.prototype.hasOwnProperty.call(state.weatherKeyDrafts, cfg.weatherProvider)
     ? state.weatherKeyDrafts[cfg.weatherProvider]
     : (cfg.weatherProviderKeyValues?.[cfg.weatherProvider] || "");
+  const credentialDraft = {
+    ...normalizedCredential(cfg.weatherProviderCredentials?.[cfg.weatherProvider] || {}),
+    ...normalizedCredential(state.weatherCredentialDrafts?.[cfg.weatherProvider] || {}),
+  };
   const endpointDraft = Object.prototype.hasOwnProperty.call(state.weatherEndpointDrafts, cfg.weatherProvider)
     ? state.weatherEndpointDrafts[cfg.weatherProvider]
     : cfg.weatherEndpoint;
@@ -1070,11 +1139,13 @@ function weatherSettingsCard(cfg) {
         <input data-cfg="weather_endpoint" value="${esc(endpointDraft || source.endpoint)}" placeholder="${esc(source.endpoint)}">
         <small>${esc(source.endpointHelp)}</small>
       </label>
-      <label class="field">
-        <span>API Key / AppCode</span>
-        <input data-cfg="weather" type="text" autocomplete="off" value="${esc(keyDraft)}" placeholder="${esc(keyPlaceholder)}">
-        <small>${esc(source.keyHelp)} 当前天气源的 Key / AppCode 会明文显示在这里，切换天气源也会保留各自保存的值。 <a href="${esc(source.keyUrl)}" target="_blank" rel="noreferrer">查看获取方法</a></small>
-      </label>
+      ${source.aliyun ? aliyunCredentialFields(source, credentialDraft) : `
+        <label class="field">
+          <span>API Key</span>
+          <input data-cfg="weather" type="text" autocomplete="off" value="${esc(keyDraft)}" placeholder="${esc(keyPlaceholder)}">
+          <small>${esc(source.keyHelp)} 当前天气源的 Key 会明文显示在这里，切换天气源也会保留各自保存的值。 <a href="${esc(source.keyUrl)}" target="_blank" rel="noreferrer">查看获取方法</a></small>
+        </label>
+      `}
       ${weatherSourceGuide(source)}
             <label class="field"><span>手动选择或输入</span><input data-cfg="city" list="weather-city-list" value="${esc(cfg.city)}" placeholder="例如 北京"></label>
             <datalist id="weather-city-list">${commonWeatherCities.map(city => `<option value="${esc(city)}"></option>`).join("")}</datalist>
@@ -1086,6 +1157,28 @@ function weatherSettingsCard(cfg) {
       ${state.weatherTest.message ? `<div class="weather-test-result ${state.weatherTest.status === "ok" ? "ok" : state.weatherTest.status === "error" ? "error" : ""}">${esc(state.weatherTest.message)}</div>` : ""}
       <small>${state.weatherDetect.message ? esc(state.weatherDetect.message) : weatherStatusText(cfg)}</small>
     </div>
+  `;
+}
+
+function aliyunCredentialFields(source, credential) {
+  return `
+    <div class="mini-grid">
+      <label class="field">
+        <span>AppCode</span>
+        <input data-cfg="weather_appcode" data-weather-credential="appcode" type="text" autocomplete="off" value="${esc(credential.appcode)}" placeholder="${esc(source.keyPlaceholder)}">
+        <small>简单认证用 AppCode；固件会自动添加 APPCODE 请求头。</small>
+      </label>
+      <label class="field">
+        <span>AppKey</span>
+        <input data-cfg="weather_appkey" data-weather-credential="appkey" type="text" autocomplete="off" value="${esc(credential.appkey)}" placeholder="粘贴阿里云 AppKey">
+        <small>签名认证用 AppKey；AppCode 留空时会使用它。</small>
+      </label>
+    </div>
+    <label class="field">
+      <span>AppSecret</span>
+      <input data-cfg="weather_appsecret" data-weather-credential="appsecret" type="text" autocomplete="off" value="${esc(credential.appsecret)}" placeholder="粘贴阿里云 AppSecret">
+      <small>${esc(source.keyHelp)} 三项凭据会按天气源单独保存。 <a href="${esc(source.keyUrl)}" target="_blank" rel="noreferrer">查看获取方法</a></small>
+    </label>
   `;
 }
 
@@ -1103,12 +1196,12 @@ function weatherConsoleDocs() {
         <span>后台直接看，不用翻 README</span>
       </div>
       <div class="weather-docs-steps">
-        <b>阿里云 AppCode 怎么填</b>
+        <b>阿里云三项凭据怎么填</b>
         <ol>
           <li>打开下面对应商品页，登录阿里云，开通免费规格或购买套餐。</li>
-          <li>进入阿里云云市场控制台，在已购买服务里复制该商品的 AppCode。</li>
+          <li>进入阿里云云市场控制台，在已购买服务里复制该商品的 AppCode、AppKey、AppSecret。</li>
           <li>回到商品页的 API接口 / API调试 / 接口文档 区域，复制请求地址的 Host + Path。</li>
-          <li>把 Host + Path 的完整 https 链接填进接口地址；API Key / AppCode 只填 AppCode 本身。</li>
+          <li>把 Host + Path 的完整 https 链接填进接口地址；AppCode 和 AppKey/AppSecret 可以同时保存。</li>
         </ol>
       </div>
       <div class="weather-docs-list">
@@ -1148,8 +1241,8 @@ function weatherSourceGuide(source) {
 
 function weatherStatusText(cfg) {
   const hasSavedKey = !!cfg.weatherProviderKeys?.[cfg.weatherProvider];
-  if (hasSavedKey) return "该天气源的 Key 已保存；接口地址也会按天气源单独记住，切换回来不需要重复填写。";
-  return "请选择天气源并填入自己的 API Key / AppCode；阿里云源请填商品 AppCode，接口地址以商品页 API接口/调试为准。";
+  if (hasSavedKey) return "该天气源的凭据已保存；接口地址也会按天气源单独记住，切换回来不需要重复填写。";
+  return "请选择天气源并填入自己的 API Key；阿里云源请填 AppCode、AppKey、AppSecret，接口地址以商品页 API接口/调试为准。";
 }
 
 function bindCommon() {
@@ -1292,6 +1385,16 @@ function bindSystem() {
       const key = ev.target.dataset.cfg;
       if (!key) return;
       if (key === "weather_provider") return;
+      const credentialKey = ev.target.dataset.weatherCredential;
+      if (credentialKey && state.appCfg?.weatherProvider) {
+        state.weatherCredentialDrafts[state.appCfg.weatherProvider] = {
+          ...normalizedCredential(state.weatherCredentialDrafts[state.appCfg.weatherProvider] || state.appCfg.weatherProviderCredentials?.[state.appCfg.weatherProvider] || {}),
+          [credentialKey]: ev.target.value,
+        };
+        if (credentialKey === "appcode") {
+          state.weatherKeyDrafts[state.appCfg.weatherProvider] = ev.target.value;
+        }
+      }
       if (key === "weather" && state.appCfg?.weatherProvider) {
         state.weatherKeyDrafts[state.appCfg.weatherProvider] = ev.target.value;
       }
@@ -1307,12 +1410,25 @@ function bindSystem() {
         weather_provider_key_values: key === "weather" && state.appCfg?.weatherProvider
           ? { ...(state.appCfg.weatherProviderKeyValues || {}), [state.appCfg.weatherProvider]: ev.target.value }
           : state.appCfg?.weatherProviderKeyValues,
+        weather_provider_credentials: credentialKey && state.appCfg?.weatherProvider
+          ? { ...(state.appCfg.weatherProviderCredentials || {}), [state.appCfg.weatherProvider]: state.weatherCredentialDrafts[state.appCfg.weatherProvider] }
+          : state.appCfg?.weatherProviderCredentials,
         [key]: ev.target.type === "number" ? Number(ev.target.value) : ev.target.value,
       });
     });
   });
   $("[data-weather-provider]")?.addEventListener("change", ev => {
     const previousProvider = state.appCfg?.weatherProvider || "aliyun_72158";
+    const previousCredentials = { ...normalizedCredential(state.weatherCredentialDrafts[previousProvider] || state.appCfg?.weatherProviderCredentials?.[previousProvider] || {}) };
+    $$("[data-weather-credential]").forEach(input => {
+      if (input.dataset.weatherCredential) {
+        previousCredentials[input.dataset.weatherCredential] = input.value;
+      }
+    });
+    if (isAliyunProvider(previousProvider)) {
+      state.weatherCredentialDrafts[previousProvider] = previousCredentials;
+      state.weatherKeyDrafts[previousProvider] = previousCredentials.appcode || "";
+    }
     const keyInput = $("[data-cfg=\"weather\"]");
     if (keyInput) {
       state.weatherKeyDrafts[previousProvider] = keyInput.value;
@@ -1329,6 +1445,15 @@ function bindSystem() {
     };
     const nextKey = nextKeyValues[provider] || "";
     nextKeyValues[provider] = nextKey;
+    const nextCredentials = {
+      ...defaultWeatherProviderCredentials(),
+      ...(state.appCfg?.weatherProviderCredentials || {}),
+      ...state.weatherCredentialDrafts,
+    };
+    if (isAliyunProvider(provider)) {
+      nextCredentials[provider] = normalizedCredential(nextCredentials[provider] || {});
+      nextKeyValues[provider] = nextCredentials[provider].appcode || "";
+    }
     const nextEndpoints = {
       ...defaultWeatherProviderEndpoints(),
       ...(state.appCfg?.weatherProviderEndpoints || {}),
@@ -1344,12 +1469,16 @@ function bindSystem() {
       ...state.appCfg,
       weather_provider_endpoints: nextEndpoints,
       weather_provider_key_values: nextKeyValues,
+      weather_provider_credentials: nextCredentials,
       weather_provider: provider,
       weather_endpoint: nextEndpoint,
-      weather: nextKey,
+      weather: isAliyunProvider(provider) ? (nextCredentials[provider]?.appcode || "") : nextKey,
+      weather_appcode: nextCredentials[provider]?.appcode || "",
+      weather_appkey: nextCredentials[provider]?.appkey || "",
+      weather_appsecret: nextCredentials[provider]?.appsecret || "",
       weatherProvider: provider,
       weatherEndpoint: nextEndpoint,
-      weatherConfigured: !!state.appCfg?.weatherProviderKeys?.[provider] || !!nextKey,
+      weatherConfigured: !!state.appCfg?.weatherProviderKeys?.[provider] || providerHasCredential(provider, nextCredentials, nextKeyValues[provider]),
     });
     render();
   });
@@ -1521,7 +1650,27 @@ async function saveAppConfig() {
   cfg.weather_lat = (cfg.weather_lat || "").trim();
   cfg.weather_lon = (cfg.weather_lon || "").trim();
   cfg.weather = (cfg.weather || "").trim();
+  cfg.weather_appcode = (cfg.weather_appcode || "").trim();
+  cfg.weather_appkey = (cfg.weather_appkey || "").trim();
+  cfg.weather_appsecret = (cfg.weather_appsecret || "").trim();
   const providerKeys = state.appCfg?.weatherProviderKeys || {};
+  const providerCredentials = {
+    ...defaultWeatherProviderCredentials(),
+    ...(state.appCfg?.weatherProviderCredentials || {}),
+    ...state.weatherCredentialDrafts,
+  };
+  aliyunWeatherProviderIds.forEach(id => {
+    providerCredentials[id] = normalizedCredential(providerCredentials[id] || {});
+  });
+  if (isAliyunProvider(cfg.weather_provider)) {
+    providerCredentials[cfg.weather_provider] = {
+      ...normalizedCredential(providerCredentials[cfg.weather_provider] || {}),
+      appcode: cfg.weather_appcode,
+      appkey: cfg.weather_appkey,
+      appsecret: cfg.weather_appsecret,
+    };
+    cfg.weather = cfg.weather_appcode;
+  }
   const providerKeyValues = {
     ...defaultWeatherProviderKeyValues(),
     ...(state.appCfg?.weatherProviderKeyValues || {}),
@@ -1534,14 +1683,24 @@ async function saveAppConfig() {
     providerKeyValues[id] = key;
     cfg[`weather_key_${id}`] = key;
   });
+  aliyunWeatherProviderIds.forEach(id => {
+    const credential = normalizedCredential(providerCredentials[id] || {});
+    providerCredentials[id] = credential;
+    providerKeyValues[id] = credential.appcode;
+    cfg[`weather_key_${id}`] = credential.appcode;
+    cfg[`weather_appcode_${id}`] = credential.appcode;
+    cfg[`weather_appkey_${id}`] = credential.appkey;
+    cfg[`weather_appsecret_${id}`] = credential.appsecret;
+  });
   cfg.weather_provider_key_values = providerKeyValues;
+  cfg.weather_provider_credentials = providerCredentials;
   const hasSavedKey = !!providerKeys[cfg.weather_provider];
   const nextProviderKeys = { ...providerKeys };
   weatherProviderIds.forEach(id => {
-    if (providerKeyValues[id]) nextProviderKeys[id] = true;
+    if (providerHasCredential(id, providerCredentials, providerKeyValues[id])) nextProviderKeys[id] = true;
   });
-  if (!cfg.weather && !hasSavedKey) {
-    toast("这个天气源需要 API Key / AppCode，请先填写", "danger");
+  if (!providerHasCredential(cfg.weather_provider, providerCredentials, providerKeyValues[cfg.weather_provider]) && !hasSavedKey) {
+    toast(isAliyunProvider(cfg.weather_provider) ? "这个阿里云天气源需要 AppCode 或 AppKey/AppSecret" : "这个天气源需要 API Key，请先填写", "danger");
     return;
   }
   const nextAppCfg = normalizeAppCfg({
@@ -1549,12 +1708,14 @@ async function saveAppConfig() {
     ...cfg,
     weather_provider_endpoints: providerEndpoints,
     weather_provider_key_values: providerKeyValues,
+    weather_provider_credentials: providerCredentials,
     weather_provider_keys: nextProviderKeys,
   });
   const saved = await runAction("appcfg", () => postPlain("/config.json", JSON.stringify(cfg)), "应用参数已保存");
   if (saved) {
     state.appCfg = nextAppCfg;
     state.weatherKeyDrafts = {};
+    state.weatherCredentialDrafts = {};
     state.weatherEndpointDrafts = {};
     state.dirtyAppCfg.clear();
     render();
@@ -1564,10 +1725,25 @@ async function saveAppConfig() {
 function collectWeatherDraft() {
   const provider = $("[data-weather-provider]")?.value || state.appCfg?.weatherProvider || "aliyun_72158";
   const source = weatherSources[provider] || weatherSources.aliyun_72158;
+  const credential = isAliyunProvider(provider)
+    ? {
+        ...normalizedCredential(state.appCfg?.weatherProviderCredentials?.[provider] || {}),
+        ...normalizedCredential(state.weatherCredentialDrafts?.[provider] || {}),
+        appcode: ($("[data-weather-credential=\"appcode\"]")?.value || state.weatherCredentialDrafts?.[provider]?.appcode || state.appCfg?.weatherProviderCredentials?.[provider]?.appcode || "").trim(),
+        appkey: ($("[data-weather-credential=\"appkey\"]")?.value || state.weatherCredentialDrafts?.[provider]?.appkey || state.appCfg?.weatherProviderCredentials?.[provider]?.appkey || "").trim(),
+        appsecret: ($("[data-weather-credential=\"appsecret\"]")?.value || state.weatherCredentialDrafts?.[provider]?.appsecret || state.appCfg?.weatherProviderCredentials?.[provider]?.appsecret || "").trim(),
+      }
+    : { appcode: "", appkey: "", appsecret: "" };
+  const key = isAliyunProvider(provider)
+    ? credential.appcode
+    : ($("[data-cfg=\"weather\"]")?.value || state.appCfg?.weatherProviderKeyValues?.[provider] || "").trim();
   return {
     weather_provider: provider,
     weather_endpoint: ($("[data-cfg=\"weather_endpoint\"]")?.value || state.appCfg?.weatherProviderEndpoints?.[provider] || source.endpoint || "").trim(),
-    weather: ($("[data-cfg=\"weather\"]")?.value || state.appCfg?.weatherProviderKeyValues?.[provider] || "").trim(),
+    weather: key,
+    weather_appcode: credential.appcode,
+    weather_appkey: credential.appkey,
+    weather_appsecret: credential.appsecret,
     city: ($("[data-cfg=\"city\"]")?.value || state.appCfg?.city || "").trim(),
     weather_lat: ($("[data-cfg=\"weather_lat\"]")?.value || state.appCfg?.weatherLat || "").trim(),
     weather_lon: ($("[data-cfg=\"weather_lon\"]")?.value || state.appCfg?.weatherLon || "").trim(),
@@ -1581,8 +1757,13 @@ async function testWeatherSource() {
     render();
     return;
   }
-  if (!cfg.weather) {
-    state.weatherTest = { status: "error", message: "请先填写当前天气源的 API Key / AppCode" };
+  if (isAliyunProvider(cfg.weather_provider) && !cfg.weather_appcode && !(cfg.weather_appkey && cfg.weather_appsecret)) {
+    state.weatherTest = { status: "error", message: "请先填写阿里云 AppCode，或同时填写 AppKey 和 AppSecret" };
+    render();
+    return;
+  }
+  if (!isAliyunProvider(cfg.weather_provider) && !cfg.weather) {
+    state.weatherTest = { status: "error", message: "请先填写当前天气源的 API Key" };
     render();
     return;
   }

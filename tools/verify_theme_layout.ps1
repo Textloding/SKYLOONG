@@ -10,6 +10,12 @@ function Assert-Contains($Text, $Pattern, $Message) {
     }
 }
 
+function Assert-NotContains($Text, $Pattern, $Message) {
+    if ($Text -match $Pattern) {
+        throw $Message
+    }
+}
+
 function Assert-FileExists($Path, $Message) {
     if (!(Test-Path $Path)) {
         throw $Message
@@ -20,6 +26,9 @@ Assert-Contains $homeCpp 'lv_label_set_long_mode\(lbl_time,\s*LV_LABEL_LONG_CLIP
 Assert-Contains $homeCpp '(?s)namespace theme_spartan.*?lv_obj_set_pos\(lbl_time,\s*56,\s*20\).*?lv_obj_set_size\(lbl_time,\s*246,\s*42\)' "Theme 2 on-device time label must move back right after the previous over-left adjustment."
 Assert-Contains $homeCpp '(?s)namespace theme_fox.*?lv_obj_set_pos\(lbl_time,\s*36,\s*30\).*?lv_obj_set_size\(lbl_time,\s*246,\s*42\)' "Theme 3 on-device time label must move left in theme_fox, not in the default theme."
 Assert-Contains $homeCpp '(?s)namespace theme_fox.*?lv_obj_set_pos\(img_am,\s*86\s*\+\s*8,\s*50\)' "Theme 3 AM/PM marker must follow the moved time label."
+Assert-NotContains $homeCpp '(?s)namespace theme_space.*?lv_img_set_zoom\(img_astronaut' "Space theme must not use runtime LVGL image zoom; it can allocate transform buffers and reset on low memory."
+Assert-Contains $homeCpp '(?s)namespace theme_space.*?void reset\(\).*?lv_img_cache_invalidate_src\(&img_space_bg\)' "Space theme must clear static LVGL pointers and invalidate cached image state on teardown."
+Assert-Contains $homeCpp '(?s)void AppHome::destroy\(\).*?theme_space::reset\(\)' "Home app destroy must reset space-theme LVGL object pointers before the old screen is deleted."
 Assert-Contains $web 'theme-layout-20260709d' "Theme preview cache key must change when preview assets change."
 
 foreach ($name in @("theme1.png", "theme2.png", "theme3.png", "theme4.png")) {

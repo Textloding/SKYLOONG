@@ -74,6 +74,14 @@ struct app_setting
     char weather_key_aliyun_10812[64];
     char weather_key_aliyun_50139[64];
     char weather_key_aliyun_71988[64];
+    char weather_appkey_aliyun_72158[64];
+    char weather_appkey_aliyun_10812[64];
+    char weather_appkey_aliyun_50139[64];
+    char weather_appkey_aliyun_71988[64];
+    char weather_appsecret_aliyun_72158[64];
+    char weather_appsecret_aliyun_10812[64];
+    char weather_appsecret_aliyun_50139[64];
+    char weather_appsecret_aliyun_71988[64];
 };
 extern struct app_setting app_settings_save;
 

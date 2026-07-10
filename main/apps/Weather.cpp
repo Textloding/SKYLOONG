@@ -261,9 +261,13 @@ void updateWeather()
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <cJSON.h>
+#include <mbedtls/base64.h>
+#include <mbedtls/md.h>
 
 static String apikey;
 static String city;
+static String aliyunAppKey;
+static String aliyunAppSecret;
 
 static String weatherProvider;
 static String weatherEndpoint;
@@ -333,7 +337,126 @@ static String urlEncode(const String &value)
     return out;
 }
 
-static bool fetchJson(const String &url, cJSON **root, int *status = NULL, const char *appCode = NULL)
+struct QueryParam
+{
+    String key;
+    String value;
+    bool hasValue;
+};
+
+static String canonicalPathAndParameters(const String &url)
+{
+    int schemeEnd = url.indexOf("://");
+    int hostStart = schemeEnd >= 0 ? schemeEnd + 3 : 0;
+    int pathStart = url.indexOf('/', hostStart);
+    String pathAndQuery = pathStart >= 0 ? url.substring(pathStart) : "/";
+    int queryStart = pathAndQuery.indexOf('?');
+    if (queryStart < 0)
+        return pathAndQuery.length() > 0 ? pathAndQuery : "/";
+
+    String path = pathAndQuery.substring(0, queryStart);
+    String query = pathAndQuery.substring(queryStart + 1);
+    QueryParam params[16];
+    size_t count = 0;
+    int start = 0;
+    while (start <= query.length() && count < sizeof(params) / sizeof(params[0]))
+    {
+        int end = query.indexOf('&', start);
+        if (end < 0)
+            end = query.length();
+        String part = query.substring(start, end);
+        if (part.length() > 0)
+        {
+            int eq = part.indexOf('=');
+            params[count].hasValue = eq >= 0;
+            params[count].key = eq >= 0 ? part.substring(0, eq) : part;
+            params[count].value = eq >= 0 ? part.substring(eq + 1) : "";
+            count++;
+        }
+        start = end + 1;
+    }
+    for (size_t i = 0; i < count; i++)
+    {
+        for (size_t j = i + 1; j < count; j++)
+        {
+            if (params[j].key < params[i].key)
+            {
+                QueryParam tmp = params[i];
+                params[i] = params[j];
+                params[j] = tmp;
+            }
+        }
+    }
+    String canonical = path.length() > 0 ? path : "/";
+    for (size_t i = 0; i < count; i++)
+    {
+        canonical += (i == 0) ? "?" : "&";
+        canonical += params[i].key;
+        if (params[i].hasValue && params[i].value.length() > 0)
+        {
+            canonical += "=";
+            canonical += params[i].value;
+        }
+    }
+    return canonical;
+}
+
+static String hmacSha256Base64(const String &secret, const String &message)
+{
+    unsigned char digest[32];
+    const mbedtls_md_info_t *info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+    if (info == NULL)
+        return "";
+    if (mbedtls_md_hmac(info,
+                        (const unsigned char *)secret.c_str(),
+                        secret.length(),
+                        (const unsigned char *)message.c_str(),
+                        message.length(),
+                        digest) != 0)
+    {
+        return "";
+    }
+
+    unsigned char encoded[64];
+    size_t olen = 0;
+    if (mbedtls_base64_encode(encoded, sizeof(encoded), &olen, digest, sizeof(digest)) != 0)
+        return "";
+    encoded[olen] = '\0';
+    return String((const char *)encoded);
+}
+
+static bool addAliyunDigestAuthHeaders(HTTPClient &http, const String &url, const char *appKey, const char *appSecret)
+{
+    if (appKey == NULL || appSecret == NULL || strlen(appKey) == 0 || strlen(appSecret) == 0)
+        return false;
+    static const char accept[] = "application/json";
+    static const char signatureHeaders[] = "x-ca-key,x-ca-signature-method";
+
+    String canonicalHeaders = String("x-ca-key:") + appKey + "\n" +
+                              "x-ca-signature-method:HmacSHA256\n";
+    String stringToSign = String("GET\n") +
+                          accept + "\n" +
+                          "\n" +
+                          "\n" +
+                          "\n" +
+                          canonicalHeaders +
+                          canonicalPathAndParameters(url);
+    String signature = hmacSha256Base64(appSecret, stringToSign);
+    if (signature.length() == 0)
+    {
+        snprintf(lastWeatherError, sizeof(lastWeatherError), "阿里云签名生成失败");
+        return false;
+    }
+
+    http.addHeader("Accept", accept);
+    http.addHeader("X-Ca-Key", appKey);
+    http.addHeader("X-Ca-Signature-Method", "HmacSHA256");
+    http.addHeader("X-Ca-Signature-Headers", signatureHeaders);
+    http.addHeader("X-Ca-Signature", signature);
+    return true;
+}
+
+static bool fetchJson(const String &url, cJSON **root, int *status = NULL, const char *appCode = NULL, const char *appKey = NULL, const char *appSecret = NULL)
 {
     if (root == NULL)
         return false;
@@ -363,6 +486,14 @@ static bool fetchJson(const String &url, cJSON **root, int *status = NULL, const
     {
         String auth = String("APPCODE ") + appCode;
         http.addHeader("Authorization", auth);
+    }
+    else if (appKey != NULL && strlen(appKey) > 0 && appSecret != NULL && strlen(appSecret) > 0)
+    {
+        if (!addAliyunDigestAuthHeaders(http, url, appKey, appSecret))
+        {
+            http.end();
+            return false;
+        }
     }
     http.setTimeout(9000);
     int httpCode = http.GET();
@@ -769,6 +900,32 @@ static bool isAliyunWeatherProvider()
            weatherProvider == "aliyun_71988";
 }
 
+static const char *activeAliyunAppKey()
+{
+    if (weatherProvider == "aliyun_72158")
+        return app_settings_save.weather_appkey_aliyun_72158;
+    if (weatherProvider == "aliyun_10812")
+        return app_settings_save.weather_appkey_aliyun_10812;
+    if (weatherProvider == "aliyun_50139")
+        return app_settings_save.weather_appkey_aliyun_50139;
+    if (weatherProvider == "aliyun_71988")
+        return app_settings_save.weather_appkey_aliyun_71988;
+    return "";
+}
+
+static const char *activeAliyunAppSecret()
+{
+    if (weatherProvider == "aliyun_72158")
+        return app_settings_save.weather_appsecret_aliyun_72158;
+    if (weatherProvider == "aliyun_10812")
+        return app_settings_save.weather_appsecret_aliyun_10812;
+    if (weatherProvider == "aliyun_50139")
+        return app_settings_save.weather_appsecret_aliyun_50139;
+    if (weatherProvider == "aliyun_71988")
+        return app_settings_save.weather_appsecret_aliyun_71988;
+    return "";
+}
+
 static bool parseAliyunWeather(cJSON *root)
 {
     cJSON *error = root == NULL ? NULL : cJSON_GetObjectItem(root, "error");
@@ -821,12 +978,26 @@ static bool parseAliyunWeather(cJSON *root)
 
 static bool getWeatherAliyun()
 {
-    if (apikey.length() == 0)
+    if (apikey.length() == 0 && (aliyunAppKey.length() == 0 || aliyunAppSecret.length() == 0))
+    {
+        snprintf(lastWeatherError, sizeof(lastWeatherError), "阿里云 AppCode 或 AppKey/AppSecret 不能为空");
         return false;
+    }
     cJSON *root = NULL;
     String url = buildAliyunWeatherUrl();
-    if (!fetchJson(url, &root, NULL, apikey.c_str()))
-        return false;
+    if (apikey.length() > 0)
+    {
+        if (!fetchJson(url, &root, NULL, apikey.c_str()))
+        {
+            if (aliyunAppKey.length() == 0 || aliyunAppSecret.length() == 0)
+                return false;
+        }
+    }
+    if (root == NULL && aliyunAppKey.length() > 0 && aliyunAppSecret.length() > 0)
+    {
+        if (!fetchJson(url, &root, NULL, NULL, aliyunAppKey.c_str(), aliyunAppSecret.c_str()))
+            return false;
+    }
     bool ok = parseAliyunWeather(root);
     if (!ok)
         snprintf(lastWeatherError, sizeof(lastWeatherError), "接口返回无法解析，请核对天气源和接口地址");
@@ -987,6 +1158,10 @@ bool getWeather()
     weatherEndpoint = app_settings_save.weather_endpoint;
     weatherLat = app_settings_save.weather_lat;
     weatherLon = app_settings_save.weather_lon;
+    aliyunAppKey = activeAliyunAppKey();
+    aliyunAppSecret = activeAliyunAppSecret();
+    aliyunAppKey.trim();
+    aliyunAppSecret.trim();
 
     if (weatherProvider == "qweather")
     {
@@ -1007,7 +1182,7 @@ bool getWeather()
     return false;
 }
 
-bool testWeatherProvider(const char *provider, const char *endpoint, const char *key, const char *location, const char *lat, const char *lon, char *result, size_t result_size)
+bool testWeatherProvider(const char *provider, const char *endpoint, const char *key, const char *appKey, const char *appSecret, const char *location, const char *lat, const char *lon, char *result, size_t result_size)
 {
     if (result != NULL && result_size > 0)
         result[0] = '\0';
@@ -1018,6 +1193,8 @@ bool testWeatherProvider(const char *provider, const char *endpoint, const char 
     String oldEndpoint = weatherEndpoint;
     String oldLat = weatherLat;
     String oldLon = weatherLon;
+    String oldAliyunAppKey = aliyunAppKey;
+    String oldAliyunAppSecret = aliyunAppSecret;
     WeatherData oldData = weatherData;
 
     weatherProvider = provider == NULL ? "" : provider;
@@ -1028,30 +1205,41 @@ bool testWeatherProvider(const char *provider, const char *endpoint, const char 
     city = location == NULL ? "" : location;
     weatherLat = lat == NULL ? "" : lat;
     weatherLon = lon == NULL ? "" : lon;
+    aliyunAppKey = appKey == NULL ? "" : appKey;
+    aliyunAppSecret = appSecret == NULL ? "" : appSecret;
     city.trim();
     apikey.trim();
+    aliyunAppKey.trim();
+    aliyunAppSecret.trim();
 
     bool ok = false;
     if (city.length() == 0)
     {
         writeWeatherTestResult(result, result_size, "测试失败：城市不能为空");
     }
-    else if (apikey.length() == 0)
-    {
-        writeWeatherTestResult(result, result_size, "测试失败：API Key / AppCode 不能为空");
-    }
     else if (weatherProvider == "qweather")
     {
-        ok = getWeatherQWeather();
+        if (apikey.length() == 0)
+            writeWeatherTestResult(result, result_size, "测试失败：API Key 不能为空");
+        else
+            ok = getWeatherQWeather();
     }
     else if (isAliyunWeatherProvider())
     {
-        ok = getWeatherAliyun();
+        if (apikey.length() == 0 && (aliyunAppKey.length() == 0 || aliyunAppSecret.length() == 0))
+            writeWeatherTestResult(result, result_size, "测试失败：阿里云 AppCode 或 AppKey/AppSecret 不能为空");
+        else
+            ok = getWeatherAliyun();
     }
     else
     {
-        weatherProvider = "seniverse";
-        ok = getWeatherSeniverse();
+        if (apikey.length() == 0)
+            writeWeatherTestResult(result, result_size, "测试失败：API Key 不能为空");
+        else
+        {
+            weatherProvider = "seniverse";
+            ok = getWeatherSeniverse();
+        }
     }
 
     if (ok)
@@ -1071,6 +1259,8 @@ bool testWeatherProvider(const char *provider, const char *endpoint, const char 
     weatherEndpoint = oldEndpoint;
     weatherLat = oldLat;
     weatherLon = oldLon;
+    aliyunAppKey = oldAliyunAppKey;
+    aliyunAppSecret = oldAliyunAppSecret;
     weatherData = oldData;
     return ok;
 }

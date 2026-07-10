@@ -41,6 +41,12 @@ APP_SETTINGS = {
         "aliyun_50139": "",
         "aliyun_71988": "",
     },
+    "weather_provider_credentials": {
+        "aliyun_72158": {"appcode": "demo-appcode-72158", "appkey": "demo-appkey-72158", "appsecret": "demo-appsecret-72158"},
+        "aliyun_10812": {"appcode": "", "appkey": "", "appsecret": ""},
+        "aliyun_50139": {"appcode": "", "appkey": "", "appsecret": ""},
+        "aliyun_71988": {"appcode": "", "appkey": "", "appsecret": ""},
+    },
     "weather_provider_keys": {
         "seniverse": False,
         "qweather": False,
@@ -98,8 +104,15 @@ class Handler(BaseHTTPRequestHandler):
             public_settings = dict(APP_SETTINGS)
             provider = public_settings.get("weather_provider", "aliyun_72158")
             key_values = public_settings.setdefault("weather_provider_key_values", {})
+            credentials = public_settings.setdefault("weather_provider_credentials", {})
+            if provider.startswith("aliyun_"):
+                credential = credentials.get(provider, {})
+                public_settings["weather_appcode"] = credential.get("appcode", key_values.get(provider, ""))
+                public_settings["weather_appkey"] = credential.get("appkey", "")
+                public_settings["weather_appsecret"] = credential.get("appsecret", "")
+                key_values[provider] = public_settings["weather_appcode"]
             public_settings["weather"] = key_values.get(provider, public_settings.get("weather", ""))
-            public_settings["weather_configured"] = bool(public_settings.get("weather"))
+            public_settings["weather_configured"] = bool(public_settings.get("weather") or (public_settings.get("weather_appkey") and public_settings.get("weather_appsecret")))
             return self._send(body=json.dumps(public_settings, ensure_ascii=False), ctype="application/json")
         # 静态文件:优先 web_new 源码,其次模拟文件系统(上传的文件)
         rel = "index.html" if path in ("/", "/wifi") else path.lstrip("/")
@@ -170,8 +183,12 @@ class Handler(BaseHTTPRequestHandler):
             city = incoming.get("city", "北京")
             endpoint = incoming.get("weather_endpoint", "")
             key = incoming.get("weather", "")
-            if not city or not key:
-                return self._send(502, json.dumps({"ok": False, "provider": provider, "endpoint": endpoint, "message": "测试失败：城市和 Key / AppCode 不能为空"}, ensure_ascii=False), "application/json")
+            appkey = incoming.get("weather_appkey", "")
+            appsecret = incoming.get("weather_appsecret", "")
+            if not city or (provider.startswith("aliyun_") and not key and not (appkey and appsecret)):
+                return self._send(502, json.dumps({"ok": False, "provider": provider, "endpoint": endpoint, "message": "测试失败：城市和阿里云凭据不能为空"}, ensure_ascii=False), "application/json")
+            if not city or (not provider.startswith("aliyun_") and not key):
+                return self._send(502, json.dumps({"ok": False, "provider": provider, "endpoint": endpoint, "message": "测试失败：城市和 API Key 不能为空"}, ensure_ascii=False), "application/json")
             return self._send(body=json.dumps({"ok": True, "provider": provider, "endpoint": endpoint, "message": f"测试成功：{city} 26° 晴"}, ensure_ascii=False), ctype="application/json")
         if path == "/config.json":
             incoming = json.loads(body.decode("utf-8"))
@@ -184,6 +201,23 @@ class Handler(BaseHTTPRequestHandler):
                     key_values[key.replace("weather_key_", "", 1)] = value
             if incoming.get("weather"):
                 key_values[provider] = incoming.get("weather")
+            credentials = APP_SETTINGS.setdefault("weather_provider_credentials", {})
+            if isinstance(incoming.get("weather_provider_credentials"), dict):
+                for provider_id, credential in incoming["weather_provider_credentials"].items():
+                    if isinstance(credential, dict):
+                        existing = credentials.setdefault(provider_id, {"appcode": "", "appkey": "", "appsecret": ""})
+                        existing.update({k: v for k, v in credential.items() if v})
+                        if existing.get("appcode"):
+                            key_values[provider_id] = existing["appcode"]
+            if provider.startswith("aliyun_"):
+                existing = credentials.setdefault(provider, {"appcode": "", "appkey": "", "appsecret": ""})
+                if incoming.get("weather_appcode"):
+                    existing["appcode"] = incoming.get("weather_appcode")
+                    key_values[provider] = existing["appcode"]
+                if incoming.get("weather_appkey"):
+                    existing["appkey"] = incoming.get("weather_appkey")
+                if incoming.get("weather_appsecret"):
+                    existing["appsecret"] = incoming.get("weather_appsecret")
             incoming["weather_provider_key_values"] = key_values
             incoming["weather"] = key_values.get(provider, incoming.get("weather", APP_SETTINGS.get("weather", "")))
             endpoints = APP_SETTINGS.setdefault("weather_provider_endpoints", {})
@@ -196,7 +230,7 @@ class Handler(BaseHTTPRequestHandler):
                 endpoints[provider] = incoming.get("weather_endpoint")
             incoming["weather_provider_endpoints"] = endpoints
             incoming["weather_endpoint"] = endpoints.get(provider, incoming.get("weather_endpoint", APP_SETTINGS.get("weather_endpoint", "")))
-            if incoming.get("weather"):
+            if incoming.get("weather") or (provider.startswith("aliyun_") and credentials.get(provider, {}).get("appkey") and credentials.get(provider, {}).get("appsecret")):
                 keys = APP_SETTINGS.setdefault("weather_provider_keys", {})
                 keys[provider] = True
             else:
