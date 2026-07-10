@@ -524,30 +524,34 @@ static time_t getNtpTime()
 }
 bool HAL::NTPSync()
 {
-    time_t tm_now = 0;
+    time_t utc_now = 0;
     Udp.begin(8888);
     for (uint8_t i = 0; i < 5; ++i)
     {
         delay(10);
-        tm_now = getNtpTime();
-        if (tm_now != 0 && tm_now != 0xffffffff)
+        utc_now = getNtpTime();
+        if (utc_now != 0 && utc_now != 0xffffffff)
         {
-            tm_now += i18n::getNTPOffset();
+            timeval system_time = {};
+            system_time.tv_sec = utc_now;
+            if (settimeofday(&system_time, NULL) != 0)
+            {
+                ESP_LOGE("NTP", "设置系统时间失败: errno=%d", errno);
+                utc_now = 0;
+                continue;
+            }
+
+            time_t local_now = utc_now + i18n::getNTPOffset();
             tm time_now;
-            localtime_r(&tm_now, &time_now);
+            gmtime_r(&local_now, &time_now);
             ESP_LOGI("NTP", "NTP同步成功: %d-%d-%d %d:%d:%d", time_now.tm_year + 1900, time_now.tm_mon + 1, time_now.tm_mday, time_now.tm_hour, time_now.tm_min, time_now.tm_sec);
             setTime(time_now.tm_year + 1900, time_now.tm_mon + 1, time_now.tm_mday, time_now.tm_hour, time_now.tm_min, time_now.tm_sec);
             break;
         }
-        else
-        {
-            tm_now = 0;
-        }
+        utc_now = 0;
     }
     Udp.stop();
-    if (tm_now == 0)
-        return false;
-    return true;
+    return utc_now != 0;
 }
 
 void HAL::setBrightness(int8_t brightness)
@@ -985,6 +989,35 @@ struct app_setting_v3
     char weather_key_aliyun_71988[64];
 };
 
+struct app_setting_v5
+{
+    char weather_secret[64];
+    char weather_city[64];
+    char weather_provider[32];
+    char weather_endpoint[128];
+    char weather_endpoint_seniverse[128];
+    char weather_endpoint_qweather[128];
+    char weather_endpoint_aliyun_72158[128];
+    char weather_endpoint_aliyun_10812[128];
+    char weather_endpoint_aliyun_50139[128];
+    char weather_endpoint_aliyun_71988[128];
+    char weather_lat[24];
+    char weather_lon[24];
+    char weather_key_seniverse[64];
+    char weather_key_qweather[64];
+    char weather_key_aliyun_72158[64];
+    char weather_key_aliyun_10812[64];
+    char weather_key_aliyun_50139[64];
+    char weather_key_aliyun_71988[64];
+    char weather_appkey_aliyun_72158[64];
+    char weather_appkey_aliyun_10812[64];
+    char weather_appkey_aliyun_50139[64];
+    char weather_appkey_aliyun_71988[64];
+    char weather_appsecret_aliyun_72158[64];
+    char weather_appsecret_aliyun_10812[64];
+    char weather_appsecret_aliyun_50139[64];
+    char weather_appsecret_aliyun_71988[64];
+};
 struct app_setting_v4
 {
     char weather_secret[64];
@@ -1492,6 +1525,38 @@ static void migrateAppSettingsV3(const app_setting_v3 &legacy)
     fillWeatherDefaultsIfMissing();
 }
 
+static void migrateAppSettingsV5(const app_setting_v5 &legacy)
+{
+    memset(&app_settings_save, 0, sizeof(app_settings_save));
+    copySettingString(app_settings_save.weather_secret, sizeof(app_settings_save.weather_secret), legacy.weather_secret);
+    copySettingString(app_settings_save.weather_city, sizeof(app_settings_save.weather_city), legacy.weather_city);
+    copySettingString(app_settings_save.weather_provider, sizeof(app_settings_save.weather_provider), legacy.weather_provider);
+    copySettingString(app_settings_save.weather_endpoint, sizeof(app_settings_save.weather_endpoint), legacy.weather_endpoint);
+    copySettingString(app_settings_save.weather_endpoint_seniverse, sizeof(app_settings_save.weather_endpoint_seniverse), legacy.weather_endpoint_seniverse);
+    copySettingString(app_settings_save.weather_endpoint_qweather, sizeof(app_settings_save.weather_endpoint_qweather), legacy.weather_endpoint_qweather);
+    copySettingString(app_settings_save.weather_endpoint_aliyun_72158, sizeof(app_settings_save.weather_endpoint_aliyun_72158), legacy.weather_endpoint_aliyun_72158);
+    copySettingString(app_settings_save.weather_endpoint_aliyun_10812, sizeof(app_settings_save.weather_endpoint_aliyun_10812), legacy.weather_endpoint_aliyun_10812);
+    copySettingString(app_settings_save.weather_endpoint_aliyun_50139, sizeof(app_settings_save.weather_endpoint_aliyun_50139), legacy.weather_endpoint_aliyun_50139);
+    copySettingString(app_settings_save.weather_endpoint_aliyun_71988, sizeof(app_settings_save.weather_endpoint_aliyun_71988), legacy.weather_endpoint_aliyun_71988);
+    copySettingString(app_settings_save.weather_lat, sizeof(app_settings_save.weather_lat), legacy.weather_lat);
+    copySettingString(app_settings_save.weather_lon, sizeof(app_settings_save.weather_lon), legacy.weather_lon);
+    copySettingString(app_settings_save.weather_key_seniverse, sizeof(app_settings_save.weather_key_seniverse), legacy.weather_key_seniverse);
+    copySettingString(app_settings_save.weather_key_qweather, sizeof(app_settings_save.weather_key_qweather), legacy.weather_key_qweather);
+    copySettingString(app_settings_save.weather_key_aliyun_72158, sizeof(app_settings_save.weather_key_aliyun_72158), legacy.weather_key_aliyun_72158);
+    copySettingString(app_settings_save.weather_key_aliyun_10812, sizeof(app_settings_save.weather_key_aliyun_10812), legacy.weather_key_aliyun_10812);
+    copySettingString(app_settings_save.weather_key_aliyun_50139, sizeof(app_settings_save.weather_key_aliyun_50139), legacy.weather_key_aliyun_50139);
+    copySettingString(app_settings_save.weather_key_aliyun_71988, sizeof(app_settings_save.weather_key_aliyun_71988), legacy.weather_key_aliyun_71988);
+    copySettingString(app_settings_save.weather_appkey_aliyun_72158, sizeof(app_settings_save.weather_appkey_aliyun_72158), legacy.weather_appkey_aliyun_72158);
+    copySettingString(app_settings_save.weather_appkey_aliyun_10812, sizeof(app_settings_save.weather_appkey_aliyun_10812), legacy.weather_appkey_aliyun_10812);
+    copySettingString(app_settings_save.weather_appkey_aliyun_50139, sizeof(app_settings_save.weather_appkey_aliyun_50139), legacy.weather_appkey_aliyun_50139);
+    copySettingString(app_settings_save.weather_appkey_aliyun_71988, sizeof(app_settings_save.weather_appkey_aliyun_71988), legacy.weather_appkey_aliyun_71988);
+    copySettingString(app_settings_save.weather_appsecret_aliyun_72158, sizeof(app_settings_save.weather_appsecret_aliyun_72158), legacy.weather_appsecret_aliyun_72158);
+    copySettingString(app_settings_save.weather_appsecret_aliyun_10812, sizeof(app_settings_save.weather_appsecret_aliyun_10812), legacy.weather_appsecret_aliyun_10812);
+    copySettingString(app_settings_save.weather_appsecret_aliyun_50139, sizeof(app_settings_save.weather_appsecret_aliyun_50139), legacy.weather_appsecret_aliyun_50139);
+    copySettingString(app_settings_save.weather_appsecret_aliyun_71988, sizeof(app_settings_save.weather_appsecret_aliyun_71988), legacy.weather_appsecret_aliyun_71988);
+    fillWeatherDefaultsIfMissing();
+}
+
 static void migrateAppSettingsV4(const app_setting_v4 &legacy)
 {
     parseAppSettings(default_app_setting);
@@ -1553,6 +1618,12 @@ void parseAppSettings(const char *input)
     const char *weather_lon = jsonStringValue(root, "weather_lon");
     if (weather_lon != NULL)
         copySettingString(app_settings_save.weather_lon, sizeof(app_settings_save.weather_lon), weather_lon);
+
+    const char *seniverse_publickey = jsonStringValue(root, "weather_publickey_seniverse");
+    if (seniverse_publickey == NULL)
+        seniverse_publickey = jsonStringValue(root, "weather_publickey");
+    if (seniverse_publickey != NULL)
+        copySettingString(app_settings_save.weather_publickey_seniverse, sizeof(app_settings_save.weather_publickey_seniverse), seniverse_publickey);
 
     parseWeatherKeyMap(root);
     parseWeatherKeyField(root, "seniverse", "weather_key_seniverse");
@@ -1650,6 +1721,8 @@ void appSettingsToJson(char *result)
     cJSON_AddStringToObject(item, "weather_lon", app_settings_save.weather_lon);
     cJSON_AddStringToObject(item, "weather", constWeatherKeySlotForProvider(app_settings_save.weather_provider));
     cJSON_AddStringToObject(item, "weather_key_seniverse", constWeatherKeySlotForProvider("seniverse"));
+    cJSON_AddStringToObject(item, "weather_publickey_seniverse", app_settings_save.weather_publickey_seniverse);
+    cJSON_AddStringToObject(item, "weather_publickey", strcmp(app_settings_save.weather_provider, "seniverse") == 0 ? app_settings_save.weather_publickey_seniverse : "");
     cJSON_AddStringToObject(item, "weather_key_qweather", constWeatherKeySlotForProvider("qweather"));
     cJSON_AddStringToObject(item, "weather_key_aliyun_72158", constWeatherKeySlotForProvider("aliyun_72158"));
     cJSON_AddStringToObject(item, "weather_key_aliyun_10812", constWeatherKeySlotForProvider("aliyun_10812"));
@@ -1732,6 +1805,17 @@ void HAL::loadAppSettings()
             }
             file.close();
             fillWeatherDefaultsIfMissing();
+            return;
+        }
+        if (fileSize == sizeof(app_setting_v5))
+        {
+            static app_setting_v5 legacy;
+            int sz = file.read((uint8_t *)&legacy, sizeof(legacy));
+            file.close();
+            if (sz != sizeof(legacy))
+                goto reset;
+            migrateAppSettingsV5(legacy);
+            saveAppSettings();
             return;
         }
         if (fileSize == sizeof(app_setting_v4))
@@ -1827,7 +1911,7 @@ void handleJson()
     server.send(500, "text/plain", "ERR 500");
 }
 
-extern bool testWeatherProvider(const char *provider, const char *endpoint, const char *key, const char *appKey, const char *appSecret, const char *location, const char *lat, const char *lon, char *result, size_t result_size);
+extern bool testWeatherProvider(const char *provider, const char *endpoint, const char *key, const char *appKey, const char *appSecret, const char *publicKey, const char *location, const char *lat, const char *lon, char *result, size_t result_size);
 
 void handleWeatherTest()
 {
@@ -1855,7 +1939,7 @@ void handleWeatherTest()
     if (key == NULL)
         key = constWeatherKeySlotForProvider(provider);
     const char *appCode = jsonStringValue(root, "weather_appcode");
-    if (appCode != NULL)
+    if (isAliyunWeatherProviderName(provider) && appCode != NULL)
         key = appCode;
     const char *appKey = jsonStringValue(root, "weather_appkey");
     if (appKey == NULL)
@@ -1863,6 +1947,9 @@ void handleWeatherTest()
     const char *appSecret = jsonStringValue(root, "weather_appsecret");
     if (appSecret == NULL)
         appSecret = constWeatherAppSecretSlotForProvider(provider);
+    const char *publicKey = jsonStringValue(root, "weather_publickey");
+    if (publicKey == NULL)
+        publicKey = app_settings_save.weather_publickey_seniverse;
     const char *location = jsonStringValue(root, "city");
     if (location == NULL || strlen(location) == 0)
         location = app_settings_save.weather_city;
@@ -1876,7 +1963,7 @@ void handleWeatherTest()
     UBaseType_t stackBefore = uxTaskGetStackHighWaterMark(NULL);
     ESP_LOGI("WEATHER_TEST", "begin stack_free=%u internal_heap=%" PRIu32, (unsigned)stackBefore, esp_get_free_internal_heap_size());
     char message[192];
-    bool ok = testWeatherProvider(provider, endpoint, key, appKey, appSecret, location, lat, lon, message, sizeof(message));
+    bool ok = testWeatherProvider(provider, endpoint, key, appKey, appSecret, publicKey, location, lat, lon, message, sizeof(message));
     UBaseType_t stackAfter = uxTaskGetStackHighWaterMark(NULL);
     ESP_LOGI("WEATHER_TEST", "end ok=%d stack_free=%u internal_heap=%" PRIu32, ok, (unsigned)stackAfter, esp_get_free_internal_heap_size());
     cJSON *json = cJSON_CreateObject();

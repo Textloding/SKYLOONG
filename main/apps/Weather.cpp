@@ -268,6 +268,7 @@ static String apikey;
 static String city;
 static String aliyunAppKey;
 static String aliyunAppSecret;
+static String seniversePublicKey;
 
 static String weatherProvider;
 static String weatherEndpoint;
@@ -401,6 +402,29 @@ static String canonicalPathAndParameters(const String &url)
     return canonical;
 }
 
+static String hmacSha1Base64(const String &secret, const String &message)
+{
+    unsigned char digest[20];
+    const mbedtls_md_info_t *info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA1);
+    if (info == NULL)
+        return "";
+    if (mbedtls_md_hmac(info,
+                        (const unsigned char *)secret.c_str(),
+                        secret.length(),
+                        (const unsigned char *)message.c_str(),
+                        message.length(),
+                        digest) != 0)
+    {
+        return "";
+    }
+
+    unsigned char encoded[32];
+    size_t olen = 0;
+    if (mbedtls_base64_encode(encoded, sizeof(encoded), &olen, digest, sizeof(digest)) != 0)
+        return "";
+    encoded[olen] = '\0';
+    return String((const char *)encoded);
+}
 static String hmacSha256Base64(const String &secret, const String &message)
 {
     unsigned char digest[32];
@@ -1014,60 +1038,106 @@ static bool getWeatherAliyun()
     return ok;
 }
 
-static bool getWeatherSeniverse()
+static String seniverseLocation()
 {
-    cJSON *root = NULL;
-    String base = weatherBaseUrl("http://api.seniverse.com");
-    String url = base + "/v3/weather/now.json?key=" + urlEncode(apikey) + "&location=" + urlEncode(city) + "&language=zh-Hans&unit=c";
-    if (fetchJson(url, &root))
-    {
-        cJSON *results = jsonArray(root, "results");
-        results = cJSON_GetArrayItem(results, 0);
-        cJSON *location = jsonObj(results, "location");
-        cJSON *now = jsonObj(results, "now");
-        weatherData.weatherCode_today = clampWeatherCode(jsonInt(now, "code", 39));
-        weatherData.temperature_now = (int8_t)jsonInt(now, "temperature", 0);
-        copyWeatherText(weatherData.location, sizeof(weatherData.location), jsonString(location, "name"));
-        cJSON_Delete(root);
-        root = NULL;
-    }
-    else
-        return false;
-    url = base + "/v3/life/suggestion.json?key=" + urlEncode(apikey) + "&location=" + urlEncode(city) + "&language=zh-Hans";
-    if (fetchJson(url, &root))
-    {
-        cJSON *results = jsonArray(root, "results");
-        results = cJSON_GetArrayItem(results, 0);
-        cJSON *suggestion = jsonObj(results, "suggestion");
-        copyWeatherText(weatherData.index_wear, sizeof(weatherData.index_wear), jsonString(jsonObj(suggestion, "dressing"), "brief"));
-        copyWeatherText(weatherData.index_sport, sizeof(weatherData.index_sport), jsonString(jsonObj(suggestion, "sport"), "brief"));
-        copyWeatherText(weatherData.index_flu, sizeof(weatherData.index_flu), jsonString(jsonObj(suggestion, "flu"), "brief"));
-        copyWeatherText(weatherData.index_car, sizeof(weatherData.index_car), jsonString(jsonObj(suggestion, "car_washing"), "brief"));
-        cJSON_Delete(root);
-        root = NULL;
-    }
-    else
-        return false;
-    url = base + "/v3/weather/daily.json?key=" + urlEncode(apikey) + "&location=" + urlEncode(city) + "&language=zh-Hans&unit=c&start=0&days=3";
-    if (fetchJson(url, &root))
-    {
-        cJSON *results = jsonArray(root, "results");
-        results = cJSON_GetArrayItem(results, 0);
-        cJSON *daily = jsonArray(results, "daily");
-        cJSON *today = cJSON_GetArrayItem(daily, 0);
-        cJSON *tomorrow = cJSON_GetArrayItem(daily, 1);
-        cJSON *tomorrow_1 = cJSON_GetArrayItem(daily, 2);
-        weatherData.weatherCode_today = clampWeatherCode(jsonInt(today, "code_day", weatherData.weatherCode_today));
-        weatherData.weatherCode_tomorrow = clampWeatherCode(jsonInt(tomorrow, "code_day", 39));
-        weatherData.weatherCode_tomorrow_1 = clampWeatherCode(jsonInt(tomorrow_1, "code_day", 39));
-        cJSON_Delete(root);
-        root = NULL;
-    }
-    else
-        return false;
-    return true;
+    String lat = weatherLat;
+    String lon = weatherLon;
+    lat.trim();
+    lon.trim();
+    if (lat.length() > 0 && lon.length() > 0)
+        return weatherLat + ":" + weatherLon;
+    return city;
 }
 
+static String seniverseAuthQuery()
+{
+    String publicKey = seniversePublicKey;
+    String privateKey = apikey;
+    publicKey.trim();
+    privateKey.trim();
+    if (publicKey.length() == 0)
+        return String("key=") + urlEncode(privateKey);
+
+    time_t now = time(NULL);
+    if (now < 1000000000)
+    {
+        ESP_LOGW("Weather", "系统时间无效，正在为心知天气签名同步 NTP");
+        if (hal.NTPSync())
+            now = time(NULL);
+    }
+    if (now < 1000000000)
+    {
+        snprintf(lastWeatherError, sizeof(lastWeatherError), "心知天气签名需要先同步网络时间");
+        return "";
+    }
+    String ts = String((uint32_t)now);
+    String raw = String("ts=") + ts + "&ttl=300&uid=" + publicKey;
+    String signature = hmacSha1Base64(privateKey, raw); // HMAC-SHA1 required by Seniverse.
+    if (signature.length() == 0)
+    {
+        snprintf(lastWeatherError, sizeof(lastWeatherError), "心知天气签名生成失败");
+        return "";
+    }
+    return raw + "&sig=" + urlEncode(signature);
+}
+
+static String seniverseUrl(const String &base, const char *path, const String &extra)
+{
+    String auth = seniverseAuthQuery();
+    if (auth.length() == 0)
+        return "";
+    return base + path + "?" + auth + "&location=" + urlEncode(seniverseLocation()) + "&language=zh-Hans" + extra;
+}
+
+static bool getWeatherSeniverse()
+{
+    if (apikey.length() == 0)
+        return false;
+    cJSON *root = NULL;
+    String base = weatherBaseUrl("https://api.seniverse.com");
+    if (base == "http://api.seniverse.com")
+        base = "https://api.seniverse.com";
+    String url = seniverseUrl(base, "/v3/weather/now.json", "&unit=c");
+    if (url.length() == 0 || !fetchJson(url, &root))
+        return false;
+    cJSON *results = jsonArray(root, "results");
+    results = cJSON_GetArrayItem(results, 0);
+    cJSON *location = jsonObj(results, "location");
+    cJSON *now = jsonObj(results, "now");
+    weatherData.weatherCode_today = clampWeatherCode(jsonInt(now, "code", 39));
+    weatherData.temperature_now = (int8_t)jsonInt(now, "temperature", 0);
+    copyWeatherText(weatherData.location, sizeof(weatherData.location), jsonString(location, "name"));
+    cJSON_Delete(root);
+    root = NULL;
+
+    url = seniverseUrl(base, "/v3/life/suggestion.json", "");
+    if (url.length() == 0 || !fetchJson(url, &root))
+        return false;
+    results = jsonArray(root, "results");
+    results = cJSON_GetArrayItem(results, 0);
+    cJSON *suggestion = jsonObj(results, "suggestion");
+    copyWeatherText(weatherData.index_wear, sizeof(weatherData.index_wear), jsonString(jsonObj(suggestion, "dressing"), "brief"));
+    copyWeatherText(weatherData.index_sport, sizeof(weatherData.index_sport), jsonString(jsonObj(suggestion, "sport"), "brief"));
+    copyWeatherText(weatherData.index_flu, sizeof(weatherData.index_flu), jsonString(jsonObj(suggestion, "flu"), "brief"));
+    copyWeatherText(weatherData.index_car, sizeof(weatherData.index_car), jsonString(jsonObj(suggestion, "car_washing"), "brief"));
+    cJSON_Delete(root);
+    root = NULL;
+
+    url = seniverseUrl(base, "/v3/weather/daily.json", "&unit=c&start=0&days=3");
+    if (url.length() == 0 || !fetchJson(url, &root))
+        return false;
+    results = jsonArray(root, "results");
+    results = cJSON_GetArrayItem(results, 0);
+    cJSON *daily = jsonArray(results, "daily");
+    cJSON *today = cJSON_GetArrayItem(daily, 0);
+    cJSON *tomorrow = cJSON_GetArrayItem(daily, 1);
+    cJSON *tomorrow_1 = cJSON_GetArrayItem(daily, 2);
+    weatherData.weatherCode_today = clampWeatherCode(jsonInt(today, "code_day", weatherData.weatherCode_today));
+    weatherData.weatherCode_tomorrow = clampWeatherCode(jsonInt(tomorrow, "code_day", 39));
+    weatherData.weatherCode_tomorrow_1 = clampWeatherCode(jsonInt(tomorrow_1, "code_day", 39));
+    cJSON_Delete(root);
+    return true;
+}
 static bool qweatherCodeOK(cJSON *root)
 {
     const char *code = jsonString(root, "code");
@@ -1169,6 +1239,7 @@ bool getWeather()
     weatherLon = app_settings_save.weather_lon;
     aliyunAppKey = activeAliyunAppKey();
     aliyunAppSecret = activeAliyunAppSecret();
+    seniversePublicKey = app_settings_save.weather_publickey_seniverse;
     aliyunAppKey.trim();
     aliyunAppSecret.trim();
 
@@ -1209,7 +1280,7 @@ static bool saveWeatherCache()
     return true;
 }
 
-bool testWeatherProvider(const char *provider, const char *endpoint, const char *key, const char *appKey, const char *appSecret, const char *location, const char *lat, const char *lon, char *result, size_t result_size)
+bool testWeatherProvider(const char *provider, const char *endpoint, const char *key, const char *appKey, const char *appSecret, const char *publicKey, const char *location, const char *lat, const char *lon, char *result, size_t result_size)
 {
     if (result != NULL && result_size > 0)
         result[0] = '\0';
@@ -1222,6 +1293,7 @@ bool testWeatherProvider(const char *provider, const char *endpoint, const char 
     String oldLon = weatherLon;
     String oldAliyunAppKey = aliyunAppKey;
     String oldAliyunAppSecret = aliyunAppSecret;
+    String oldSeniversePublicKey = seniversePublicKey;
     WeatherData oldData = weatherData;
 
     weatherProvider = provider == NULL ? "" : provider;
@@ -1234,6 +1306,7 @@ bool testWeatherProvider(const char *provider, const char *endpoint, const char 
     weatherLon = lon == NULL ? "" : lon;
     aliyunAppKey = appKey == NULL ? "" : appKey;
     aliyunAppSecret = appSecret == NULL ? "" : appSecret;
+    seniversePublicKey = publicKey == NULL ? "" : publicKey;
     city.trim();
     apikey.trim();
     aliyunAppKey.trim();
@@ -1289,6 +1362,7 @@ bool testWeatherProvider(const char *provider, const char *endpoint, const char 
     weatherLon = oldLon;
     aliyunAppKey = oldAliyunAppKey;
     aliyunAppSecret = oldAliyunAppSecret;
+    seniversePublicKey = oldSeniversePublicKey;
     weatherData = oldData;
     return ok;
 }

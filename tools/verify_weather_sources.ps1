@@ -7,6 +7,7 @@ $weatherCpp = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "main\apps\We
 $homeCpp = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "main\apps\home.cpp")
 $web = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "web_new\index.js")
 $readme = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "README.md")
+$sdkconfig = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "sdkconfig")
 
 function Assert-Contains($Text, $Pattern, $Message) {
     if ($Text -notmatch $Pattern) {
@@ -76,7 +77,7 @@ Assert-Contains $weatherCpp 'canonicalPathAndParameters' "Aliyun digest auth mus
 Assert-Contains $halCpp 'if \(slot == NULL \|\| key == NULL\)[\s\S]{0,40}return;' "HAL must accept an empty AppCode/API key to clear stale provider credentials."
 Assert-Contains $halCpp 'if \(slot == NULL \|\| appKey == NULL\)[\s\S]{0,40}return;' "HAL must accept an empty Aliyun AppKey to clear stale provider credentials."
 Assert-Contains $halCpp 'if \(slot == NULL \|\| appSecret == NULL\)[\s\S]{0,40}return;' "HAL must accept an empty Aliyun AppSecret to clear stale provider credentials."
-Assert-Contains $halCpp 'if \(appCode != NULL\)\s*key = appCode;' "Weather test endpoint must respect an explicitly empty AppCode instead of falling back to a saved one."
+Assert-Contains $halCpp 'if \(isAliyunWeatherProviderName\(provider\) && appCode != NULL\)\s*key = appCode;' "Aliyun weather tests must respect an explicitly empty AppCode instead of falling back to a saved one."
 Assert-Contains $web 'weatherProviderKeys' "Web UI must track configured keys per weather source."
 Assert-Contains $web 'weatherProviderKeyValues' "Web UI must receive and show saved weather keys per source."
 Assert-Contains $web 'weatherKeyDrafts' "Web UI must keep user-entered keys while switching sources."
@@ -98,6 +99,20 @@ Assert-Contains $web 'weather_provider_key_values:\s*nextKeyValues' "Switching w
 Assert-Contains $web '/weather_test' "Management UI must call the firmware weather test endpoint."
 Assert-Contains $halCpp 'server\.on\("/weather_test"' "Firmware must expose a weather test endpoint."
 Assert-Contains $weatherCpp 'testWeatherProvider' "Firmware weather app must expose a reusable provider test function."
+Assert-Contains $halH 'weather_publickey_seniverse' "Seniverse public key needs its own persistent field."
+Assert-Contains $halCpp 'weather_publickey_seniverse' "HAL must save and return the Seniverse public key."
+Assert-Contains $halCpp 'settimeofday\s*\(' "NTP sync must update the system UTC epoch for signed weather APIs."
+Assert-NotContains $sdkconfig 'CONFIG_NEWLIB_TIME_SYSCALL_USE_NONE=y' "System time cannot be disabled because Seniverse signing needs a Unix timestamp."
+Assert-Contains $sdkconfig 'CONFIG_NEWLIB_TIME_SYSCALL_USE_HRT=y' "System time must use the ESP high-resolution timer."
+Assert-Contains $weatherCpp 'time\s*\(NULL\)[\s\S]*?hal\.NTPSync\s*\(\)[\s\S]*?time\s*\(NULL\)' "Seniverse signing must retry after NTP sync when the system epoch is invalid."
+Assert-Contains $halCpp 'if \(isAliyunWeatherProviderName\(provider\) && appCode != NULL\)' "An empty Aliyun AppCode field must not erase another provider key during testing."
+Assert-Contains $halCpp 'static app_setting_v5 legacy;' "Large app-setting migration buffers must not live on the main task stack."
+Assert-Contains $web 'data-weather-seniverse="publickey"' "Management UI must expose the Seniverse public key."
+Assert-Contains $web 'data-weather-seniverse="privatekey"' "Management UI must expose the Seniverse private key."
+Assert-Contains $weatherCpp 'HMAC-SHA1' "Seniverse public/private authentication must use the documented HMAC-SHA1 signature."
+Assert-Contains $weatherCpp 'seniverseLocation\(\)' "Seniverse requests must share location normalization."
+Assert-Contains $weatherCpp 'weatherLat \+ ":" \+ weatherLon' "Seniverse must prefer coordinates because Chinese city names are not accepted directly."
+Assert-Contains $weatherCpp 'days=3' "Seniverse free users must request no more than three forecast days."
 Assert-Contains $weatherCpp 'static bool saveWeatherCache\(\)' "Weather updates and tests must share one cache writer for themes."
 Assert-Contains $weatherCpp 'jsonObj\(jsonObj\(body, "f1"\), "index"\)' "Aliyun 10812 life suggestions must be read from f1.index."
 Assert-Contains $weatherCpp 'jsonObj\(index, "clothes"\).*"title"' "Aliyun 10812 clothing suggestion must use clothes.title."

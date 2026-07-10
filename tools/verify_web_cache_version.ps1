@@ -1,6 +1,6 @@
 param(
     [string]$ExpectedCssVersion = "modern-20260709e",
-    [string]$ExpectedJsVersion = "modern-20260710k",
+    [string]$ExpectedJsVersion = "modern-20260710l",
     [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 )
 

@@ -72,7 +72,7 @@ const commonWeatherCities = ["北京", "上海", "广州", "深圳", "杭州", "
 const weatherSources = {
   seniverse: {
     name: "心知天气",
-    desc: "兼容原固件天气接口，需要使用你自己的私有 Key。",
+    desc: "免费用户支持实时天气、三日预报和六项基础生活指数。",
     endpointLabel: "API 地址",
     endpoint: "http://api.seniverse.com",
     keyHelp: "注册心知天气，在控制台创建产品并复制 API 密钥；接口地址通常不用改。",
@@ -81,10 +81,10 @@ const weatherSources = {
     guideTitle: "心知天气获取方式",
     guideSteps: [
       "打开心知天气文档或控制台，注册并登录账号。",
-      "创建免费或付费产品，在产品里复制私钥 Key。",
-      "管理台选择“心知天气”，API Key 填私钥 Key；接口地址保持默认即可。",
+      "创建免费产品，在产品里复制公钥和私钥。",
+      "管理台选择“心知天气”，分别填写公钥和私钥；固件会使用 HMAC-SHA1 签名。",
     ],
-    keyPlaceholder: "粘贴心知天气私钥 Key，留空不修改",
+    keyPlaceholder: "粘贴心知天气私钥",
   },
   qweather: {
     name: "QWeather 和风天气",
@@ -489,6 +489,7 @@ function normalizeAppCfg(cfg = {}) {
     weatherProviderKeyValues,
     weatherProviderCredentials,
     weatherProviderEndpoints,
+    weatherPublicKeySeniverse: cfg?.weather_publickey_seniverse || cfg?.weatherPublicKeySeniverse || (provider === "seniverse" ? (cfg?.weather_publickey || "") : ""),
     weatherProvider: provider,
     weatherEndpoint: activeEndpoint,
     weatherLat: cfg?.weather_lat || cfg?.weatherLat || "",
@@ -1139,7 +1140,7 @@ function weatherSettingsCard(cfg) {
         <input data-cfg="weather_endpoint" value="${esc(endpointDraft || source.endpoint)}" placeholder="${esc(source.endpoint)}">
         <small>${esc(source.endpointHelp)}</small>
       </label>
-      ${source.aliyun ? aliyunCredentialFields(source, credentialDraft) : `
+      ${source.aliyun ? aliyunCredentialFields(source, credentialDraft) : cfg.weatherProvider === "seniverse" ? seniverseCredentialFields(cfg, keyDraft) : `
         <label class="field">
           <span>API Key</span>
           <input data-cfg="weather" type="text" autocomplete="off" value="${esc(keyDraft)}" placeholder="${esc(keyPlaceholder)}">
@@ -1160,6 +1161,22 @@ function weatherSettingsCard(cfg) {
   `;
 }
 
+function seniverseCredentialFields(cfg, privateKey) {
+  return `
+    <div class="mini-grid">
+      <label class="field">
+        <span>公钥</span>
+        <input data-cfg="weather_publickey" data-weather-seniverse="publickey" type="text" autocomplete="off" value="${esc(cfg.weatherPublicKeySeniverse || "")}" placeholder="粘贴心知天气公钥">
+        <small>公钥会出现在请求签名参数中，可明文显示。</small>
+      </label>
+      <label class="field">
+        <span>私钥</span>
+        <input data-cfg="weather" data-weather-seniverse="privatekey" type="text" autocomplete="off" value="${esc(privateKey)}" placeholder="粘贴心知天气私钥">
+        <small>私钥用于 HMAC-SHA1 签名；免费用户使用中文、摄氏度、三日预报和基础生活指数。</small>
+      </label>
+    </div>
+  `;
+}
 function aliyunCredentialFields(source, credential) {
   return `
     <div class="mini-grid">
@@ -1653,6 +1670,8 @@ async function saveAppConfig() {
   cfg.weather_appcode = (cfg.weather_appcode || "").trim();
   cfg.weather_appkey = (cfg.weather_appkey || "").trim();
   cfg.weather_appsecret = (cfg.weather_appsecret || "").trim();
+  cfg.weather_publickey = (cfg.weather_publickey || state.appCfg?.weatherPublicKeySeniverse || "").trim();
+  cfg.weather_publickey_seniverse = cfg.weather_publickey;
   const providerKeys = state.appCfg?.weatherProviderKeys || {};
   const providerCredentials = {
     ...defaultWeatherProviderCredentials(),
@@ -1744,6 +1763,7 @@ function collectWeatherDraft() {
     weather_appcode: credential.appcode,
     weather_appkey: credential.appkey,
     weather_appsecret: credential.appsecret,
+    weather_publickey: provider === "seniverse" ? ($("[data-weather-seniverse=\"publickey\"]")?.value || state.appCfg?.weatherPublicKeySeniverse || "").trim() : "",
     city: ($("[data-cfg=\"city\"]")?.value || state.appCfg?.city || "").trim(),
     weather_lat: ($("[data-cfg=\"weather_lat\"]")?.value || state.appCfg?.weatherLat || "").trim(),
     weather_lon: ($("[data-cfg=\"weather_lon\"]")?.value || state.appCfg?.weatherLon || "").trim(),
@@ -1762,7 +1782,12 @@ async function testWeatherSource() {
     render();
     return;
   }
-  if (!isAliyunProvider(cfg.weather_provider) && !cfg.weather) {
+  if (cfg.weather_provider === "seniverse" && (!cfg.weather_publickey || !cfg.weather)) {
+    state.weatherTest = { status: "error", message: "请填写心知天气公钥和私钥" };
+    render();
+    return;
+  }
+  if (!isAliyunProvider(cfg.weather_provider) && cfg.weather_provider !== "seniverse" && !cfg.weather) {
     state.weatherTest = { status: "error", message: "请先填写当前天气源的 API Key" };
     render();
     return;
