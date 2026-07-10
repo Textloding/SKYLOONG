@@ -1182,6 +1182,24 @@ bool getWeather()
     return false;
 }
 
+static bool saveWeatherCache()
+{
+    File file = LittleFS.open("/.weather", "w");
+    if (!file)
+    {
+        ESP_LOGE("Weather", "open weather cache for write failed");
+        return false;
+    }
+    size_t written = file.write((const uint8_t *)&weatherData, sizeof(weatherData));
+    file.close();
+    if (written != sizeof(weatherData))
+    {
+        ESP_LOGE("Weather", "weather cache short write: %u/%u", (unsigned)written, (unsigned)sizeof(weatherData));
+        return false;
+    }
+    return true;
+}
+
 bool testWeatherProvider(const char *provider, const char *endpoint, const char *key, const char *appKey, const char *appSecret, const char *location, const char *lat, const char *lon, char *result, size_t result_size)
 {
     if (result != NULL && result_size > 0)
@@ -1244,6 +1262,7 @@ bool testWeatherProvider(const char *provider, const char *endpoint, const char 
 
     if (ok)
     {
+        saveWeatherCache();
         const char *weatherName = weatherNames[clampWeatherCode(weatherData.weatherCode_today)];
         if (result != NULL && result_size > 0)
             snprintf(result, result_size, "测试成功：%s %d° %s", weatherData.location, weatherData.temperature_now, weatherName);
@@ -1267,7 +1286,6 @@ bool testWeatherProvider(const char *provider, const char *endpoint, const char 
 
 static uint32_t last_millis = 0;
 bool loadWeather = false;
-uint8_t weather_update_cnt = 0;
 void AppWeather::setup()
 {
     hal.LOCKLV();
@@ -1409,13 +1427,7 @@ void AppWeather::loop()
             updateWeather();
             hal.UNLOCKLV();
             loadWeather = true;
-            ++weather_update_cnt;
-            if (weather_update_cnt % 5 == 0)
-            {
-                File f = LittleFS.open("/.weather", "w");
-                f.write((const uint8_t *)&weatherData, sizeof(weatherData));
-                f.close();
-            }
+            saveWeatherCache();
         }
     }
 }

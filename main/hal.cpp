@@ -713,10 +713,10 @@ bool handleFileRead(String path)
     return false;
 }
 
-static void sendGzippedAsset(const char *contentType, const uint8_t *content, size_t contentLength)
+static void sendGzippedAsset(const char *contentType, const uint8_t *content, size_t contentLength, bool immutable = true)
 {
     server.sendHeader("Content-Encoding", "gzip", true);
-    server.sendHeader("Cache-Control", "public, max-age=31536000, immutable");
+    server.sendHeader("Cache-Control", immutable ? "public, max-age=31536000, immutable" : "no-cache");
     server.setContentLength(contentLength);
     server.send(200, contentType, "");
 
@@ -2228,13 +2228,13 @@ void HAL::start_webserver()
         server.send_P(200, "text/html", (const char *)__web_index_html_gz, sizeof(__web_index_html_gz)); 
     });
     server.on("/index.js", HTTP_GET, []() {
-        sendGzippedAsset("application/javascript", __web_index_js_gz, sizeof(__web_index_js_gz));
+        sendGzippedAsset("application/javascript", __web_index_js_gz, sizeof(__web_index_js_gz), false);
     });
     server.on("/ffmpeg.js", HTTP_GET, []() {
         sendGzippedAsset("application/javascript", __web_ffmpeg_js_gz, sizeof(__web_ffmpeg_js_gz));
     });
     server.on("/index.css", HTTP_GET, []() {
-        sendGzippedAsset("text/css", __web_index_css_gz, sizeof(__web_index_css_gz));
+        sendGzippedAsset("text/css", __web_index_css_gz, sizeof(__web_index_css_gz), false);
     });
 
     server.on("/menu.jpg", HTTP_GET, []() {
