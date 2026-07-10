@@ -854,6 +854,15 @@ static void fillLifeIndexFromObject(cJSON *body)
     copyWeatherText(weatherData.index_sport, sizeof(weatherData.index_sport), jsonStringAny(body, sportKeys, sizeof(sportKeys) / sizeof(sportKeys[0])));
     copyWeatherText(weatherData.index_flu, sizeof(weatherData.index_flu), jsonStringAny(body, fluKeys, sizeof(fluKeys) / sizeof(fluKeys[0])));
     copyWeatherText(weatherData.index_car, sizeof(weatherData.index_car), jsonStringAny(body, carKeys, sizeof(carKeys) / sizeof(carKeys[0])));
+
+    cJSON *index = jsonObj(jsonObj(body, "f1"), "index");
+    if (index != NULL)
+    {
+        copyWeatherText(weatherData.index_wear, sizeof(weatherData.index_wear), jsonString(jsonObj(index, "clothes"), "title"));
+        copyWeatherText(weatherData.index_sport, sizeof(weatherData.index_sport), jsonString(jsonObj(index, "sports"), "title"));
+        copyWeatherText(weatherData.index_flu, sizeof(weatherData.index_flu), jsonString(jsonObj(index, "cold"), "title"));
+        copyWeatherText(weatherData.index_car, sizeof(weatherData.index_car), jsonString(jsonObj(index, "wash_car"), "title"));
+    }
 }
 
 static String appendQueryParam(String url, const char *key, const String &value)
