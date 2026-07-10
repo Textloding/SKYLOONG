@@ -14,6 +14,7 @@ const VIDEO_MAXRATE = "420k";
 const VIDEO_AUDIO_BITRATE = "32k";
 const VIDEO_AUDIO_RATE = "44100";
 const VIDEO_AUDIO_CHANNELS = "1";
+const spaceBreathLabels = ["慢速", "标准", "快速"];
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
@@ -361,6 +362,7 @@ function normalizeInfo(info = {}) {
     ssid: info.ssid || "",
     ip: info.ip || "",
     theme: Number(info.theme || 0),
+    space_breath_speed: clamp(Number(info.space_breath_speed ?? 1), 0, 2),
     aps_enable: !!info.aps_enable,
     weather_enable: !!info.weather_enable,    gif_enable: !!info.gif_enable,
     jpg_enable: !!info.jpg_enable,    wifi_connected: info.wifi_connected !== false,
@@ -941,8 +943,9 @@ function viewDisplay() {
         <div class="panel-head"><span>主题</span><small>屏幕主界面</small></div>
         <div class="theme-grid">
           ${Array.from({ length: 4 }, (_, i) => `
-            <button class="theme-card ${info.theme === i ? "active" : ""}" data-theme="${i}">
+            <button class="theme-card ${info.theme === i ? "active" : ""}" data-theme="${i}" aria-label="主题 ${i + 1}${i === 3 ? `，${spaceBreathLabels[info.space_breath_speed]}呼吸` : ""}">
               <img src="/theme${i + 1}.png?v=theme-layout-20260709d" alt="主题 ${i + 1}">
+              ${i === 3 ? `<small class="theme-speed">${spaceBreathLabels[info.space_breath_speed]}</small>` : ""}
               ${info.theme === i ? `<span>${I.check}</span>` : ""}
             </button>
           `).join("")}
@@ -1347,7 +1350,7 @@ function bindDropzones() {
 
 function bindDisplay() {
   $$("[data-theme]").forEach(btn => {
-    btn.onclick = () => runAction("theme", () => postForm("/config_theme", { theme: btn.dataset.theme }), "主题已更新");
+    btn.onclick = () => setTheme(Number(btn.dataset.theme));
   });
   $$("[data-video-fit]").forEach(btn => btn.onclick = () => setVideoFit(btn.dataset.videoFit));
   $("[data-video-audio]")?.addEventListener("change", ev => setVideoAudio(ev.target.checked));
@@ -1355,6 +1358,21 @@ function bindDisplay() {
   $("[data-jpg-mode]")?.addEventListener("change", saveJpgSettings);
   $("[data-jpg-file]")?.addEventListener("change", saveJpgSettings);
   $("[data-time-roll]")?.addEventListener("change", saveJpgSettings);
+}
+
+function cycleSpaceBreathSpeed() {
+  return (state.info.space_breath_speed + 1) % spaceBreathLabels.length;
+}
+
+async function setTheme(theme) {
+  const wasActiveSpaceTheme = theme === 3 && state.info.theme === 3;
+  const speed = wasActiveSpaceTheme ? cycleSpaceBreathSpeed() : state.info.space_breath_speed;
+  state.info.theme = theme;
+  state.info.space_breath_speed = speed;
+  await runAction("theme", () => postForm("/config_theme", {
+    theme: String(theme),
+    space_breath_speed: String(speed),
+  }), wasActiveSpaceTheme ? `呼吸频率：${spaceBreathLabels[speed]}` : "主题已更新");
 }
 
 function bindNetwork() {

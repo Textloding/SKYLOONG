@@ -2,6 +2,8 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $homeCpp = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "main\apps\home.cpp")
+$halCpp = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "main\hal.cpp")
+$halH = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "main\include\hal.h")
 $web = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot "web_new\index.js")
 
 function Assert-Contains($Text, $Pattern, $Message) {
@@ -33,6 +35,14 @@ Assert-Contains $homeCpp '(?s)namespace theme_space.*?lv_obj_invalidate_area\(st
 Assert-NotContains $homeCpp '(?s)namespace theme_space.*?lv_canvas_create' "Space-theme twinkle animation must not allocate a full-screen canvas."
 Assert-Contains $homeCpp '(?s)namespace theme_space.*?uint8_t twinkle_wave\(\)' "All space-theme stars must share one breathing phase."
 Assert-NotContains $homeCpp 'twinkle_frame\s*\+\s*star\.phase' "Space-theme stars must breathe together instead of using staggered phases."
+Assert-Contains $homeCpp '(?s)namespace theme_space.*?img_space_stars.*?lv_draw_img\([^;]*&img_space_stars\)' "Space theme must breathe the exact star mask extracted from its background."
+Assert-NotContains $homeCpp '(?s)namespace theme_space.*?struct TwinkleStar' "Space theme must not fake background breathing with manually drawn star points."
+Assert-Contains $halH 'config_space_breath_speed' "Space-theme breathing speed must be stored in runtime settings."
+Assert-Contains $halCpp 'pref\.getUInt\("space_breath"' "Space-theme breathing speed must use an NVS-compatible key and persist across restarts."
+Assert-Contains $halCpp 'pref\.putUInt\("space_breath"' "Space-theme breathing speed changes must be persisted with the same NVS key."
+Assert-NotContains $halCpp 'pref\.(?:get|put)UInt\("space_breath_speed"' "ESP32 NVS keys must not exceed 15 characters."
+Assert-Contains $halCpp '(?s)server\.on\("/config_theme".*?space_breath_speed' "Theme endpoint must accept breathing speed changes."
+Assert-Contains $web 'cycleSpaceBreathSpeed' "Clicking the active space-theme card must cycle breathing speed."
 Assert-Contains $homeCpp '(?s)void AppHome::destroy\(\).*?theme_space::reset\(\)' "Home app destroy must reset space-theme LVGL object pointers before the old screen is deleted."
 Assert-NotContains $homeCpp '(?s)if \(current_theme != hal\.config_theme\).*?current_theme = hal\.config_theme;.*?return;' "Theme refresh must preserve the old current_theme until destroy() tears down the old theme."
 Assert-Contains $web 'theme-layout-20260709d' "Theme preview cache key must change when preview assets change."
@@ -41,5 +51,7 @@ foreach ($name in @("theme1.png", "theme2.png", "theme3.png", "theme4.png")) {
     Assert-FileExists (Join-Path $repoRoot "web\$name") "Embedded web preview $name is missing."
     Assert-FileExists (Join-Path $repoRoot "web_new\$name") "Local web preview $name is missing."
 }
+
+Assert-FileExists (Join-Path $repoRoot "main\img_space\img_space_stars.c") "Generated space-star alpha mask is missing."
 
 Write-Host "Theme layout checks passed."

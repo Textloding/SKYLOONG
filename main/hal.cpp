@@ -374,6 +374,9 @@ void HAL::init()
     hal.config_time_12hr = pref.getBool("12hr", false);
     hal.config_bootanimation = pref.getBool("s_b_a", true);
     hal.config_theme = pref.getInt("theme", 0);
+    hal.config_space_breath_speed = pref.getUInt("space_breath", 1);
+    if (hal.config_space_breath_speed > 2)
+        hal.config_space_breath_speed = 1;
     hal.config_keytone = pref.getInt("keytone", 0);
     strcpy(hal.config_keytone_file, pref.getString("keytone_file", "").c_str());
     hal.aps_enable = pref.getBool("aps_enable", true);
@@ -2064,6 +2067,7 @@ void HAL::start_webserver()
         }
 
         cJSON_AddNumberToObject(json, "theme", hal.config_theme);
+        cJSON_AddNumberToObject(json, "space_breath_speed", hal.config_space_breath_speed);
         cJSON_AddBoolToObject(json, "aps_enable", hal.aps_enable);
         cJSON_AddBoolToObject(json, "weather_enable", hal.weather_enable);
         cJSON_AddBoolToObject(json, "gif_enable", hal.gif_enable);
@@ -2157,6 +2161,15 @@ void HAL::start_webserver()
         if (server.hasArg("theme")) {
             hal.config_theme = server.arg("theme").toInt();
             hal.pref.putInt("theme", hal.config_theme);
+            if (server.hasArg("space_breath_speed")) {
+                int speed = server.arg("space_breath_speed").toInt();
+                if (speed < 0 || speed > 2) {
+                    server.send(400, "text/plain", "ERR 400");
+                    return;
+                }
+                hal.config_space_breath_speed = (uint8_t)speed;
+                hal.pref.putUInt("space_breath", hal.config_space_breath_speed);
+            }
             server.send(200, "text/plain", "OK");
         } else {
             server.send(500, "text/plain", "ERR 500");

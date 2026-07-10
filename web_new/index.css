@@ -1108,6 +1108,21 @@ p {
   place-items: center;
 }
 
+.theme-card .theme-speed {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  min-width: 40px;
+  padding: 4px 7px;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 6px;
+  background: rgba(3,8,21,.82);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  text-align: center;
+}
+
 .theme-card.active {
   border-color: var(--accent);
 }

@@ -770,6 +770,7 @@ namespace theme_default
 namespace theme_space
 {
     extern "C" const lv_img_dsc_t img_space_bg;
+    extern "C" const lv_img_dsc_t img_space_stars;
     extern "C" const lv_img_dsc_t * const img_space_taikonaut_frames[10];
     extern "C" const lv_img_dsc_t img_bt1;
     extern "C" const lv_img_dsc_t img_bt2;
@@ -817,47 +818,6 @@ namespace theme_space
     uint32_t last_weather_ms;
     const lv_img_dsc_t *channel_icons[4] = {&img_rf, &img_bt1, &img_bt2, &img_usb};
 
-    struct TwinkleStar
-    {
-        int16_t x;
-        int16_t y;
-        uint8_t size;
-        uint8_t color;
-    };
-
-    static const TwinkleStar twinkle_stars[] = {
-        {136, 6, 1, 0}, {224, 8, 3, 0}, {306, 10, 1, 0}, {211, 11, 3, 2}, {204, 13, 3, 0},
-        {7, 20, 1, 0}, {62, 21, 1, 1}, {268, 21, 1, 0}, {166, 23, 1, 2}, {66, 26, 1, 0},
-        {5, 28, 1, 1}, {278, 33, 1, 0}, {250, 40, 1, 2}, {237, 47, 1, 0}, {148, 49, 1, 1},
-        {75, 50, 1, 0}, {300, 51, 1, 0}, {18, 55, 1, 2}, {207, 58, 3, 0}, {267, 59, 1, 1},
-        {160, 71, 1, 0}, {263, 71, 1, 2}, {275, 77, 1, 0}, {247, 78, 3, 0}, {81, 84, 1, 1},
-        {125, 89, 1, 0}, {0, 91, 2, 2}, {278, 91, 1, 0}, {265, 96, 1, 1}, {226, 102, 1, 0},
-        {231, 112, 1, 2}, {65, 123, 1, 0}, {245, 124, 1, 1}, {189, 132, 1, 0}, {172, 133, 1, 2},
-        {145, 134, 3, 0}, {101, 135, 1, 1}, {170, 135, 1, 0}, {29, 139, 1, 2}, {51, 142, 1, 0},
-        {183, 144, 1, 1}, {82, 147, 1, 0}, {186, 148, 1, 2}, {317, 150, 1, 0}, {120, 153, 3, 0},
-        {125, 155, 3, 1}, {150, 155, 1, 0}, {134, 161, 1, 2}, {64, 165, 3, 1}, {4, 166, 3, 0},
-        {106, 170, 3, 2}, {8, 171, 1, 0}, {55, 173, 1, 1}, {38, 175, 1, 0}, {29, 180, 1, 2},
-        {39, 195, 1, 0}, {131, 195, 1, 1},
-    };
-
-    struct TwinkleShape
-    {
-        int16_t x;
-        int16_t y;
-        uint8_t radius;
-        uint8_t inner;
-        uint8_t color;
-        bool four_point;
-    };
-
-    static const TwinkleShape twinkle_shapes[] = {
-        {164, 40, 14, 3, 0, true},
-        {242, 65, 5, 2, 1, false},
-        {51, 171, 6, 2, 0, false},
-        {98, 168, 7, 2, 2, true},
-        {140, 202, 5, 2, 1, false},
-    };
-
     static const lv_area_t twinkle_regions[] = {
         {0, 4, 140, 30}, {145, 5, 230, 56}, {232, 10, 319, 61},
         {0, 49, 130, 96}, {145, 58, 210, 102}, {220, 58, 285, 114},
@@ -884,6 +844,7 @@ namespace theme_space
         }
         weather_loaded = false;
         lv_img_cache_invalidate_src(&img_space_bg);
+        lv_img_cache_invalidate_src(&img_space_stars);
         for (uint8_t i = 0; i < 10; i++)
             lv_img_cache_invalidate_src(img_space_taikonaut_frames[i]);
     }
@@ -1110,16 +1071,6 @@ namespace theme_space
         return step < 16 ? step : 31 - step;
     }
 
-    lv_color_t twinkle_color(uint8_t color)
-    {
-        return color == 1 ? lv_color_hex(0x8cecff) : (color == 2 ? lv_color_hex(0xfff1ce) : lv_color_hex(0xffffff));
-    }
-
-    bool area_visible(const lv_area_t &area, const lv_area_t *clip)
-    {
-        return clip == NULL || !(area.x2 < clip->x1 || area.x1 > clip->x2 || area.y2 < clip->y1 || area.y1 > clip->y2);
-    }
-
     void draw_twinkling_stars(lv_event_t *event)
     {
         lv_draw_ctx_t *draw_ctx = lv_event_get_draw_ctx(event);
@@ -1129,76 +1080,33 @@ namespace theme_space
 
         lv_area_t layer_coords;
         lv_obj_get_coords(layer, &layer_coords);
-        uint8_t wave = twinkle_wave();
-        for (const TwinkleStar &star : twinkle_stars)
+        static const uint8_t breath_curve[16] = {
+            0, 3, 11, 24, 42, 64, 88, 115,
+            143, 169, 194, 215, 232, 245, 252, 255,
+        };
+        uint8_t level = breath_curve[twinkle_wave()];
+
+        lv_draw_img_dsc_t stars;
+        lv_draw_img_dsc_init(&stars);
+        stars.recolor_opa = LV_OPA_COVER;
+        if (level < 128)
         {
-            int16_t glow = wave >= 13 ? 1 : 0;
-            lv_area_t area = {
-                (lv_coord_t)(layer_coords.x1 + star.x - glow),
-                (lv_coord_t)(layer_coords.y1 + star.y - glow),
-                (lv_coord_t)(layer_coords.x1 + star.x + star.size - 1 + glow),
-                (lv_coord_t)(layer_coords.y1 + star.y + star.size - 1 + glow),
-            };
-            const lv_area_t *clip = draw_ctx->clip_area;
-            if (!area_visible(area, clip))
-                continue;
-
-            lv_draw_rect_dsc_t rect;
-            lv_draw_rect_dsc_init(&rect);
-            rect.bg_color = twinkle_color(star.color);
-            rect.bg_opa = (lv_opa_t)(24 + wave * 14);
-            rect.radius = LV_RADIUS_CIRCLE;
-            rect.border_opa = LV_OPA_TRANSP;
-            lv_draw_rect(draw_ctx, &rect, &area);
+            stars.recolor = lv_color_hex(0x020611);
+            stars.opa = (lv_opa_t)(((uint16_t)(127 - level) * 160) / 127);
         }
-
-        for (const TwinkleShape &shape : twinkle_shapes)
+        else
         {
-            lv_area_t bounds = {
-                (lv_coord_t)(layer_coords.x1 + shape.x - shape.radius),
-                (lv_coord_t)(layer_coords.y1 + shape.y - shape.radius),
-                (lv_coord_t)(layer_coords.x1 + shape.x + shape.radius),
-                (lv_coord_t)(layer_coords.y1 + shape.y + shape.radius),
-            };
-            if (!area_visible(bounds, draw_ctx->clip_area))
-                continue;
-
-            lv_draw_rect_dsc_t shape_dsc;
-            lv_draw_rect_dsc_init(&shape_dsc);
-            shape_dsc.bg_color = twinkle_color(shape.color);
-            shape_dsc.bg_opa = (lv_opa_t)(12 + wave * 12);
-            shape_dsc.border_opa = LV_OPA_TRANSP;
-
-            if (shape.four_point)
-            {
-                lv_point_t points[8] = {
-                    {(lv_coord_t)(layer_coords.x1 + shape.x), (lv_coord_t)(layer_coords.y1 + shape.y - shape.radius)},
-                    {(lv_coord_t)(layer_coords.x1 + shape.x + shape.inner), (lv_coord_t)(layer_coords.y1 + shape.y - shape.inner)},
-                    {(lv_coord_t)(layer_coords.x1 + shape.x + shape.radius), (lv_coord_t)(layer_coords.y1 + shape.y)},
-                    {(lv_coord_t)(layer_coords.x1 + shape.x + shape.inner), (lv_coord_t)(layer_coords.y1 + shape.y + shape.inner)},
-                    {(lv_coord_t)(layer_coords.x1 + shape.x), (lv_coord_t)(layer_coords.y1 + shape.y + shape.radius)},
-                    {(lv_coord_t)(layer_coords.x1 + shape.x - shape.inner), (lv_coord_t)(layer_coords.y1 + shape.y + shape.inner)},
-                    {(lv_coord_t)(layer_coords.x1 + shape.x - shape.radius), (lv_coord_t)(layer_coords.y1 + shape.y)},
-                    {(lv_coord_t)(layer_coords.x1 + shape.x - shape.inner), (lv_coord_t)(layer_coords.y1 + shape.y - shape.inner)},
-                };
-                lv_draw_polygon(draw_ctx, &shape_dsc, points, 8);
-            }
-            else
-            {
-                lv_point_t points[4] = {
-                    {(lv_coord_t)(layer_coords.x1 + shape.x), (lv_coord_t)(layer_coords.y1 + shape.y - shape.radius)},
-                    {(lv_coord_t)(layer_coords.x1 + shape.x + shape.radius), (lv_coord_t)(layer_coords.y1 + shape.y)},
-                    {(lv_coord_t)(layer_coords.x1 + shape.x), (lv_coord_t)(layer_coords.y1 + shape.y + shape.radius)},
-                    {(lv_coord_t)(layer_coords.x1 + shape.x - shape.radius), (lv_coord_t)(layer_coords.y1 + shape.y)},
-                };
-                lv_draw_polygon(draw_ctx, &shape_dsc, points, 4);
-            }
+            stars.recolor = lv_color_hex(0xf8fbff);
+            stars.opa = (lv_opa_t)(((uint16_t)(level - 128) * 160) / 127);
         }
+        lv_draw_img(draw_ctx, &stars, &layer_coords, &img_space_stars);
     }
 
     void animate_stars()
     {
-        if (star_layer == NULL || millis() - last_twinkle_ms < 180)
+        static const uint16_t intervals[] = {220, 150, 90};
+        uint8_t speed = hal.config_space_breath_speed <= 2 ? hal.config_space_breath_speed : 1;
+        if (star_layer == NULL || millis() - last_twinkle_ms < intervals[speed])
             return;
         last_twinkle_ms = millis();
         twinkle_frame = (twinkle_frame + 1) & 31;

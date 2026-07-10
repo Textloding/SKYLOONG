@@ -107,6 +107,7 @@ public:
     bool config_time_12hr = false;
     bool config_bootanimation = true;
     uint8_t config_theme = 0;
+    uint8_t config_space_breath_speed = 1;
     uint8_t config_keytone = 0;
     char config_keytone_file[32];
     volatile bool keytone_play = false;
