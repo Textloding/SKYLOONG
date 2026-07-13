@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "hardware_version": "SCM_V4.0",
+  "display": "320x240-st7789-8bit-parallel",
+  "minimum_flash_bytes": 16777216,
+  "minimum_psram_bytes": 8388608,
+  "psram_mode": "octal"
+}
