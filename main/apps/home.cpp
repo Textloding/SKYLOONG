@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "weather_cache.h"
 
 extern "C" const lv_font_t font_main1_time;
 
@@ -783,19 +784,6 @@ namespace theme_space
     extern "C" const lv_img_dsc_t img_win;
     extern "C" const lv_img_dsc_t img_winlock;
 
-    struct HomeWeatherData
-    {
-        char location[32];
-        uint8_t weatherCode_today;
-        uint8_t weatherCode_tomorrow;
-        uint8_t weatherCode_tomorrow_1;
-        int8_t temperature_now;
-        char index_wear[16];
-        char index_sport[16];
-        char index_flu[16];
-        char index_car[16];
-    };
-
     lv_obj_t *lbl_time;
     lv_obj_t *lbl_date;
     lv_obj_t *lbl_week;
@@ -808,7 +796,7 @@ namespace theme_space
     lv_obj_t *img_astronaut;
     lv_obj_t *status_cells[6];
     lv_obj_t *status_icons[6];
-    HomeWeatherData weather_cache;
+    WeatherCacheData weather_cache;
     bool weather_loaded;
     bool toggle_connection;
     uint8_t anim_frame;
@@ -1028,21 +1016,29 @@ namespace theme_space
         if (!force && millis() - last_weather_ms < 60000)
             return;
         last_weather_ms = millis();
-        File f = LittleFS.open("/.weather", "a");
-        size_t cacheSize = f ? f.size() : 0;
-        if (f)
-            f.close();
-        if (cacheSize != sizeof(weather_cache))
+        File f = LittleFS.open("/.weather", "r");
+        if (!f)
         {
             weather_loaded = false;
             return;
         }
-        f = LittleFS.open("/.weather", "r");
-        weather_loaded = f && f.readBytes((char *)&weather_cache, sizeof(weather_cache)) == sizeof(weather_cache);
-        if (f)
-            f.close();
-        if (weather_cache.weatherCode_today >= 40)
-            weather_cache.weatherCode_today = 39;
+
+        const size_t cache_size = f.size();
+        WeatherCacheData loaded = {};
+        const bool read_ok = cache_size == sizeof(loaded) &&
+                             f.readBytes((char *)&loaded, sizeof(loaded)) == sizeof(loaded);
+        f.close();
+        if (!read_ok || !weatherCacheIsValid(loaded))
+        {
+            memset(&weather_cache, 0, sizeof(weather_cache));
+            weather_loaded = false;
+            LittleFS.remove("/.weather");
+            ESP_LOGW("SPACE_THEME", "Discarded invalid weather cache: size=%u", (unsigned)cache_size);
+            return;
+        }
+
+        weather_cache = loaded;
+        weather_loaded = true;
     }
 
     void update_weather_labels()

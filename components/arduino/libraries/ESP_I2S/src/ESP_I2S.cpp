@@ -999,7 +999,6 @@ void I2SClass::playWAV(const uint8_t *data, size_t len) {
     log_e("Audio format is not PCM!");
     return;
   }
-  _stop = false;
   const wav_data_chunk_t *data_chunk = &header->data_chunk;
   size_t data_offset = 0;
   while (memcmp(data_chunk->subchunk_id, "data", 4) != 0) {
@@ -1033,7 +1032,6 @@ bool I2SClass::playMP3(uint8_t *src, size_t src_len) {
     log_e("Could not allocate decoder");
     return false;
   }
-  _stop = false;
   do {
     if (_stop) {
       break;
@@ -1064,6 +1062,10 @@ bool I2SClass::playMP3(uint8_t *src, size_t src_len) {
 
 void I2SClass::stop() {
   _stop = true;
+}
+
+void I2SClass::clearStop() {
+  _stop = false;
 }
 
 #endif /* SOC_I2S_SUPPORTED */

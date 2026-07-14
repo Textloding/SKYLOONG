@@ -66,7 +66,7 @@ static int16_t floatToPcm16(float sample)
 
 void my_audio_callback(plm_t *plm, plm_samples_t *samples, void *user)
 {
-    if (samples == NULL || samples->count == 0 || !hal.config_video_audio)
+    if (samples == NULL || samples->count == 0 || !hal.config_video_audio || !hal.audio_ready)
         return;
 
     const unsigned int sample_count = samples->count * 2;
@@ -157,6 +157,8 @@ static bool playMpeg(plm_t *plm, bool allow_audio)
     if (plm == NULL)
         return false;
 
+    if (!allow_audio)
+        plm_set_audio_enabled(plm, false);
     plm_set_loop(plm, videoPlayer.video_loop);
     hal.setBrightness(hal._brightness);
 
@@ -184,12 +186,19 @@ static bool playMpeg(plm_t *plm, bool allow_audio)
         frame_rate = 15.0f;
 
     bool audio_enabled = false;
-    if (allow_audio && hal.config_video_audio && plm_get_num_audio_streams(plm) > 0)
+    if (allow_audio && hal.config_video_audio && hal.audio_ready && plm_get_num_audio_streams(plm) > 0)
     {
         const int sample_rate = plm_get_samplerate(plm);
-        if (sample_rate == AUDIO_SAMPLE_RATE && i2s.configureTX(sample_rate, I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO))
+        if (sample_rate == AUDIO_SAMPLE_RATE && hal.audio_begin_playback())
         {
-            audio_enabled = true;
+            // Reconfigure while the amplifier is muted, but keep the audio
+            // ownership lock held for the whole MPEG playback scope.
+            digitalWrite(AUDIO_AMP_CTRL, LOW);
+            audio_enabled = i2s.configureTX(sample_rate, I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
+            if (audio_enabled)
+                digitalWrite(AUDIO_AMP_CTRL, HIGH);
+            else
+                hal.audio_end_playback();
         }
         else
         {
@@ -200,7 +209,6 @@ static bool playMpeg(plm_t *plm, bool allow_audio)
     plm_set_video_decode_callback(plm, my_video_callback, NULL);
     if (audio_enabled)
     {
-        hal.setVolume(hal._volume);
         plm_set_audio_decode_callback(plm, my_audio_callback, NULL);
         plm_set_audio_lead_time(plm, 0.08f);
     }
@@ -228,20 +236,41 @@ static bool playMpeg(plm_t *plm, bool allow_audio)
         if (get_gif_vid_stop())
             break;
     }
+    if (audio_enabled)
+        hal.audio_end_playback();
     return true;
 }
 
 void VideoPlayer::play(FILE *f)
 {
+    if (f == NULL)
+        return;
+
     hal.LOCKLV();
-    if(rgb_buffer == NULL) {
+    if (rgb_buffer == NULL)
         rgb_buffer = (uint8_t *)ps_malloc(screenWidth * screenHeight * 2);
+    if (rgb_buffer == NULL)
+    {
+        ESP_LOGE("MPEG", "Frame buffer allocation failed; skipping video");
+        hal.UNLOCKLV();
+        return;
     }
-    assert(rgb_buffer != NULL);
     memset(rgb_buffer, 0, screenWidth * screenHeight * 2);
     video_background_cleared = false;
     plm_buffer_t *buffer = plm_buffer_create_with_file(f, false);
+    if (buffer == NULL)
+    {
+        ESP_LOGE("MPEG", "Stream buffer allocation failed; skipping video");
+        hal.UNLOCKLV();
+        return;
+    }
     plm_t *plm = plm_create_with_buffer(buffer, true);
+    if (plm == NULL)
+    {
+        ESP_LOGE("MPEG", "Decoder allocation failed; skipping video");
+        hal.UNLOCKLV();
+        return;
+    }
     bool handled = playMpeg(plm, true);
 
     plm_destroy(plm);
@@ -249,29 +278,54 @@ void VideoPlayer::play(FILE *f)
     {
         fseek(f, 0, SEEK_SET);
         plm_buffer_t *raw_buffer = plm_buffer_create_with_file(f, false);
-        plm_video_t *video = plm_video_create_with_buffer(raw_buffer, true);
-        playRawMpegVideo(video);
-        plm_video_destroy(video);
+        if (raw_buffer != NULL)
+        {
+            plm_video_t *video = plm_video_create_with_buffer(raw_buffer, true);
+            if (video != NULL)
+            {
+                playRawMpegVideo(video);
+                plm_video_destroy(video);
+            }
+        }
     }
     hal.UNLOCKLV();
 }
 
 void VideoPlayer::playBuffer(const uint8_t *video_buffer, uint32_t buffer_size)
 {
+    if (video_buffer == NULL || buffer_size == 0)
+        return;
 
     videoPlayer.video_loop = false;
     hal.LOCKLV();
-    rgb_buffer = (uint8_t *)ps_malloc(screenWidth * screenHeight * 2);
-    assert(rgb_buffer != NULL);
+    const bool owns_rgb_buffer = rgb_buffer == NULL;
+    if (owns_rgb_buffer)
+        rgb_buffer = (uint8_t *)ps_malloc(screenWidth * screenHeight * 2);
+    if (rgb_buffer == NULL)
+    {
+        ESP_LOGE("MPEG", "Boot frame buffer allocation failed; skipping animation");
+        hal.UNLOCKLV();
+        return;
+    }
     memset(rgb_buffer, 0, screenWidth * screenHeight * 2);
     video_background_cleared = false;
     plm_buffer_t *buffer = plm_buffer_create_with_memory((uint8_t *)video_buffer, buffer_size, false);
-    plm_t *plm = plm_create_with_buffer(buffer, true);
-    playMpeg(plm, false);
+    plm_t *plm = buffer == NULL ? NULL : plm_create_with_buffer(buffer, true);
+    if (plm != NULL)
+    {
+        playMpeg(plm, false);
+        plm_destroy(plm);
+    }
+    else
+    {
+        ESP_LOGE("MPEG", "Boot decoder allocation failed; skipping animation");
+    }
 
-    plm_destroy(plm);
-    free(rgb_buffer);
-    rgb_buffer = NULL;
+    if (owns_rgb_buffer)
+    {
+        free(rgb_buffer);
+        rgb_buffer = NULL;
+    }
     hal.UNLOCKLV();
 }
 

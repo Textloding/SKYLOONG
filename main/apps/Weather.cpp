@@ -1,6 +1,7 @@
 #include "A_Config.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "weather_cache.h"
 
 extern "C" const lv_img_dsc_t weather_0_s;
 extern "C" const lv_img_dsc_t weather_1_s;
@@ -211,19 +212,7 @@ const char *weatherNames[] = {
     "未知",
 };
 extern "C" const lv_img_dsc_t weather_bg;
-struct WeatherData
-{
-    char location[32];
-    uint8_t weatherCode_today;
-    uint8_t weatherCode_tomorrow;
-    uint8_t weatherCode_tomorrow_1;
-    int8_t temperature_now;
-    char index_wear[16];
-    char index_sport[16];
-    char index_flu[16];
-    char index_car[16];
-};
-static WeatherData weatherData;
+static WeatherCacheData weatherData;
 lv_obj_t *obj_temperature;
 lv_obj_t *obj_weatherIcon_big;
 lv_obj_t *lbl_weather_big;
@@ -240,6 +229,12 @@ lv_obj_t *lbl_lifeIndex_flu;
 lv_obj_t *lbl_lifeIndex_car;
 void updateWeather()
 {
+    if (weatherData.weatherCode_today >= 40)
+        weatherData.weatherCode_today = 39;
+    if (weatherData.weatherCode_tomorrow >= 40)
+        weatherData.weatherCode_tomorrow = 39;
+    if (weatherData.weatherCode_tomorrow_1 >= 40)
+        weatherData.weatherCode_tomorrow_1 = 39;
     lv_label_set_text_fmt(obj_temperature, "%d°", weatherData.temperature_now);
     lv_img_set_src(obj_weatherIcon_big, weatherImages_l[weatherData.weatherCode_today]);
     lv_label_set_text(lbl_weather_big, weatherNames[weatherData.weatherCode_today]);
@@ -1264,6 +1259,12 @@ bool getWeather()
 
 static bool saveWeatherCache()
 {
+    if (!weatherCacheIsValid(weatherData))
+    {
+        ESP_LOGE("Weather", "Refusing to save invalid weather cache");
+        return false;
+    }
+
     File file = LittleFS.open("/.weather", "w");
     if (!file)
     {
@@ -1294,7 +1295,7 @@ bool testWeatherProvider(const char *provider, const char *endpoint, const char 
     String oldAliyunAppKey = aliyunAppKey;
     String oldAliyunAppSecret = aliyunAppSecret;
     String oldSeniversePublicKey = seniversePublicKey;
-    WeatherData oldData = weatherData;
+    WeatherCacheData oldData = weatherData;
 
     weatherProvider = provider == NULL ? "" : provider;
     weatherProvider.trim();
@@ -1442,19 +1443,27 @@ void AppWeather::setup()
     hal.UNLOCKLV();
     if (loadWeather == false)
     {
-        File f = LittleFS.open("/.weather", "a");
-        size_t cacheSize = f ? f.size() : 0;
+        File f = LittleFS.open("/.weather", "r");
+        const bool cache_exists = (bool)f;
+        size_t cacheSize = cache_exists ? f.size() : 0;
+        WeatherCacheData loaded = {};
+        bool read_ok = false;
         if (f)
-            f.close();
-        if (cacheSize == sizeof(weatherData))
         {
-            f = LittleFS.open("/.weather", "r");
-            if (f)
-            {
-                loadWeather = f.readBytes((char *)&weatherData, sizeof(weatherData)) == sizeof(weatherData);
-                f.close();
-            }
-        }  
+            if (cacheSize == sizeof(weatherData))
+                read_ok = f.readBytes((char *)&loaded, sizeof(loaded)) == sizeof(loaded);
+            f.close();
+        }
+        if (read_ok && weatherCacheIsValid(loaded))
+        {
+            weatherData = loaded;
+            loadWeather = true;
+        }
+        else if (cache_exists)
+        {
+            LittleFS.remove("/.weather");
+            ESP_LOGW("Weather", "Discarded invalid weather cache: size=%u", (unsigned)cacheSize);
+        }
     }
     if (loadWeather == true)
     {

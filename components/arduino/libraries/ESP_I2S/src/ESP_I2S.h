@@ -90,6 +90,7 @@ public:
   bool playMP3(uint8_t *src, size_t src_len);
 
   void stop();
+  void clearStop();
 
 private:
   esp_err_t last_error;

@@ -2,6 +2,10 @@
 #include "hal/ds1302.h"
 #include <Preferences.h>
 #include <Arduino.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#include "freertos/task.h"
+#include <atomic>
 enum system_event_type_t
 {
     EVENT_GET_TIME = 0x01,
@@ -111,6 +115,7 @@ public:
     uint8_t config_keytone = 0;
     char config_keytone_file[32];
     volatile bool keytone_play = false;
+    volatile bool audio_ready = false;
     bool aps_enable = true;
     bool gif_enable = true;
     bool jpg_enable = true;
@@ -123,9 +128,15 @@ public:
     char config_jpg_file[32];
     bool time_sync = true;
     SemaphoreHandle_t _mutex;
+    SemaphoreHandle_t _audio_mutex = NULL;
+    volatile TaskHandle_t _audio_owner = NULL;
+    std::atomic_bool _audio_shutdown_requested{false};
     void init();
     esp_err_t audio_init();
     void audio_stop();
+    bool audio_begin_playback();
+    void audio_end_playback();
+    void audio_shutdown();
     uint8_t getDoW(uint16_t iYear, uint8_t iMonth, uint8_t iDay);
     void getTime();
     void setTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second);
@@ -155,5 +166,7 @@ public:
     bool config_wifi = false;
 
 private:
+    bool audio_lock(TickType_t timeout);
+    void audio_unlock();
 };
 extern HAL hal;

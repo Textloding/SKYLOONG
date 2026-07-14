@@ -33,6 +33,7 @@ function Assert-FileNotContains {
 $halHeader = Join-Path $RepoRoot "main\include\hal.h"
 $halSource = Join-Path $RepoRoot "main\hal.cpp"
 $decoder = Join-Path $RepoRoot "main\mpegDecoder.cpp"
+$mpegLibrary = Join-Path $RepoRoot "main\include\pl_mpeg.h"
 
 Assert-FileContains $halHeader "config_video_fit" "HAL must expose a persisted video fit setting for the web UI."
 Assert-FileContains $halSource "video_fit" "The web API must expose and accept the video fit setting."
@@ -56,5 +57,11 @@ Assert-FileContains $decoder "tft\.fillScreen\(TFT_BLACK\)" "Video playback shou
 
 Assert-FileNotContains $decoder "plm_decode\(plm,\s*1\)" "Video playback must not advance MPEG time in one-second jumps."
 Assert-FileNotContains $decoder "980\s*-" "Video playback must not use the old fixed ~1 FPS delay."
+Assert-FileNotContains $decoder "assert\s*\(\s*rgb_buffer\s*!=\s*NULL\s*\)" "Video playback must return cleanly when the frame buffer cannot be allocated."
+Assert-FileContains $decoder "rgb_buffer\s*==\s*NULL" "Video playback must check frame-buffer allocation before decoding."
+Assert-FileContains $mpegLibrary "frames_data\s*=.*ps_malloc.*\n\s*if\s*\(.*frames_data.*==\s*NULL" "MPEG decoder must handle PSRAM frame allocation failure without pointer arithmetic on NULL."
+Assert-FileContains $mpegLibrary "(?s)if\s*\(self\s*==\s*NULL\).*?return\s*NULL" "MPEG decoder constructors must handle heap allocation failure."
+Assert-FileNotContains $mpegLibrary "self->bytes\s*=\s*\(uint8_t\s*\*\)ps_realloc" "MPEG buffer growth must not overwrite the owned pointer before realloc succeeds."
+Assert-FileContains $mpegLibrary "(?s)new_bytes\s*=\s*\(uint8_t\s*\*\)ps_realloc.*?if\s*\(new_bytes\s*==\s*NULL\).*?return\s+0.*?self->bytes\s*=\s*new_bytes" "MPEG buffer growth must preserve the old allocation and fail cleanly when PSRAM is exhausted."
 
 Write-Host "video pipeline source checks passed"

@@ -1,5 +1,6 @@
 #include "A_Config.h"
 #include <WiFi.h>
+#include "esp_heap_caps.h"
 
 void task_lvgl_update(void *p)
 {
@@ -124,14 +125,21 @@ uint32_t RTC_DATA_ATTR last_appid = 0;
 extern "C" void app_main()
 {
     initArduino();
-    psramInit();
+    ESP_LOGW("BOOT", "start reset_reason=%d internal_heap=%" PRIu32,
+             esp_reset_reason(), (uint32_t)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+    const bool psram_ok = psramInit();
+    ESP_LOGW("BOOT", "psram_init=%d size=%" PRIu32 " free=%" PRIu32,
+             psram_ok, (uint32_t)ESP.getPsramSize(), (uint32_t)ESP.getFreePsram());
     hal.init();
+    ESP_LOGW("BOOT", "hal_init_complete internal_heap=%" PRIu32 " psram_free=%" PRIu32,
+             (uint32_t)heap_caps_get_free_size(MALLOC_CAP_INTERNAL), (uint32_t)ESP.getFreePsram());
     hal.getTime();
     hal.kb_status.channel_current = 0;
     WiFiMgr.init();
 
     start_webserver_early();
     appHome.init();
+    ESP_LOGW("BOOT", "app_home_init_complete");
     appAPS.init();
     appGIF.init();
     appJPG.init();
@@ -157,18 +165,26 @@ extern "C" void app_main()
     if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_UNDEFINED && esp_reset_reason() != ESP_RST_SW)
     {
         rtc_gpio_deinit((gpio_num_t)PIN_SERIAL1_RX);
-        if (hal.config_bootanimation)
+        if (hal.config_bootanimation && psram_ok)
             videoPlayer.playBuffer(__boot_mpeg, sizeof(__boot_mpeg));
+        else if (hal.config_bootanimation)
+            ESP_LOGE("BOOT", "Skipping boot animation because PSRAM is unavailable");
     }
     protocol_init();
-    xTaskCreatePinnedToCore(task_lvgl_update, "lvgl_update", 1024 * 6, NULL, 2, NULL, 1);
-    xTaskCreatePinnedToCore(debug_USB_UART, "debug_USB_UART", 1024 * 4, NULL, 6, NULL, 1);
-    xTaskCreatePinnedToCore(task_webserver_autostart, "web_autostart", 4096, NULL, 1, NULL, 0);
+    if (xTaskCreatePinnedToCore(task_lvgl_update, "lvgl_update", 1024 * 6, NULL, 2, NULL, 1) != pdPASS)
+        ESP_LOGE("BOOT", "Failed to create lvgl_update");
+    if (xTaskCreatePinnedToCore(debug_USB_UART, "debug_USB_UART", 1024 * 4, NULL, 6, NULL, 1) != pdPASS)
+        ESP_LOGE("BOOT", "Failed to create debug_USB_UART");
+    if (xTaskCreatePinnedToCore(task_webserver_autostart, "web_autostart", 4096, NULL, 1, NULL, 0) != pdPASS)
+        ESP_LOGE("BOOT", "Failed to create web_autostart");
     if (WiFiMgr.count() > 0) {
         appManagerLite.init(last_appid);
     } else {
         appManagerLite.init(100);
     }
+    ESP_LOGW("BOOT", "app_manager_init_complete app=%" PRIu32 " internal_heap=%" PRIu32,
+             appManagerLite.currentApp != NULL ? appManagerLite.currentApp->appid : 0,
+             (uint32_t)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
 
     vTaskDelete(NULL);
     vTaskDelay(portMAX_DELAY);

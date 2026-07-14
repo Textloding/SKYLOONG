@@ -94,7 +94,6 @@ void parasePkt(protocol_t *pkt)
         audio_is_sleep = false;
         if (screen_is_on == true) {
             hal.setBrightness(hal._brightness);
-            digitalWrite(AUDIO_AMP_CTRL, HIGH);
             hal.audio_init();
             hal.setVolume(hal._volume);
         }
@@ -172,7 +171,6 @@ void parasePkt(protocol_t *pkt)
             if (screen_is_on == false)
             {
                 hal.setBrightness(hal._brightness);
-                digitalWrite(AUDIO_AMP_CTRL, HIGH);
                 hal.audio_init();
                 hal.setVolume(hal._volume);
                 screen_is_on = true;
@@ -329,10 +327,8 @@ void task_powerOFF(void *pvParameters)
         {
             if (millis() - last_millis > 1000 * 600)
             {
-                es8311_power_down(es_handle);
-                digitalWrite(AUDIO_AMP_CTRL, LOW);
+                hal.audio_shutdown();
                 hal.goSleep();
-                digitalWrite(AUDIO_AMP_CTRL, HIGH);
                 hal.audio_init();
                 hal.setVolume(hal._volume);
             }

@@ -14,7 +14,9 @@
 I2SClass i2s;
 
 es8311_handle_t es_handle = es8311_create(I2C_NUM_0, ES8311_ADDRRES_0);
-static char *TAG = "audio_init";
+static const char *TAG = "audio_init";
+static constexpr uint32_t AUDIO_DMA_TAIL_GUARD_MS = 50;
+extern volatile bool gif_vid_stop;
 
 #include <TFT_eSPI.h>
 TFT_eSPI tft = TFT_eSPI(); 
@@ -88,9 +90,19 @@ uint8_t * readFile(String path) {
   return buf;
 }
 
+static bool playWavWithAmplifier(const uint8_t *data, size_t len)
+{
+    if (data == NULL || len == 0 || !hal.audio_begin_playback())
+        return false;
+
+    i2s.playWAV(data, len);
+    hal.audio_end_playback();
+    return true;
+}
+
 static bool playAudioFileFromLittleFS(const char *filename)
 {
-    if (filename == NULL || strlen(filename) == 0)
+    if (!hal.audio_ready || filename == NULL || strlen(filename) == 0)
         return false;
 
     char path[64] = "/";
@@ -102,15 +114,20 @@ static bool playAudioFileFromLittleFS(const char *filename)
 
     const size_t len = sizeFile(path);
     bool played = false;
-    if (hasFileSuffix(filename, "wav"))
+    const bool is_wav = hasFileSuffix(filename, "wav");
+    const bool is_mp3 = hasFileSuffix(filename, "mp3");
+    if ((is_wav || is_mp3) && hal.audio_begin_playback())
     {
-        i2s.playWAV(data, len);
-        played = true;
-    }
-    else if (hasFileSuffix(filename, "mp3"))
-    {
-        i2s.playMP3(data, len);
-        played = true;
+        if (is_wav)
+        {
+            i2s.playWAV(data, len);
+            played = true;
+        }
+        else
+        {
+            played = i2s.playMP3(data, len);
+        }
+        hal.audio_end_playback();
     }
 
     free(data);
@@ -168,16 +185,11 @@ static void task_systemctl(void *p)
             if (event.data == 0)
             {
                 ledcWrite(PIN_DISPLAY_BL, 0);
-                i2s.end();
-                es8311_voice_volume_set(es_handle, 0, NULL);
-                es8311_power_down(es_handle);
-                digitalWrite(AUDIO_AMP_CTRL, LOW);
-
+                hal.audio_shutdown();
             }
             else
             {
                 hal.setBrightness(hal._brightness);
-                digitalWrite(AUDIO_AMP_CTRL, HIGH);
                 hal.audio_init();
                 hal.setVolume(hal._volume);
             }
@@ -187,17 +199,19 @@ static void task_systemctl(void *p)
             hal.APMChanged = true;
             break;
         case EVENT_KB_KEYPRESS:
+            if (!hal.audio_ready)
+                break;
             if (hal.config_keytone == 1) {
                 hal.keytone_play =  true;
-                i2s.playWAV(__keytone_keytone1_wav, __keytone_keytone1_wav_len);
+                playWavWithAmplifier(__keytone_keytone1_wav, __keytone_keytone1_wav_len);
                 hal.keytone_play =  false;
             } else if (hal.config_keytone == 2) {
                 hal.keytone_play =  true;
-                i2s.playWAV(__keytone_keytone2_wav, __keytone_keytone2_wav_len);
+                playWavWithAmplifier(__keytone_keytone2_wav, __keytone_keytone2_wav_len);
                 hal.keytone_play =  false;
             } else if (hal.config_keytone == 3) {
                 hal.keytone_play =  true;
-                i2s.playWAV(__keytone_keytone3_wav, __keytone_keytone3_wav_len);
+                playWavWithAmplifier(__keytone_keytone3_wav, __keytone_keytone3_wav_len);
                 hal.keytone_play =  false;
             } else if (hal.config_keytone == 4) {
                 hal.keytone_play =  true;
@@ -205,15 +219,15 @@ static void task_systemctl(void *p)
                 hal.keytone_play =  false;
             } else if (hal.config_keytone == 5) {
                 hal.keytone_play =  true;
-                i2s.playWAV(__keytone_keytone4_wav, __keytone_keytone4_wav_len);
+                playWavWithAmplifier(__keytone_keytone4_wav, __keytone_keytone4_wav_len);
                 hal.keytone_play =  false;
             } else if (hal.config_keytone == 6) {
                 hal.keytone_play =  true;
-                i2s.playWAV(__keytone_keytone5_wav, __keytone_keytone5_wav_len);
+                playWavWithAmplifier(__keytone_keytone5_wav, __keytone_keytone5_wav_len);
                 hal.keytone_play =  false;
             } else if (hal.config_keytone == 7) {
                 hal.keytone_play =  true;
-                i2s.playWAV(__keytone_keytone6_wav, __keytone_keytone6_wav_len);
+                playWavWithAmplifier(__keytone_keytone6_wav, __keytone_keytone6_wav_len);
                 hal.keytone_play =  false;
             }
             break;
@@ -231,10 +245,8 @@ static void task_systemctl(void *p)
             {
                 if (hal.server_started == false)
                 {
-                    es8311_power_down(es_handle);
-                    digitalWrite(AUDIO_AMP_CTRL, LOW);
+                    hal.audio_shutdown();
                     hal.goSleep();
-                    digitalWrite(AUDIO_AMP_CTRL, HIGH);
                     hal.audio_init();
                     hal.setVolume(hal._volume);   
                 }
@@ -243,20 +255,15 @@ static void task_systemctl(void *p)
                     screen_is_sleep = true;
                     ledcWrite(PIN_DISPLAY_BL, 0);
                     audio_is_sleep = true;
-                    i2s.end();
-                    es8311_voice_volume_set(es_handle, 0, NULL);
-                    es8311_power_down(es_handle);
-                    digitalWrite(AUDIO_AMP_CTRL, LOW);
+                    hal.audio_shutdown();
                     xSemaphoreGive(hal._mutex);
                 }
             }
             else
             {
                 ESP_LOGE("HAL", "无法获取锁");
-                es8311_power_down(es_handle);
-                digitalWrite(AUDIO_AMP_CTRL, LOW);
+                hal.audio_shutdown();
                 hal.goSleep();
-                digitalWrite(AUDIO_AMP_CTRL, HIGH);
                 hal.audio_init();
                 hal.setVolume(hal._volume);
             }
@@ -314,14 +321,63 @@ static void setVideoFitConfig(const String &video_fit)
     hal.config_video_fit[sizeof(hal.config_video_fit) - 1] = '\0';
 }
 
+bool HAL::audio_lock(TickType_t timeout)
+{
+    if (_audio_mutex == NULL)
+        return false;
+    return xSemaphoreTakeRecursive(_audio_mutex, timeout) == pdTRUE;
+}
+
+void HAL::audio_unlock()
+{
+    if (_audio_mutex != NULL)
+        xSemaphoreGiveRecursive(_audio_mutex);
+}
+
 esp_err_t HAL::audio_init()
 {
+    if (!audio_lock(portMAX_DELAY))
+    {
+        ESP_LOGE(TAG, "Audio mutex is unavailable");
+        return ESP_FAIL;
+    }
+
+    if (audio_ready && !_audio_shutdown_requested.load())
+    {
+        audio_unlock();
+        return ESP_OK;
+    }
+
     pinMode(AUDIO_AMP_CTRL, OUTPUT);
-    digitalWrite(AUDIO_AMP_CTRL, HIGH);
+    digitalWrite(AUDIO_AMP_CTRL, LOW);
 
-    Wire.begin(AUDIO_CODEC_I2C_SDA_PIN, AUDIO_CODEC_I2C_SCL_PIN);
+    if (_audio_shutdown_requested.exchange(false))
+    {
+        audio_ready = false;
+        if (i2s.txChan() != NULL || i2s.rxChan() != NULL)
+            i2s.end();
+        if (es_handle != NULL)
+        {
+            es8311_voice_volume_set(es_handle, 0, NULL);
+            es8311_power_down(es_handle);
+        }
+    }
+    audio_ready = false;
 
-    ESP_RETURN_ON_FALSE(es_handle, ESP_FAIL, TAG, "es8311 create failed");
+    if (!Wire.begin(AUDIO_CODEC_I2C_SDA_PIN, AUDIO_CODEC_I2C_SCL_PIN))
+    {
+        ESP_LOGE(TAG, "I2C initialization failed");
+        audio_unlock();
+        return ESP_FAIL;
+    }
+
+    if (es_handle == NULL)
+    {
+        ESP_LOGE(TAG, "es8311 create failed");
+        audio_unlock();
+        return ESP_FAIL;
+    }
+
     const es8311_clock_config_t es_clk = {
         .mclk_inverted = false,
         .sclk_inverted = false,
@@ -329,30 +385,191 @@ esp_err_t HAL::audio_init()
         .mclk_frequency = AUDIO_MCLK_FREQ_HZ,
         .sample_frequency = AUDIO_SAMPLE_RATE
     };
-    ESP_ERROR_CHECK(es8311_init(es_handle, &es_clk, ES8311_RESOLUTION_16, ES8311_RESOLUTION_16));
-    ESP_RETURN_ON_ERROR(es8311_microphone_config(es_handle, false), TAG, "set es8311 microphone failed");
+    esp_err_t codec_err = ESP_FAIL;
+    for (uint8_t attempt = 1; attempt <= 3; ++attempt)
+    {
+        codec_err = es8311_init(es_handle, &es_clk, ES8311_RESOLUTION_16, ES8311_RESOLUTION_16);
+        if (codec_err == ESP_OK)
+            break;
+        ESP_LOGW(TAG, "ES8311 init attempt %u failed: %s (0x%x)",
+                 (unsigned)attempt, esp_err_to_name(codec_err), (unsigned)codec_err);
+        delay(50);
+    }
+    if (codec_err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "ES8311 unavailable; continuing with audio disabled");
+        audio_unlock();
+        return codec_err;
+    }
+
+    codec_err = es8311_microphone_config(es_handle, false);
+    if (codec_err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "ES8311 microphone setup failed: %s (0x%x)",
+                 esp_err_to_name(codec_err), (unsigned)codec_err);
+        audio_unlock();
+        return codec_err;
+    }
 
     i2s.setPins(AUDIO_I2S_GPIO_BCLK, AUDIO_I2S_GPIO_WS, AUDIO_I2S_GPIO_DOUT, AUDIO_I2S_GPIO_DIN, AUDIO_I2S_GPIO_MCLK);
-    if (!i2s.begin(I2S_MODE_STD, AUDIO_SAMPLE_RATE, I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO, I2S_STD_SLOT_BOTH)) {
-        ESP_LOGE("HAL", "Failed to initialize I2S bus!");
+    if (!i2s.begin(I2S_MODE_STD, AUDIO_SAMPLE_RATE, I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO, I2S_STD_SLOT_BOTH))
+    {
+        ESP_LOGE(TAG, "I2S initialization failed");
+        audio_unlock();
         return ESP_FAIL;
     }
 
+    codec_err = es8311_voice_volume_set(es_handle, 0, NULL);
+    if (codec_err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "ES8311 mute failed: %s (0x%x)",
+                 esp_err_to_name(codec_err), (unsigned)codec_err);
+        if (i2s.txChan() != NULL || i2s.rxChan() != NULL)
+            i2s.end();
+        audio_unlock();
+        return codec_err;
+    }
+
+    audio_ready = true;
+    ESP_LOGI(TAG, "Audio codec and I2S are ready; amplifier remains muted");
+    audio_unlock();
     return ESP_OK;
 }
 
 void HAL::audio_stop()
 {
+    const TaskHandle_t current = xTaskGetCurrentTaskHandle();
+    if (_audio_owner != NULL && _audio_owner != current)
+    {
+        // I2SClass::stop only sets its cancellation flag. Use it as an
+        // asynchronous stop request while the playback owner drains/cleans up.
+        i2s.stop();
+    }
+
+    if (!audio_lock(pdMS_TO_TICKS(2000)))
+        return;
+
+    if (audio_ready)
+        i2s.stop();
+    if (_audio_owner == current)
+        audio_end_playback();
+    audio_unlock();
+}
+
+bool HAL::audio_begin_playback()
+{
+    if (!audio_lock(portMAX_DELAY))
+        return false;
+
+    if (_audio_shutdown_requested.load())
+    {
+        audio_unlock();
+        return false;
+    }
+
+    const TaskHandle_t current = xTaskGetCurrentTaskHandle();
+    if (_audio_owner != NULL)
+    {
+        ESP_LOGW(TAG, "Audio playback already owned by another playback scope");
+        audio_unlock();
+        return false;
+    }
+
+    pinMode(AUDIO_AMP_CTRL, OUTPUT);
+    digitalWrite(AUDIO_AMP_CTRL, LOW);
+    if (!audio_ready || _volume <= 0)
+    {
+        audio_unlock();
+        return false;
+    }
+
+    setVolume(_volume);
+    if (!audio_ready)
+    {
+        audio_unlock();
+        return false;
+    }
+
+    i2s.clearStop();
+    _audio_owner = current;
+    digitalWrite(AUDIO_AMP_CTRL, HIGH);
+    return true;
+}
+
+void HAL::audio_end_playback()
+{
+    const TaskHandle_t current = xTaskGetCurrentTaskHandle();
+    if (_audio_owner != current)
+    {
+        if (_audio_owner != NULL)
+            ESP_LOGW(TAG, "Ignoring audio_end_playback from non-owner task");
+        return;
+    }
+
+    // i2s_channel_write() returns after copying into DMA. Keep the amplifier
+    // enabled until the final DMA buffers have physically drained.
+    if (i2s.txChan() != NULL)
+        delay(AUDIO_DMA_TAIL_GUARD_MS);
+    pinMode(AUDIO_AMP_CTRL, OUTPUT);
+    digitalWrite(AUDIO_AMP_CTRL, LOW);
+    _audio_owner = NULL;
+    audio_unlock();
+}
+
+void HAL::audio_shutdown()
+{
+    _audio_shutdown_requested.store(true);
     i2s.stop();
+    gif_vid_stop = true;
+    if (!audio_lock(pdMS_TO_TICKS(3000)))
+    {
+        pinMode(AUDIO_AMP_CTRL, OUTPUT);
+        digitalWrite(AUDIO_AMP_CTRL, LOW);
+        ESP_LOGE(TAG, "Timed out waiting for active playback to stop");
+        return;
+    }
+
+    const TaskHandle_t current = xTaskGetCurrentTaskHandle();
+    if (_audio_owner == current)
+    {
+        audio_end_playback();
+    }
+
+    pinMode(AUDIO_AMP_CTRL, OUTPUT);
+    digitalWrite(AUDIO_AMP_CTRL, LOW);
+    audio_ready = false;
+
+    if (i2s.txChan() != NULL || i2s.rxChan() != NULL)
+        i2s.end();
+    if (es_handle != NULL)
+    {
+        es8311_voice_volume_set(es_handle, 0, NULL);
+        es8311_power_down(es_handle);
+    }
+    audio_unlock();
 }
 
 void HAL::init()
 {
     memset(&datetime, 0, sizeof(DS1302_DateTime));
     WiFi.setHostname("SKYLOONG 4.0 Screen");
+    pinMode(AUDIO_AMP_CTRL, OUTPUT);
+    digitalWrite(AUDIO_AMP_CTRL, LOW);
     lcd_init();
 
-    hal.audio_init();
+    if (_audio_mutex == NULL)
+        _audio_mutex = xSemaphoreCreateRecursiveMutex();
+    if (_audio_mutex == NULL)
+    {
+        ESP_LOGE("HAL", "Audio mutex allocation failed; audio disabled");
+    }
+    else
+    {
+        const esp_err_t audio_err = hal.audio_init();
+        if (audio_err != ESP_OK)
+            ESP_LOGE("HAL", "Audio disabled after initialization error: %s (0x%x)",
+                     esp_err_to_name(audio_err), (unsigned)audio_err);
+    }
 
     DS1302_begin(&rtc, PIN_RTC_SCLK, PIN_RTC_SDIO, PIN_RTC_RST);
     DS1302_writeClockRegister(&rtc, DS1302_REG_TC, 0xA5);
@@ -401,10 +618,32 @@ void HAL::init()
     _queue_kb = xQueueCreate(10, 1);
     lv_init();
 
-    screen_buf = (lv_color_t *)heap_caps_malloc(DRAW_BUF_SIZE, MALLOC_CAP_SPIRAM);
-    screen_buf2 = (lv_color_t *)heap_caps_malloc(DRAW_BUF_SIZE, MALLOC_CAP_SPIRAM);
+    uint32_t draw_buf_pixels = DRAW_BUF_SIZE / sizeof(lv_color_t);
+    screen_buf = (lv_color_t *)heap_caps_malloc(DRAW_BUF_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    screen_buf2 = (lv_color_t *)heap_caps_malloc(DRAW_BUF_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
-    lv_disp_draw_buf_init(&draw_buf, screen_buf, screen_buf2, DRAW_BUF_SIZE / 2);
+    if (screen_buf == NULL && screen_buf2 != NULL)
+    {
+        screen_buf = screen_buf2;
+        screen_buf2 = NULL;
+    }
+    if (screen_buf == NULL)
+    {
+        draw_buf_pixels = screenWidth * 20;
+        screen_buf = (lv_color_t *)heap_caps_malloc(draw_buf_pixels * sizeof(lv_color_t), MALLOC_CAP_8BIT);
+        screen_buf2 = NULL;
+        ESP_LOGW("HAL", "PSRAM draw buffers unavailable; using a %" PRIu32 "-pixel fallback", draw_buf_pixels);
+    }
+    if (screen_buf == NULL)
+    {
+        ESP_LOGE("HAL", "LVGL draw-buffer allocation failed; internal=%" PRIu32 ", psram=%" PRIu32,
+                 (uint32_t)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+                 (uint32_t)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+        while (true)
+            vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+
+    lv_disp_draw_buf_init(&draw_buf, screen_buf, screen_buf2, draw_buf_pixels);
     lv_disp_drv_init(&disp_drv);
     disp_drv.hor_res = screenWidth;
     disp_drv.ver_res = screenHeight;
@@ -420,7 +659,8 @@ void HAL::init()
     lv_group_set_default(group);
     lv_indev_set_group(indev_keypad, group);
 
-    xTaskCreatePinnedToCore(task_systemctl, "task_systemctl", 8192, NULL, 3, NULL, 0);
+    if (xTaskCreatePinnedToCore(task_systemctl, "task_systemctl", 8192, NULL, 3, NULL, 0) != pdPASS)
+        ESP_LOGE("HAL", "Failed to create task_systemctl");
 }
 
 void HAL::getTime()
@@ -574,17 +814,41 @@ void HAL::setBrightness(int8_t brightness)
 
 void HAL::setVolume(int8_t volume)
 {
+    if (!audio_lock(portMAX_DELAY))
+        return;
+
     static uint8_t volume_lut[10] = {0, 38, 46, 53, 59, 64, 68, 71, 73, 74};
+    uint8_t codec_volume = AUDIO_VOICE_VOLUME;
     if (volume >= 0 && volume <= 9)
     {
         _volume = volume;
-        es8311_voice_volume_set(es_handle, volume_lut[volume], NULL);
+        codec_volume = volume_lut[volume];
     }
     else
     {
         ESP_LOGE("HAL", "音量设置错误: %d", volume);
-        es8311_voice_volume_set(es_handle, AUDIO_VOICE_VOLUME, NULL);
     }
+
+    if (!audio_ready || es_handle == NULL)
+    {
+        audio_unlock();
+        return;
+    }
+
+    const esp_err_t err = es8311_voice_volume_set(es_handle, codec_volume, NULL);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE("HAL", "Volume write failed: %s (0x%x); muting amplifier",
+                 esp_err_to_name(err), (unsigned)err);
+        audio_ready = false;
+        digitalWrite(AUDIO_AMP_CTRL, LOW);
+        audio_unlock();
+        return;
+    }
+
+    if (codec_volume == 0)
+        digitalWrite(AUDIO_AMP_CTRL, LOW);
+    audio_unlock();
 }
 
 void HAL::LOCKLV()
@@ -1064,6 +1328,208 @@ struct legacy_app_setting
     char weather_city[64];
     char userdata[256];
 };
+
+union app_settings_scratch_storage
+{
+    app_setting current;
+    app_setting_v5 v5;
+    app_setting_v4 v4;
+    app_setting_v3 v3;
+    app_setting_v2 v2;
+    extended_app_setting extended;
+    legacy_app_setting legacy;
+};
+
+static app_settings_scratch_storage app_settings_scratch;
+static_assert(sizeof(app_settings_scratch_storage) == sizeof(app_setting),
+              "Settings scratch storage must remain bounded by the current format");
+
+template <size_t N>
+static void terminateSettingString(char (&value)[N])
+{
+    value[N - 1] = '\0';
+}
+
+template <typename T>
+static void sanitizeBaseWeatherFields(T &settings)
+{
+    terminateSettingString(settings.weather_secret);
+    terminateSettingString(settings.weather_city);
+    terminateSettingString(settings.weather_provider);
+    terminateSettingString(settings.weather_endpoint);
+    terminateSettingString(settings.weather_lat);
+    terminateSettingString(settings.weather_lon);
+}
+
+template <typename T>
+static void sanitizeWeatherEndpointFields(T &settings)
+{
+    terminateSettingString(settings.weather_endpoint_seniverse);
+    terminateSettingString(settings.weather_endpoint_qweather);
+    terminateSettingString(settings.weather_endpoint_aliyun_72158);
+    terminateSettingString(settings.weather_endpoint_aliyun_10812);
+    terminateSettingString(settings.weather_endpoint_aliyun_50139);
+    terminateSettingString(settings.weather_endpoint_aliyun_71988);
+}
+
+template <typename T>
+static void sanitizeWeatherKeyFields(T &settings)
+{
+    terminateSettingString(settings.weather_key_seniverse);
+    terminateSettingString(settings.weather_key_qweather);
+    terminateSettingString(settings.weather_key_aliyun_72158);
+    terminateSettingString(settings.weather_key_aliyun_10812);
+    terminateSettingString(settings.weather_key_aliyun_50139);
+    terminateSettingString(settings.weather_key_aliyun_71988);
+}
+
+template <typename T>
+static void sanitizeAliyunCredentialFields(T &settings)
+{
+    terminateSettingString(settings.weather_appkey_aliyun_72158);
+    terminateSettingString(settings.weather_appkey_aliyun_10812);
+    terminateSettingString(settings.weather_appkey_aliyun_50139);
+    terminateSettingString(settings.weather_appkey_aliyun_71988);
+    terminateSettingString(settings.weather_appsecret_aliyun_72158);
+    terminateSettingString(settings.weather_appsecret_aliyun_10812);
+    terminateSettingString(settings.weather_appsecret_aliyun_50139);
+    terminateSettingString(settings.weather_appsecret_aliyun_71988);
+}
+
+static void sanitizeAppSettingStrings(app_setting &settings)
+{
+    sanitizeBaseWeatherFields(settings);
+    sanitizeWeatherEndpointFields(settings);
+    sanitizeWeatherKeyFields(settings);
+    sanitizeAliyunCredentialFields(settings);
+    terminateSettingString(settings.weather_publickey_seniverse);
+}
+
+static constexpr uint32_t APP_SETTINGS_MAGIC = 0x534C4346u;
+static constexpr uint16_t APP_SETTINGS_FORMAT_VERSION = 1;
+
+struct app_settings_file_header
+{
+    uint32_t magic;
+    uint16_t version;
+    uint16_t payload_size;
+    uint32_t checksum;
+};
+
+static_assert(sizeof(app_settings_file_header) == 12, "Unexpected app settings header layout");
+
+static uint32_t settingsChecksum(const uint8_t *data, size_t size)
+{
+    uint32_t checksum = 2166136261u;
+    for (size_t i = 0; i < size; i++)
+    {
+        checksum ^= data[i];
+        checksum *= 16777619u;
+    }
+    return checksum;
+}
+
+static bool readCurrentAppSettings(File &file, app_setting &loaded)
+{
+    if (file.size() != sizeof(app_settings_file_header) + sizeof(loaded))
+        return false;
+
+    app_settings_file_header header = {};
+    if (file.read((uint8_t *)&header, sizeof(header)) != sizeof(header))
+        return false;
+    if (header.magic != APP_SETTINGS_MAGIC ||
+        header.version != APP_SETTINGS_FORMAT_VERSION ||
+        header.payload_size != sizeof(loaded))
+        return false;
+
+    memset(&loaded, 0, sizeof(loaded));
+    if (file.read((uint8_t *)&loaded, sizeof(loaded)) != sizeof(loaded))
+        return false;
+    if (settingsChecksum((const uint8_t *)&loaded, sizeof(loaded)) != header.checksum)
+        return false;
+
+    sanitizeAppSettingStrings(loaded);
+    return true;
+}
+
+static bool writeCurrentAppSettings(const app_setting &settings)
+{
+    app_settings_file_header header = {
+        APP_SETTINGS_MAGIC,
+        APP_SETTINGS_FORMAT_VERSION,
+        (uint16_t)sizeof(settings),
+        settingsChecksum((const uint8_t *)&settings, sizeof(settings)),
+    };
+
+    static const char *const tempPath = "/.cfg.bin.tmp";
+    static const char *const targetPath = "/.cfg.bin";
+    LittleFS.remove(tempPath);
+    File file = LittleFS.open(tempPath, "w");
+    if (!file)
+        return false;
+
+    const size_t headerWritten = file.write((const uint8_t *)&header, sizeof(header));
+    const size_t payloadWritten = file.write((const uint8_t *)&settings, sizeof(settings));
+    file.flush();
+    file.close();
+    if (headerWritten != sizeof(header) || payloadWritten != sizeof(settings))
+    {
+        LittleFS.remove(tempPath);
+        return false;
+    }
+
+    if (!LittleFS.rename(tempPath, targetPath))
+    {
+        LittleFS.remove(targetPath);
+        if (!LittleFS.rename(tempPath, targetPath))
+        {
+            LittleFS.remove(tempPath);
+            return false;
+        }
+    }
+    return true;
+}
+
+static void sanitizeAppSettingStrings(app_setting_v5 &settings)
+{
+    sanitizeBaseWeatherFields(settings);
+    sanitizeWeatherEndpointFields(settings);
+    sanitizeWeatherKeyFields(settings);
+    sanitizeAliyunCredentialFields(settings);
+}
+
+static void sanitizeAppSettingStrings(app_setting_v4 &settings)
+{
+    sanitizeBaseWeatherFields(settings);
+    sanitizeWeatherEndpointFields(settings);
+    sanitizeWeatherKeyFields(settings);
+}
+
+static void sanitizeAppSettingStrings(app_setting_v3 &settings)
+{
+    sanitizeBaseWeatherFields(settings);
+    sanitizeWeatherKeyFields(settings);
+}
+
+static void sanitizeAppSettingStrings(app_setting_v2 &settings)
+{
+    sanitizeBaseWeatherFields(settings);
+}
+
+static void sanitizeAppSettingStrings(extended_app_setting &settings)
+{
+    sanitizeBaseWeatherFields(settings);
+    terminateSettingString(settings.remote_ip);
+    terminateSettingString(settings.userdata);
+}
+
+static void sanitizeAppSettingStrings(legacy_app_setting &settings)
+{
+    terminateSettingString(settings.remote_ip);
+    terminateSettingString(settings.weather_secret);
+    terminateSettingString(settings.weather_city);
+    terminateSettingString(settings.userdata);
+}
 
 static bool writeJsonToBuffer(cJSON *json, char *result, size_t result_size)
 {
@@ -1782,9 +2248,9 @@ void appSettingsToJson(char *result)
 
 void HAL::saveAppSettings()
 {
-    File file = LittleFS.open("/.cfg.bin", "w");
-    file.write((uint8_t *)&app_settings_save, sizeof(app_settings_save));
-    file.close();
+    sanitizeAppSettingStrings(app_settings_save);
+    if (!writeCurrentAppSettings(app_settings_save))
+        ESP_LOGE("HAL", "Failed to persist application settings");
 }
 
 void HAL::loadAppSettings()
@@ -1793,9 +2259,24 @@ void HAL::loadAppSettings()
     if (file)
     {
         size_t fileSize = file.size();
+        if (fileSize == sizeof(app_settings_file_header) + sizeof(app_settings_save))
+        {
+            app_setting &loaded = app_settings_scratch.current;
+            if (readCurrentAppSettings(file, loaded))
+            {
+                file.close();
+                app_settings_save = loaded;
+                fillWeatherDefaultsIfMissing();
+                return;
+            }
+            file.close();
+            goto reset;
+        }
         if (fileSize == sizeof(app_settings_save))
         {
-            int sz = file.read((uint8_t *)&app_settings_save, sizeof(app_settings_save));
+            app_setting &legacy = app_settings_scratch.current;
+            memset(&legacy, 0, sizeof(legacy));
+            int sz = file.read((uint8_t *)&legacy, sizeof(legacy));
             if (sz != sizeof(app_settings_save))
             {
                 file.close();
@@ -1807,71 +2288,86 @@ void HAL::loadAppSettings()
                 goto reset;
             }
             file.close();
+            sanitizeAppSettingStrings(legacy);
+            app_settings_save = legacy;
             fillWeatherDefaultsIfMissing();
+            saveAppSettings();
             return;
         }
         if (fileSize == sizeof(app_setting_v5))
         {
-            static app_setting_v5 legacy;
+            app_setting_v5 &legacy = app_settings_scratch.v5;
+            memset(&legacy, 0, sizeof(legacy));
             int sz = file.read((uint8_t *)&legacy, sizeof(legacy));
             file.close();
             if (sz != sizeof(legacy))
                 goto reset;
+            sanitizeAppSettingStrings(legacy);
             migrateAppSettingsV5(legacy);
             saveAppSettings();
             return;
         }
         if (fileSize == sizeof(app_setting_v4))
         {
-            app_setting_v4 legacy;
+            app_setting_v4 &legacy = app_settings_scratch.v4;
+            memset(&legacy, 0, sizeof(legacy));
             int sz = file.read((uint8_t *)&legacy, sizeof(legacy));
             file.close();
             if (sz != sizeof(legacy))
                 goto reset;
+            sanitizeAppSettingStrings(legacy);
             migrateAppSettingsV4(legacy);
             saveAppSettings();
             return;
         }
         if (fileSize == sizeof(app_setting_v3))
         {
-            app_setting_v3 legacy;
+            app_setting_v3 &legacy = app_settings_scratch.v3;
+            memset(&legacy, 0, sizeof(legacy));
             int sz = file.read((uint8_t *)&legacy, sizeof(legacy));
             file.close();
             if (sz != sizeof(legacy))
                 goto reset;
+            sanitizeAppSettingStrings(legacy);
             migrateAppSettingsV3(legacy);
             saveAppSettings();
             return;
         }
         if (fileSize == sizeof(app_setting_v2))
         {
-            app_setting_v2 legacy;
+            app_setting_v2 &legacy = app_settings_scratch.v2;
+            memset(&legacy, 0, sizeof(legacy));
             int sz = file.read((uint8_t *)&legacy, sizeof(legacy));
             file.close();
             if (sz != sizeof(legacy))
                 goto reset;
+            sanitizeAppSettingStrings(legacy);
             migrateAppSettingsV2(legacy);
             saveAppSettings();
             return;
         }
         if (fileSize == sizeof(extended_app_setting))
         {
-            extended_app_setting legacy;
+            extended_app_setting &legacy = app_settings_scratch.extended;
+            memset(&legacy, 0, sizeof(legacy));
             int sz = file.read((uint8_t *)&legacy, sizeof(legacy));
             file.close();
             if (sz != sizeof(legacy))
                 goto reset;
+            sanitizeAppSettingStrings(legacy);
             migrateExtendedAppSettings(legacy);
             saveAppSettings();
             return;
         }
         if (fileSize == sizeof(legacy_app_setting))
         {
-            legacy_app_setting legacy;
+            legacy_app_setting &legacy = app_settings_scratch.legacy;
+            memset(&legacy, 0, sizeof(legacy));
             int sz = file.read((uint8_t *)&legacy, sizeof(legacy));
             file.close();
             if (sz != sizeof(legacy))
                 goto reset;
+            sanitizeAppSettingStrings(legacy);
             migrateLegacyAppSettings(legacy);
             saveAppSettings();
             return;
@@ -1882,10 +2378,9 @@ void HAL::loadAppSettings()
     else
     {
     reset:
+        memset(&app_settings_save, 0, sizeof(app_settings_save));
         parseAppSettings(default_app_setting);
-        file = LittleFS.open("/.cfg.bin", "w");
-        file.write((uint8_t *)&app_settings_save, sizeof(app_settings_save));
-        file.close();
+        saveAppSettings();
     }
 }
 void handleJson()
