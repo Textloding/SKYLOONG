@@ -300,7 +300,7 @@ void task_protocol(void *pvParameters)
             Serial1.flush(false);
         }
         if(hal.time_sync) {
-            hal.getTime();
+            hal.refreshTime();
             if(hal.datetime.year >= 2023) {
                 protocol_t pkt_send;
                 pkt_send.type = PROTOCOL_TYPE_TIME;

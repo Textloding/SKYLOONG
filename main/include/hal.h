@@ -128,8 +128,11 @@ public:
     char config_jpg_file[32];
     bool time_sync = true;
     SemaphoreHandle_t _mutex;
+    SemaphoreHandle_t _rtc_mutex = NULL;
     SemaphoreHandle_t _audio_mutex = NULL;
+    TaskHandle_t _systemctl_task = NULL;
     volatile TaskHandle_t _audio_owner = NULL;
+    std::atomic_bool _rtc_fallback_to_system{false};
     std::atomic_bool _audio_shutdown_requested{false};
     void init();
     esp_err_t audio_init();
@@ -138,8 +141,9 @@ public:
     void audio_end_playback();
     void audio_shutdown();
     uint8_t getDoW(uint16_t iYear, uint8_t iMonth, uint8_t iDay);
+    bool refreshTime();
     void getTime();
-    void setTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second);
+    bool setTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second);
     bool NTPSync();
     void setBrightness(int8_t brightness);
     void setVolume(int8_t volume);
@@ -166,7 +170,10 @@ public:
     bool config_wifi = false;
 
 private:
+    bool rtc_lock(TickType_t timeout);
+    void rtc_unlock();
     bool audio_lock(TickType_t timeout);
     void audio_unlock();
+    uint32_t _last_rtc_request_ms = 0;
 };
 extern HAL hal;

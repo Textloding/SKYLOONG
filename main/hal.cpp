@@ -16,6 +16,7 @@ I2SClass i2s;
 es8311_handle_t es_handle = es8311_create(I2C_NUM_0, ES8311_ADDRRES_0);
 static const char *TAG = "audio_init";
 static constexpr uint32_t AUDIO_DMA_TAIL_GUARD_MS = 50;
+static constexpr uint32_t RTC_READ_INTERVAL_MS = 500;
 extern volatile bool gif_vid_stop;
 
 #include <TFT_eSPI.h>
@@ -156,12 +157,19 @@ static void keypad_read(lv_indev_drv_t *indev_drv, lv_indev_data_t *data)
 
 static void task_systemctl(void *p)
 {
-    if (DS1302_isHalted(&hal.rtc))
+    bool rtc_was_halted = false;
+    if (hal._rtc_mutex != NULL && xSemaphoreTake(hal._rtc_mutex, pdMS_TO_TICKS(500)) == pdTRUE)
     {
-        DS1302_writeProtect(&hal.rtc, false);
-        DS1302_halt(&hal.rtc, false);
-        GUI::toast(_tr(I18N_ID_RTC_SHUTDOWN), true, 10000);
+        rtc_was_halted = DS1302_isHalted(&hal.rtc);
+        if (rtc_was_halted)
+        {
+            DS1302_writeProtect(&hal.rtc, false);
+            DS1302_halt(&hal.rtc, false);
+        }
+        xSemaphoreGive(hal._rtc_mutex);
     }
+    if (rtc_was_halted)
+        GUI::toast(_tr(I18N_ID_RTC_SHUTDOWN), true, 10000);
     while (1)
     {
         sysctl_event_t event;
@@ -169,7 +177,7 @@ static void task_systemctl(void *p)
         switch (event.type)
         {
         case EVENT_GET_TIME:
-            DS1302_getDateTime(&hal.rtc, &hal.datetime);
+            hal.refreshTime();
             break;
         case EVENT_GOTO_SETTING:
             hal.setting_mode = true;
@@ -571,6 +579,11 @@ void HAL::init()
                      esp_err_to_name(audio_err), (unsigned)audio_err);
     }
 
+    if (_rtc_mutex == NULL)
+        _rtc_mutex = xSemaphoreCreateMutex();
+    if (_rtc_mutex == NULL)
+        ESP_LOGE("HAL", "RTC mutex allocation failed");
+
     DS1302_begin(&rtc, PIN_RTC_SCLK, PIN_RTC_SDIO, PIN_RTC_RST);
     DS1302_writeClockRegister(&rtc, DS1302_REG_TC, 0xA5);
     if (LittleFS.begin(false) == false)
@@ -659,13 +672,97 @@ void HAL::init()
     lv_group_set_default(group);
     lv_indev_set_group(indev_keypad, group);
 
-    if (xTaskCreatePinnedToCore(task_systemctl, "task_systemctl", 8192, NULL, 3, NULL, 0) != pdPASS)
+    if (xTaskCreatePinnedToCore(task_systemctl, "task_systemctl", 8192, NULL, 3, &_systemctl_task, 0) != pdPASS)
+    {
+        _systemctl_task = NULL;
         ESP_LOGE("HAL", "Failed to create task_systemctl");
+    }
+}
+
+bool HAL::rtc_lock(TickType_t timeout)
+{
+    return _rtc_mutex != NULL && xSemaphoreTake(_rtc_mutex, timeout) == pdTRUE;
+}
+
+void HAL::rtc_unlock()
+{
+    if (_rtc_mutex != NULL)
+        xSemaphoreGive(_rtc_mutex);
+}
+
+static bool rtcDateTimeMatches(const DS1302_DateTime &expected, const DS1302_DateTime &actual)
+{
+    if (expected.year != actual.year || expected.month != actual.month ||
+        expected.dayMonth != actual.dayMonth || expected.hour != actual.hour ||
+        expected.minute != actual.minute)
+        return false;
+
+    const int second_delta = (int)actual.second - (int)expected.second;
+    return second_delta >= 0 && second_delta <= 2;
+}
+
+bool HAL::refreshTime()
+{
+    DS1302_DateTime snapshot = {};
+    bool rtc_ok = false;
+    if (!_rtc_fallback_to_system.load() && rtc_lock(pdMS_TO_TICKS(500)))
+    {
+        rtc_ok = DS1302_getDateTime(&rtc, &snapshot);
+        rtc_unlock();
+    }
+
+    if (rtc_ok)
+    {
+        datetime = snapshot;
+        return true;
+    }
+
+    const time_t utc_now = time(NULL);
+    if (utc_now >= 1000000000)
+    {
+        const time_t local_now = utc_now + i18n::getNTPOffset();
+        tm time_now = {};
+        if (gmtime_r(&local_now, &time_now) != NULL)
+        {
+            snapshot.second = time_now.tm_sec;
+            snapshot.minute = time_now.tm_min;
+            snapshot.hour = time_now.tm_hour;
+            snapshot.dayWeek = time_now.tm_wday == 0 ? 7 : time_now.tm_wday;
+            snapshot.dayMonth = time_now.tm_mday;
+            snapshot.month = time_now.tm_mon + 1;
+            snapshot.year = time_now.tm_year + 1900;
+            datetime = snapshot;
+            return true;
+        }
+    }
+
+    static uint32_t last_error_ms = 0;
+    const uint32_t now_ms = millis();
+    if (last_error_ms == 0 || now_ms - last_error_ms >= 5000)
+    {
+        ESP_LOGW("RTC", "RTC read failed and system time is unavailable; keeping the last snapshot");
+        last_error_ms = now_ms;
+    }
+    return false;
 }
 
 void HAL::getTime()
 {
-    send_sysctl(EVENT_GET_TIME);
+    const uint32_t now_ms = millis();
+    if (_last_rtc_request_ms != 0 && now_ms - _last_rtc_request_ms < RTC_READ_INTERVAL_MS)
+        return;
+    _last_rtc_request_ms = now_ms;
+
+    if (_systemctl_task == NULL)
+    {
+        refreshTime();
+        return;
+    }
+
+    sysctl_event_t event = {};
+    event.type = EVENT_GET_TIME;
+    if (xQueueSend(_queue, &event, 0) != pdTRUE)
+        refreshTime();
 }
 uint8_t HAL::getDoW(uint16_t iYear, uint8_t iMonth, uint8_t iDay)
 {
@@ -696,11 +793,13 @@ uint8_t HAL::getDoW(uint16_t iYear, uint8_t iMonth, uint8_t iDay)
 
     return iWeek;
 }
-void HAL::setTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second)
+bool HAL::setTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second)
 {
-    DS1302_DateTime dt;
-    DS1302_writeProtect(&rtc, false);
-    DS1302_halt(&rtc, false);
+    if (year < 2000 || year > 2099 || month < 1 || month > 12 || day < 1 || day > 31 ||
+        hour > 23 || minute > 59 || second > 59)
+        return false;
+
+    DS1302_DateTime dt = {};
     dt.second = second;
     dt.minute = minute;
     dt.hour = hour;
@@ -708,7 +807,29 @@ void HAL::setTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8
     dt.dayMonth = day;
     dt.month = month;
     dt.year = year;
+
+    if (!rtc_lock(pdMS_TO_TICKS(1000)))
+    {
+        _rtc_fallback_to_system.store(true);
+        datetime = dt;
+        ESP_LOGE("RTC", "Timed out waiting to write the RTC");
+        return false;
+    }
+
+    DS1302_writeProtect(&rtc, false);
+    DS1302_halt(&rtc, false);
     DS1302_setDateTime(&rtc, &dt);
+    DS1302_DateTime verified = {};
+    const bool read_ok = DS1302_getDateTime(&rtc, &verified);
+    const bool verified_ok = read_ok && rtcDateTimeMatches(dt, verified);
+    rtc_unlock();
+
+    _rtc_fallback_to_system.store(!verified_ok);
+    datetime = verified_ok ? verified : dt;
+    time_sync = true;
+    if (!verified_ok)
+        ESP_LOGW("RTC", "RTC write could not be verified; using the synchronized system clock");
+    return verified_ok;
 }
 
 /*-------- NTP ----------*/
@@ -1201,15 +1322,24 @@ void handleTime()
     if (server.hasArg("plain"))
     {
         String time = server.arg("plain");
-        timeval tv;
-        tm newtime;
-        tv.tv_sec = atol(time.c_str());
-        tv.tv_usec = 0;
-        if (tv.tv_sec > 0)
+        const time_t utc_now = (time_t)atoll(time.c_str());
+        if (utc_now > 0)
         {
-            tv.tv_sec += i18n::getNTPOffset();
-            localtime_r(&tv.tv_sec, &newtime);
-            hal.setTime(newtime.tm_year + 1900, newtime.tm_mon + 1, newtime.tm_mday, newtime.tm_hour, newtime.tm_min, newtime.tm_sec);
+            timeval tv = {};
+            tv.tv_sec = utc_now;
+            if (settimeofday(&tv, NULL) != 0)
+            {
+                ESP_LOGE("TIME", "Browser time sync failed: errno=%d", errno);
+                server.send(500, "text/plain", "ERR 500");
+                return;
+            }
+
+            const time_t local_now = utc_now + i18n::getNTPOffset();
+            tm newtime = {};
+            gmtime_r(&local_now, &newtime);
+            if (!hal.setTime(newtime.tm_year + 1900, newtime.tm_mon + 1, newtime.tm_mday,
+                             newtime.tm_hour, newtime.tm_min, newtime.tm_sec))
+                ESP_LOGW("TIME", "Browser time was applied to the system clock but RTC verification failed");
             server.send(200, "text/plain", "OK");
             return;
         }
