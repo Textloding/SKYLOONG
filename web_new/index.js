@@ -835,7 +835,9 @@ function mediaVideos() {
   `;
 }
 
-function mediaTones() {  return `
+function mediaTones() {
+  const { tones } = fileLists();
+  return `
     <div class="grid media-layout">
       <section class="panel upload-panel">
         <div class="panel-head"><span>上传按键音</span><small>MP3 或 WAV</small></div>
