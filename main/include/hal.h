@@ -5,6 +5,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "freertos/timers.h"
+#include "hal/i2s_types.h"
 #include <atomic>
 enum system_event_type_t
 {
@@ -114,8 +116,9 @@ public:
     uint8_t config_space_breath_speed = 1;
     uint8_t config_keytone = 0;
     char config_keytone_file[32];
-    volatile bool keytone_play = false;
-    volatile bool audio_ready = false;
+    std::atomic_bool keytone_play{false};
+    std::atomic_bool audio_ready{false};
+    std::atomic<uint32_t> _keytone_request_generation{0};
     bool aps_enable = true;
     bool gif_enable = true;
     bool jpg_enable = true;
@@ -130,14 +133,19 @@ public:
     SemaphoreHandle_t _mutex;
     SemaphoreHandle_t _rtc_mutex = NULL;
     SemaphoreHandle_t _audio_mutex = NULL;
+    SemaphoreHandle_t _keytone_request_mutex = NULL;
+    TimerHandle_t _audio_amp_idle_timer = NULL;
     TaskHandle_t _systemctl_task = NULL;
-    volatile TaskHandle_t _audio_owner = NULL;
+    std::atomic<TaskHandle_t> _audio_owner{NULL};
+    std::atomic<uint32_t> _audio_stop_generation{0};
     std::atomic_bool _rtc_fallback_to_system{false};
     std::atomic_bool _audio_shutdown_requested{false};
+    std::atomic_bool _audio_shutdown_complete{false};
     void init();
     esp_err_t audio_init();
     void audio_stop();
     bool audio_begin_playback();
+    bool audio_configure_tx(uint32_t sample_rate, i2s_data_bit_width_t data_width, i2s_slot_mode_t slot_mode);
     void audio_end_playback();
     void audio_shutdown();
     uint8_t getDoW(uint16_t iYear, uint8_t iMonth, uint8_t iDay);
@@ -150,6 +158,7 @@ public:
     void LOCKLV();
     void UNLOCKLV();
     void goSleep();
+    void request_keytone();
     void send_sysctl(system_event_type_t type, uint8_t data = 0);
     void saveAppSettings();
     void loadAppSettings();
@@ -161,6 +170,7 @@ public:
     void forceExitSettings();
     QueueHandle_t _queue;
     QueueHandle_t _queue_kb;
+    QueueHandle_t _queue_keytone = NULL;
     Preferences pref;
     int8_t _brightness = 6;
     int8_t _volume = 6;
@@ -170,10 +180,41 @@ public:
     bool config_wifi = false;
 
 private:
+    enum class audio_amp_mode_t : uint8_t
+    {
+        off,
+        playback,
+        idle_hold,
+        shutdown,
+    };
+
+    portMUX_TYPE _audio_amp_mux = portMUX_INITIALIZER_UNLOCKED;
+    portMUX_TYPE _audio_stop_mux = portMUX_INITIALIZER_UNLOCKED;
+    audio_amp_mode_t _audio_amp_mode = audio_amp_mode_t::off;
+    bool _audio_amp_gpio_high = false;
+    TickType_t _audio_amp_idle_deadline = 0;
+    uint32_t _audio_amp_epoch = 0;
     bool rtc_lock(TickType_t timeout);
     void rtc_unlock();
     bool audio_lock(TickType_t timeout);
     void audio_unlock();
+    bool audio_publish_owner(TaskHandle_t owner, uint32_t stop_generation);
+    void audio_clear_owner();
+    void audio_stop_keytone(uint32_t generation);
+    void audio_amp_set_level_locked(bool enabled);
+    bool audio_amp_prepare_init();
+    void audio_amp_mark_shutdown_complete(uint32_t epoch);
+    bool audio_amp_shutdown_is_current(uint32_t epoch);
+    bool audio_amp_start_playback(bool &cold_start);
+    bool audio_amp_playback_ready();
+    bool audio_amp_mute_for_reconfigure();
+    bool audio_amp_resume_after_reconfigure();
+    bool audio_amp_begin_idle_hold(uint32_t &epoch);
+    void audio_amp_cancel_idle_hold(uint32_t epoch);
+    void audio_amp_finish_idle_hold();
+    uint32_t audio_amp_request_shutdown();
+    void audio_amp_force_off();
+    static void audio_amp_idle_timer_callback(TimerHandle_t timer);
     uint32_t _last_rtc_request_ms = 0;
 };
 extern HAL hal;

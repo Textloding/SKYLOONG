@@ -66,7 +66,7 @@ static int16_t floatToPcm16(float sample)
 
 void my_audio_callback(plm_t *plm, plm_samples_t *samples, void *user)
 {
-    if (samples == NULL || samples->count == 0 || !hal.config_video_audio || !hal.audio_ready)
+    if (samples == NULL || samples->count == 0 || !hal.config_video_audio || !hal.audio_ready.load())
         return;
 
     const unsigned int sample_count = samples->count * 2;
@@ -186,18 +186,15 @@ static bool playMpeg(plm_t *plm, bool allow_audio)
         frame_rate = 15.0f;
 
     bool audio_enabled = false;
-    if (allow_audio && hal.config_video_audio && hal.audio_ready && plm_get_num_audio_streams(plm) > 0)
+    if (allow_audio && hal.config_video_audio && hal.audio_ready.load() && plm_get_num_audio_streams(plm) > 0)
     {
         const int sample_rate = plm_get_samplerate(plm);
         if (sample_rate == AUDIO_SAMPLE_RATE && hal.audio_begin_playback())
         {
-            // Reconfigure while the amplifier is muted, but keep the audio
-            // ownership lock held for the whole MPEG playback scope.
-            digitalWrite(AUDIO_AMP_CTRL, LOW);
-            audio_enabled = i2s.configureTX(sample_rate, I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
-            if (audio_enabled)
-                digitalWrite(AUDIO_AMP_CTRL, HIGH);
-            else
+            audio_enabled = hal.audio_configure_tx(sample_rate,
+                                                   I2S_DATA_BIT_WIDTH_16BIT,
+                                                   I2S_SLOT_MODE_STEREO);
+            if (!audio_enabled)
                 hal.audio_end_playback();
         }
         else

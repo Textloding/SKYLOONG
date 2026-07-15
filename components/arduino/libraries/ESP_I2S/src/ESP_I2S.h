@@ -6,6 +6,7 @@
 #include "Arduino.h"
 #include "esp_err.h"
 #include "driver/i2s_std.h"
+#include <atomic>
 #if SOC_I2S_SUPPORTS_TDM
 #include "driver/i2s_tdm.h"
 #endif
@@ -14,6 +15,7 @@
 #endif
 
 typedef esp_err_t (*i2s_channel_read_fn)(i2s_chan_handle_t handle, char *tmp_buf, void *dest, size_t size, size_t *bytes_read, uint32_t timeout_ms);
+typedef bool (*i2s_tx_configure_callback_t)(uint32_t rate, i2s_data_bit_width_t bits_cfg, i2s_slot_mode_t ch, void *context);
 
 typedef enum {
   I2S_MODE_STD,
@@ -58,6 +60,7 @@ public:
 
   bool begin(i2s_mode_t mode, uint32_t rate, i2s_data_bit_width_t bits_cfg, i2s_slot_mode_t ch, int8_t slot_mask = -1);
   bool configureTX(uint32_t rate, i2s_data_bit_width_t bits_cfg, i2s_slot_mode_t ch, int8_t slot_mask = -1);
+  void setTxConfigureCallback(i2s_tx_configure_callback_t callback, void *context);
   bool configureRX(uint32_t rate, i2s_data_bit_width_t bits_cfg, i2s_slot_mode_t ch, i2s_rx_transform_t transform = I2S_RX_TRANSFORM_NONE);
   bool end();
 
@@ -85,7 +88,7 @@ public:
   // Record short PCM WAV to memory with current RX settings. Returns buffer that must be freed by the user.
   uint8_t *recordWAV(size_t rec_seconds, size_t *out_size);
   // Play short PCM WAV from memory
-  void playWAV(const uint8_t *data, size_t len);
+  bool playWAV(const uint8_t *data, size_t len);
   // Play short MP3 from memory
   bool playMP3(uint8_t *src, size_t src_len);
 
@@ -96,12 +99,15 @@ private:
   esp_err_t last_error;
   i2s_mode_t _mode;
 
-  volatile bool _stop;
+  std::atomic_bool _stop{false};
 
   i2s_chan_handle_t tx_chan;
   uint32_t tx_sample_rate;
   i2s_data_bit_width_t tx_data_bit_width;
   i2s_slot_mode_t tx_slot_mode;
+  bool _tx_chan_enabled;
+  i2s_tx_configure_callback_t tx_configure_callback;
+  void *tx_configure_context;
 
   i2s_channel_read_fn rx_fn;
   i2s_rx_transform_t rx_transform;
@@ -129,6 +135,7 @@ private:
 
   bool allocTranformRX(size_t buf_len);
   bool transformRX(i2s_rx_transform_t transform);
+  bool configureTXForPlayback(uint32_t rate, i2s_data_bit_width_t bits_cfg, i2s_slot_mode_t ch);
 
   static bool i2sDetachBus(void *bus_pointer);
   bool initSTD(uint32_t rate, i2s_data_bit_width_t bits_cfg, i2s_slot_mode_t ch, int8_t slot_mask);

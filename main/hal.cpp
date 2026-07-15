@@ -4,6 +4,8 @@
 #include "Wire.h"
 #include "es8311.h"
 #include "ESP_I2S.h"
+#include "driver/gpio.h"
+#include <limits.h>
 #include "keytone/keytone1.h"
 #include "keytone/keytone2.h"
 #include "keytone/keytone3.h"
@@ -15,9 +17,21 @@ I2SClass i2s;
 
 es8311_handle_t es_handle = es8311_create(I2C_NUM_0, ES8311_ADDRRES_0);
 static const char *TAG = "audio_init";
+static constexpr uint32_t AUDIO_AMP_STARTUP_GUARD_MS = 100;
+static constexpr uint32_t AUDIO_AMP_IDLE_HOLD_MS = 500;
 static constexpr uint32_t AUDIO_DMA_TAIL_GUARD_MS = 50;
 static constexpr uint32_t RTC_READ_INTERVAL_MS = 500;
 extern volatile bool gif_vid_stop;
+
+static bool configureAudioTxForPlayback(uint32_t sample_rate,
+                                        i2s_data_bit_width_t data_width,
+                                        i2s_slot_mode_t slot_mode,
+                                        void *context)
+{
+    HAL *audio_hal = static_cast<HAL *>(context);
+    return audio_hal != NULL &&
+           audio_hal->audio_configure_tx(sample_rate, data_width, slot_mode);
+}
 
 #include <TFT_eSPI.h>
 TFT_eSPI tft = TFT_eSPI(); 
@@ -91,19 +105,43 @@ uint8_t * readFile(String path) {
   return buf;
 }
 
-static bool playWavWithAmplifier(const uint8_t *data, size_t len)
+static bool beginKeytonePlayback(uint32_t generation)
 {
-    if (data == NULL || len == 0 || !hal.audio_begin_playback())
+    if (hal._keytone_request_generation.load() != generation ||
+        !hal.audio_begin_playback())
+    {
         return false;
+    }
 
-    i2s.playWAV(data, len);
-    hal.audio_end_playback();
+    hal.keytone_play.store(true);
+    if (hal._keytone_request_generation.load() != generation)
+    {
+        hal.keytone_play.store(false);
+        hal.audio_end_playback();
+        return false;
+    }
     return true;
 }
 
-static bool playAudioFileFromLittleFS(const char *filename)
+static void endKeytonePlayback()
 {
-    if (!hal.audio_ready || filename == NULL || strlen(filename) == 0)
+    hal.keytone_play.store(false);
+    hal.audio_end_playback();
+}
+
+static bool playWavWithAmplifier(const uint8_t *data, size_t len, uint32_t generation)
+{
+    if (data == NULL || len == 0 || !beginKeytonePlayback(generation))
+        return false;
+
+    const bool played = i2s.playWAV(data, len);
+    endKeytonePlayback();
+    return played;
+}
+
+static bool playAudioFileFromLittleFS(const char *filename, uint32_t generation)
+{
+    if (!hal.audio_ready.load() || filename == NULL || strlen(filename) == 0)
         return false;
 
     char path[64] = "/";
@@ -117,18 +155,17 @@ static bool playAudioFileFromLittleFS(const char *filename)
     bool played = false;
     const bool is_wav = hasFileSuffix(filename, "wav");
     const bool is_mp3 = hasFileSuffix(filename, "mp3");
-    if ((is_wav || is_mp3) && hal.audio_begin_playback())
+    if ((is_wav || is_mp3) && beginKeytonePlayback(generation))
     {
         if (is_wav)
         {
-            i2s.playWAV(data, len);
-            played = true;
+            played = i2s.playWAV(data, len);
         }
         else
         {
             played = i2s.playMP3(data, len);
         }
-        hal.audio_end_playback();
+        endKeytonePlayback();
     }
 
     free(data);
@@ -172,8 +209,22 @@ static void task_systemctl(void *p)
         GUI::toast(_tr(I18N_ID_RTC_SHUTDOWN), true, 10000);
     while (1)
     {
-        sysctl_event_t event;
-        xQueueReceive(hal._queue, &event, portMAX_DELAY);
+        sysctl_event_t event = {};
+        uint32_t keytone_request = 0;
+        bool has_event = xQueueReceive(hal._queue, &event, 0) == pdTRUE;
+        if (!has_event &&
+            hal._queue_keytone != NULL &&
+            xQueueReceive(hal._queue_keytone, &keytone_request, 0) == pdTRUE)
+        {
+            event.type = EVENT_KB_KEYPRESS;
+            event.data = 1;
+            has_event = true;
+        }
+        if (!has_event &&
+            xQueueReceive(hal._queue, &event, pdMS_TO_TICKS(10)) != pdTRUE)
+        {
+            continue;
+        }
         switch (event.type)
         {
         case EVENT_GET_TIME:
@@ -207,36 +258,22 @@ static void task_systemctl(void *p)
             hal.APMChanged = true;
             break;
         case EVENT_KB_KEYPRESS:
-            if (!hal.audio_ready)
+            if (!hal.audio_ready.load())
                 break;
             if (hal.config_keytone == 1) {
-                hal.keytone_play =  true;
-                playWavWithAmplifier(__keytone_keytone1_wav, __keytone_keytone1_wav_len);
-                hal.keytone_play =  false;
+                playWavWithAmplifier(__keytone_keytone1_wav, __keytone_keytone1_wav_len, keytone_request);
             } else if (hal.config_keytone == 2) {
-                hal.keytone_play =  true;
-                playWavWithAmplifier(__keytone_keytone2_wav, __keytone_keytone2_wav_len);
-                hal.keytone_play =  false;
+                playWavWithAmplifier(__keytone_keytone2_wav, __keytone_keytone2_wav_len, keytone_request);
             } else if (hal.config_keytone == 3) {
-                hal.keytone_play =  true;
-                playWavWithAmplifier(__keytone_keytone3_wav, __keytone_keytone3_wav_len);
-                hal.keytone_play =  false;
+                playWavWithAmplifier(__keytone_keytone3_wav, __keytone_keytone3_wav_len, keytone_request);
             } else if (hal.config_keytone == 4) {
-                hal.keytone_play =  true;
-                playAudioFileFromLittleFS(hal.config_keytone_file);
-                hal.keytone_play =  false;
+                playAudioFileFromLittleFS(hal.config_keytone_file, keytone_request);
             } else if (hal.config_keytone == 5) {
-                hal.keytone_play =  true;
-                playWavWithAmplifier(__keytone_keytone4_wav, __keytone_keytone4_wav_len);
-                hal.keytone_play =  false;
+                playWavWithAmplifier(__keytone_keytone4_wav, __keytone_keytone4_wav_len, keytone_request);
             } else if (hal.config_keytone == 6) {
-                hal.keytone_play =  true;
-                playWavWithAmplifier(__keytone_keytone5_wav, __keytone_keytone5_wav_len);
-                hal.keytone_play =  false;
+                playWavWithAmplifier(__keytone_keytone5_wav, __keytone_keytone5_wav_len, keytone_request);
             } else if (hal.config_keytone == 7) {
-                hal.keytone_play =  true;
-                playWavWithAmplifier(__keytone_keytone6_wav, __keytone_keytone6_wav_len);
-                hal.keytone_play =  false;
+                playWavWithAmplifier(__keytone_keytone6_wav, __keytone_keytone6_wav_len, keytone_request);
             }
             break;
         case EVENT_SERVERCTL:
@@ -342,6 +379,217 @@ void HAL::audio_unlock()
         xSemaphoreGiveRecursive(_audio_mutex);
 }
 
+bool HAL::audio_publish_owner(TaskHandle_t owner, uint32_t stop_generation)
+{
+    bool published = false;
+    portENTER_CRITICAL(&_audio_stop_mux);
+    i2s.clearStop();
+    if (_audio_stop_generation.load() == stop_generation)
+    {
+        _audio_owner.store(owner);
+        published = true;
+    }
+    portEXIT_CRITICAL(&_audio_stop_mux);
+    return published;
+}
+
+void HAL::audio_clear_owner()
+{
+    portENTER_CRITICAL(&_audio_stop_mux);
+    _audio_owner.store(NULL);
+    portEXIT_CRITICAL(&_audio_stop_mux);
+}
+
+void HAL::audio_amp_set_level_locked(bool enabled)
+{
+    if (_audio_amp_gpio_high == enabled)
+        return;
+    if (gpio_set_level((gpio_num_t)AUDIO_AMP_CTRL, enabled ? 1 : 0) == ESP_OK)
+        _audio_amp_gpio_high = enabled;
+}
+
+bool HAL::audio_amp_prepare_init()
+{
+    bool allowed = false;
+    portENTER_CRITICAL(&_audio_amp_mux);
+    if (!_audio_shutdown_requested.load() || _audio_shutdown_complete.load())
+    {
+        _audio_shutdown_requested.store(false);
+        _audio_shutdown_complete.store(false);
+        _audio_amp_mode = audio_amp_mode_t::off;
+        _audio_amp_idle_deadline = 0;
+        ++_audio_amp_epoch;
+        audio_amp_set_level_locked(false);
+        allowed = !_audio_amp_gpio_high;
+    }
+    portEXIT_CRITICAL(&_audio_amp_mux);
+    return allowed;
+}
+
+void HAL::audio_amp_mark_shutdown_complete(uint32_t epoch)
+{
+    portENTER_CRITICAL(&_audio_amp_mux);
+    if (_audio_shutdown_requested.load() &&
+        _audio_amp_mode == audio_amp_mode_t::shutdown &&
+        _audio_amp_epoch == epoch)
+    {
+        _audio_shutdown_complete.store(true);
+    }
+    portEXIT_CRITICAL(&_audio_amp_mux);
+}
+
+bool HAL::audio_amp_shutdown_is_current(uint32_t epoch)
+{
+    portENTER_CRITICAL(&_audio_amp_mux);
+    const bool current = _audio_shutdown_requested.load() &&
+                         _audio_amp_mode == audio_amp_mode_t::shutdown &&
+                         _audio_amp_epoch == epoch;
+    portEXIT_CRITICAL(&_audio_amp_mux);
+    return current;
+}
+
+bool HAL::audio_amp_start_playback(bool &cold_start)
+{
+    bool ready = false;
+    cold_start = false;
+    portENTER_CRITICAL(&_audio_amp_mux);
+    if (!_audio_shutdown_requested.load() &&
+        _audio_amp_mode != audio_amp_mode_t::shutdown)
+    {
+        cold_start = !_audio_amp_gpio_high;
+        _audio_amp_mode = audio_amp_mode_t::playback;
+        _audio_amp_idle_deadline = 0;
+        ++_audio_amp_epoch;
+        audio_amp_set_level_locked(true);
+        ready = _audio_amp_gpio_high;
+        if (!ready)
+            _audio_amp_mode = audio_amp_mode_t::off;
+    }
+    portEXIT_CRITICAL(&_audio_amp_mux);
+    return ready;
+}
+
+bool HAL::audio_amp_playback_ready()
+{
+    portENTER_CRITICAL(&_audio_amp_mux);
+    const bool ready = !_audio_shutdown_requested.load() &&
+                       _audio_amp_mode == audio_amp_mode_t::playback &&
+                       _audio_amp_gpio_high;
+    portEXIT_CRITICAL(&_audio_amp_mux);
+    return ready;
+}
+
+bool HAL::audio_amp_mute_for_reconfigure()
+{
+    portENTER_CRITICAL(&_audio_amp_mux);
+    const bool allowed = !_audio_shutdown_requested.load() &&
+                         _audio_amp_mode == audio_amp_mode_t::playback;
+    if (allowed)
+        audio_amp_set_level_locked(false);
+    const bool muted = allowed && !_audio_amp_gpio_high;
+    portEXIT_CRITICAL(&_audio_amp_mux);
+    return muted;
+}
+
+bool HAL::audio_amp_resume_after_reconfigure()
+{
+    portENTER_CRITICAL(&_audio_amp_mux);
+    const bool allowed = !_audio_shutdown_requested.load() &&
+                         _audio_amp_mode == audio_amp_mode_t::playback;
+    if (allowed)
+        audio_amp_set_level_locked(true);
+    const bool ready = allowed && _audio_amp_gpio_high;
+    portEXIT_CRITICAL(&_audio_amp_mux);
+    return ready;
+}
+
+bool HAL::audio_amp_begin_idle_hold(uint32_t &epoch)
+{
+    const TickType_t now = xTaskGetTickCount();
+    bool armed = false;
+    portENTER_CRITICAL(&_audio_amp_mux);
+    if (!_audio_shutdown_requested.load() &&
+        _audio_amp_mode == audio_amp_mode_t::playback &&
+        _audio_amp_gpio_high)
+    {
+        _audio_amp_mode = audio_amp_mode_t::idle_hold;
+        _audio_amp_idle_deadline = now + pdMS_TO_TICKS(AUDIO_AMP_IDLE_HOLD_MS);
+        epoch = ++_audio_amp_epoch;
+        armed = true;
+    }
+    else if (_audio_amp_mode != audio_amp_mode_t::shutdown)
+    {
+        _audio_amp_mode = audio_amp_mode_t::off;
+        ++_audio_amp_epoch;
+        audio_amp_set_level_locked(false);
+    }
+    portEXIT_CRITICAL(&_audio_amp_mux);
+    return armed;
+}
+
+void HAL::audio_amp_cancel_idle_hold(uint32_t epoch)
+{
+    portENTER_CRITICAL(&_audio_amp_mux);
+    if (_audio_amp_mode == audio_amp_mode_t::idle_hold &&
+        _audio_amp_epoch == epoch)
+    {
+        _audio_amp_mode = audio_amp_mode_t::off;
+        _audio_amp_idle_deadline = 0;
+        ++_audio_amp_epoch;
+        audio_amp_set_level_locked(false);
+    }
+    portEXIT_CRITICAL(&_audio_amp_mux);
+}
+
+void HAL::audio_amp_finish_idle_hold()
+{
+    const TickType_t now = xTaskGetTickCount();
+    portENTER_CRITICAL(&_audio_amp_mux);
+    if (_audio_amp_mode == audio_amp_mode_t::idle_hold &&
+        (int32_t)(now - _audio_amp_idle_deadline) >= 0)
+    {
+        _audio_amp_mode = audio_amp_mode_t::off;
+        _audio_amp_idle_deadline = 0;
+        ++_audio_amp_epoch;
+        audio_amp_set_level_locked(false);
+    }
+    portEXIT_CRITICAL(&_audio_amp_mux);
+}
+
+uint32_t HAL::audio_amp_request_shutdown()
+{
+    portENTER_CRITICAL(&_audio_amp_mux);
+    _audio_shutdown_complete.store(false);
+    _audio_shutdown_requested.store(true);
+    _audio_amp_mode = audio_amp_mode_t::shutdown;
+    _audio_amp_idle_deadline = 0;
+    const uint32_t epoch = ++_audio_amp_epoch;
+    audio_amp_set_level_locked(false);
+    portEXIT_CRITICAL(&_audio_amp_mux);
+    return epoch;
+}
+
+void HAL::audio_amp_force_off()
+{
+    portENTER_CRITICAL(&_audio_amp_mux);
+    if (_audio_amp_mode != audio_amp_mode_t::shutdown)
+    {
+        _audio_amp_mode = audio_amp_mode_t::off;
+        _audio_amp_idle_deadline = 0;
+        ++_audio_amp_epoch;
+    }
+    audio_amp_set_level_locked(false);
+    portEXIT_CRITICAL(&_audio_amp_mux);
+}
+
+void HAL::audio_amp_idle_timer_callback(TimerHandle_t timer)
+{
+    HAL *self = static_cast<HAL *>(pvTimerGetTimerID(timer));
+    if (self == NULL)
+        return;
+    self->audio_amp_finish_idle_hold();
+}
+
 esp_err_t HAL::audio_init()
 {
     if (!audio_lock(portMAX_DELAY))
@@ -350,27 +598,31 @@ esp_err_t HAL::audio_init()
         return ESP_FAIL;
     }
 
-    if (audio_ready && !_audio_shutdown_requested.load())
+    if (audio_ready.load() && !_audio_shutdown_requested.load())
     {
         audio_unlock();
         return ESP_OK;
     }
 
-    pinMode(AUDIO_AMP_CTRL, OUTPUT);
-    digitalWrite(AUDIO_AMP_CTRL, LOW);
-
-    if (_audio_shutdown_requested.exchange(false))
+    if (_audio_amp_idle_timer != NULL)
+        xTimerStop(_audio_amp_idle_timer, 0);
+    if (!audio_amp_prepare_init())
     {
-        audio_ready = false;
-        if (i2s.txChan() != NULL || i2s.rxChan() != NULL)
-            i2s.end();
+        ESP_LOGW(TAG, "Audio initialization skipped while shutdown is pending");
+        audio_unlock();
+        return ESP_ERR_INVALID_STATE;
+    }
+    audio_ready.store(false);
+
+    if (i2s.txChan() != NULL || i2s.rxChan() != NULL)
+    {
+        i2s.end();
         if (es_handle != NULL)
         {
             es8311_voice_volume_set(es_handle, 0, NULL);
             es8311_power_down(es_handle);
         }
     }
-    audio_ready = false;
 
     if (!Wire.begin(AUDIO_CODEC_I2C_SDA_PIN, AUDIO_CODEC_I2C_SCL_PIN))
     {
@@ -406,6 +658,9 @@ esp_err_t HAL::audio_init()
     if (codec_err != ESP_OK)
     {
         ESP_LOGE(TAG, "ES8311 unavailable; continuing with audio disabled");
+        es8311_voice_volume_set(es_handle, 0, NULL);
+        es8311_power_down(es_handle);
+        audio_amp_force_off();
         audio_unlock();
         return codec_err;
     }
@@ -415,6 +670,9 @@ esp_err_t HAL::audio_init()
     {
         ESP_LOGE(TAG, "ES8311 microphone setup failed: %s (0x%x)",
                  esp_err_to_name(codec_err), (unsigned)codec_err);
+        es8311_voice_volume_set(es_handle, 0, NULL);
+        es8311_power_down(es_handle);
+        audio_amp_force_off();
         audio_unlock();
         return codec_err;
     }
@@ -423,9 +681,15 @@ esp_err_t HAL::audio_init()
     if (!i2s.begin(I2S_MODE_STD, AUDIO_SAMPLE_RATE, I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO, I2S_STD_SLOT_BOTH))
     {
         ESP_LOGE(TAG, "I2S initialization failed");
+        if (i2s.txChan() != NULL || i2s.rxChan() != NULL)
+            i2s.end();
+        es8311_voice_volume_set(es_handle, 0, NULL);
+        es8311_power_down(es_handle);
+        audio_amp_force_off();
         audio_unlock();
         return ESP_FAIL;
     }
+    i2s.setTxConfigureCallback(configureAudioTxForPlayback, this);
 
     codec_err = es8311_voice_volume_set(es_handle, 0, NULL);
     if (codec_err != ESP_OK)
@@ -434,40 +698,70 @@ esp_err_t HAL::audio_init()
                  esp_err_to_name(codec_err), (unsigned)codec_err);
         if (i2s.txChan() != NULL || i2s.rxChan() != NULL)
             i2s.end();
+        es8311_power_down(es_handle);
+        audio_amp_force_off();
         audio_unlock();
         return codec_err;
     }
 
-    audio_ready = true;
+    if (_audio_shutdown_requested.load())
+    {
+        i2s.end();
+        es8311_voice_volume_set(es_handle, 0, NULL);
+        es8311_power_down(es_handle);
+        audio_amp_force_off();
+        audio_unlock();
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    audio_ready.store(true);
     ESP_LOGI(TAG, "Audio codec and I2S are ready; amplifier remains muted");
     audio_unlock();
     return ESP_OK;
 }
 
+void HAL::audio_stop_keytone(uint32_t generation)
+{
+    portENTER_CRITICAL(&_audio_stop_mux);
+    if (_keytone_request_generation.load() == generation &&
+        keytone_play.load())
+    {
+        _audio_stop_generation.fetch_add(1);
+        if (_audio_owner.load() != NULL)
+            i2s.stop();
+    }
+    portEXIT_CRITICAL(&_audio_stop_mux);
+}
+
 void HAL::audio_stop()
 {
     const TaskHandle_t current = xTaskGetCurrentTaskHandle();
-    if (_audio_owner != NULL && _audio_owner != current)
-    {
-        // I2SClass::stop only sets its cancellation flag. Use it as an
-        // asynchronous stop request while the playback owner drains/cleans up.
+    TaskHandle_t target_owner = NULL;
+    portENTER_CRITICAL(&_audio_stop_mux);
+    _audio_stop_generation.fetch_add(1);
+    target_owner = _audio_owner.load();
+    if (target_owner != NULL)
         i2s.stop();
-    }
+    portEXIT_CRITICAL(&_audio_stop_mux);
+
+    // Non-owner cancellation remains asynchronous; the owner drains and
+    // releases the lifecycle mutex after observing I2SClass::stop().
+    if (target_owner == NULL || target_owner != current)
+        return;
 
     if (!audio_lock(pdMS_TO_TICKS(2000)))
         return;
 
-    if (audio_ready)
-        i2s.stop();
-    if (_audio_owner == current)
+    if (_audio_owner.load() == current)
         audio_end_playback();
     audio_unlock();
 }
 
 bool HAL::audio_begin_playback()
 {
-    if (!audio_lock(portMAX_DELAY))
+    if (!audio_lock(pdMS_TO_TICKS(100)))
         return false;
+    const uint32_t stop_generation = _audio_stop_generation.load();
 
     if (_audio_shutdown_requested.load())
     {
@@ -476,40 +770,153 @@ bool HAL::audio_begin_playback()
     }
 
     const TaskHandle_t current = xTaskGetCurrentTaskHandle();
-    if (_audio_owner != NULL)
+    if (_audio_owner.load() != NULL)
     {
         ESP_LOGW(TAG, "Audio playback already owned by another playback scope");
         audio_unlock();
         return false;
     }
 
-    pinMode(AUDIO_AMP_CTRL, OUTPUT);
-    digitalWrite(AUDIO_AMP_CTRL, LOW);
-    if (!audio_ready || _volume <= 0)
+    if (!audio_ready.load() || _volume <= 0)
     {
         audio_unlock();
         return false;
     }
 
     setVolume(_volume);
-    if (!audio_ready)
+    if (!audio_ready.load())
     {
         audio_unlock();
         return false;
     }
 
-    i2s.clearStop();
-    _audio_owner = current;
-    digitalWrite(AUDIO_AMP_CTRL, HIGH);
+    if (!audio_publish_owner(current, stop_generation))
+    {
+        audio_unlock();
+        return false;
+    }
+    bool cold_start = false;
+    if (!audio_amp_start_playback(cold_start))
+    {
+        audio_clear_owner();
+        audio_unlock();
+        return false;
+    }
+    if (_audio_amp_idle_timer != NULL)
+        xTimerStop(_audio_amp_idle_timer, 0);
+    if (cold_start)
+        delay(AUDIO_AMP_STARTUP_GUARD_MS);
+    if (!audio_amp_playback_ready())
+    {
+        audio_clear_owner();
+        audio_amp_force_off();
+        audio_unlock();
+        return false;
+    }
     return true;
+}
+
+bool HAL::audio_configure_tx(uint32_t sample_rate,
+                             i2s_data_bit_width_t data_width,
+                             i2s_slot_mode_t slot_mode)
+{
+    if (!audio_lock(pdMS_TO_TICKS(100)))
+        return false;
+
+    const TaskHandle_t current = xTaskGetCurrentTaskHandle();
+    if (_audio_owner.load() != current || !audio_ready.load() || _audio_shutdown_requested.load())
+    {
+        audio_unlock();
+        return false;
+    }
+
+    if (data_width != I2S_DATA_BIT_WIDTH_16BIT ||
+        sample_rate == 0 ||
+        sample_rate > (uint32_t)(INT_MAX / AUDIO_MCLK_MULTIPLE) ||
+        (slot_mode != I2S_SLOT_MODE_MONO && slot_mode != I2S_SLOT_MODE_STEREO) ||
+        es_handle == NULL)
+    {
+        ESP_LOGE(TAG, "Unsupported audio format: %lu Hz, %d-bit, %d channel mode",
+                 (unsigned long)sample_rate, (int)data_width, (int)slot_mode);
+        audio_unlock();
+        return false;
+    }
+
+    if (i2s.txSampleRate() == sample_rate &&
+        i2s.txDataWidth() == data_width &&
+        i2s.txSlotMode() == slot_mode)
+    {
+        const bool ready = audio_amp_playback_ready();
+        audio_unlock();
+        return ready;
+    }
+
+    if (!audio_amp_mute_for_reconfigure())
+    {
+        audio_unlock();
+        return false;
+    }
+
+    esp_err_t codec_err = ESP_OK;
+    if (i2s.txSampleRate() != sample_rate)
+    {
+        codec_err = es8311_sample_frequency_config(
+            es_handle,
+            (int)(sample_rate * AUDIO_MCLK_MULTIPLE),
+            (int)sample_rate);
+    }
+    if (codec_err == ESP_ERR_INVALID_ARG)
+    {
+        ESP_LOGW(TAG, "Unsupported ES8311 sample rate: %lu Hz",
+                 (unsigned long)sample_rate);
+        audio_amp_force_off();
+        audio_unlock();
+        return false;
+    }
+    if (codec_err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "ES8311 sample-rate configuration failed: %s (0x%x)",
+                 esp_err_to_name(codec_err), (unsigned)codec_err);
+        audio_ready.store(false);
+        i2s.end();
+        es8311_voice_volume_set(es_handle, 0, NULL);
+        es8311_power_down(es_handle);
+        audio_amp_force_off();
+        audio_unlock();
+        return false;
+    }
+
+    const bool configured = i2s.configureTX(sample_rate, data_width, slot_mode);
+    if (!configured)
+    {
+        audio_ready.store(false);
+        i2s.end();
+        es8311_voice_volume_set(es_handle, 0, NULL);
+        es8311_power_down(es_handle);
+        audio_amp_force_off();
+        audio_unlock();
+        return false;
+    }
+
+    if (!audio_amp_resume_after_reconfigure())
+    {
+        audio_unlock();
+        return false;
+    }
+    delay(AUDIO_AMP_STARTUP_GUARD_MS);
+    const bool ready = audio_amp_playback_ready();
+    if (!ready)
+        audio_amp_force_off();
+    audio_unlock();
+    return ready;
 }
 
 void HAL::audio_end_playback()
 {
     const TaskHandle_t current = xTaskGetCurrentTaskHandle();
-    if (_audio_owner != current)
+    if (_audio_owner.load() != current)
     {
-        if (_audio_owner != NULL)
+        if (_audio_owner.load() != NULL)
             ESP_LOGW(TAG, "Ignoring audio_end_playback from non-owner task");
         return;
     }
@@ -518,34 +925,50 @@ void HAL::audio_end_playback()
     // enabled until the final DMA buffers have physically drained.
     if (i2s.txChan() != NULL)
         delay(AUDIO_DMA_TAIL_GUARD_MS);
-    pinMode(AUDIO_AMP_CTRL, OUTPUT);
-    digitalWrite(AUDIO_AMP_CTRL, LOW);
-    _audio_owner = NULL;
+    audio_clear_owner();
+    uint32_t idle_epoch = 0;
+    const bool idle_hold = audio_amp_begin_idle_hold(idle_epoch);
+    const bool hold_started = idle_hold &&
+                              _audio_amp_idle_timer != NULL &&
+                              xTimerReset(_audio_amp_idle_timer, 0) == pdPASS;
+    if (idle_hold && !hold_started)
+        audio_amp_cancel_idle_hold(idle_epoch);
+    const bool recover_audio = !audio_ready.load() &&
+                               !_audio_shutdown_requested.load();
     audio_unlock();
+    if (recover_audio && !_audio_shutdown_requested.load())
+        audio_init();
 }
 
 void HAL::audio_shutdown()
 {
-    _audio_shutdown_requested.store(true);
+    const uint32_t shutdown_epoch = audio_amp_request_shutdown();
     i2s.stop();
+    if (_audio_amp_idle_timer != NULL)
+        xTimerStop(_audio_amp_idle_timer, 0);
     gif_vid_stop = true;
     if (!audio_lock(pdMS_TO_TICKS(3000)))
     {
-        pinMode(AUDIO_AMP_CTRL, OUTPUT);
-        digitalWrite(AUDIO_AMP_CTRL, LOW);
         ESP_LOGE(TAG, "Timed out waiting for active playback to stop");
+        audio_amp_mark_shutdown_complete(shutdown_epoch);
+        return;
+    }
+
+    if (!audio_amp_shutdown_is_current(shutdown_epoch))
+    {
+        audio_unlock();
         return;
     }
 
     const TaskHandle_t current = xTaskGetCurrentTaskHandle();
-    if (_audio_owner == current)
+    if (_audio_owner.load() == current)
     {
         audio_end_playback();
     }
 
-    pinMode(AUDIO_AMP_CTRL, OUTPUT);
-    digitalWrite(AUDIO_AMP_CTRL, LOW);
-    audio_ready = false;
+    if (_audio_amp_idle_timer != NULL)
+        xTimerStop(_audio_amp_idle_timer, 0);
+    audio_ready.store(false);
 
     if (i2s.txChan() != NULL || i2s.rxChan() != NULL)
         i2s.end();
@@ -554,6 +977,7 @@ void HAL::audio_shutdown()
         es8311_voice_volume_set(es_handle, 0, NULL);
         es8311_power_down(es_handle);
     }
+    audio_amp_mark_shutdown_complete(shutdown_epoch);
     audio_unlock();
 }
 
@@ -573,6 +997,13 @@ void HAL::init()
     }
     else
     {
+        _audio_amp_idle_timer = xTimerCreate("audio_amp_idle",
+                                             pdMS_TO_TICKS(AUDIO_AMP_IDLE_HOLD_MS),
+                                             pdFALSE,
+                                             this,
+                                             audio_amp_idle_timer_callback);
+        if (_audio_amp_idle_timer == NULL)
+            ESP_LOGE("HAL", "Audio amplifier idle timer allocation failed");
         const esp_err_t audio_err = hal.audio_init();
         if (audio_err != ESP_OK)
             ESP_LOGE("HAL", "Audio disabled after initialization error: %s (0x%x)",
@@ -629,6 +1060,10 @@ void HAL::init()
     _mutex = xSemaphoreCreateMutex();
     _queue = xQueueCreate(10, sizeof(sysctl_event_t));
     _queue_kb = xQueueCreate(10, 1);
+    _queue_keytone = xQueueCreate(1, sizeof(uint32_t));
+    _keytone_request_mutex = xSemaphoreCreateMutex();
+    if (_keytone_request_mutex == NULL)
+        ESP_LOGE("HAL", "Keytone request mutex allocation failed");
     lv_init();
 
     uint32_t draw_buf_pixels = DRAW_BUF_SIZE / sizeof(lv_color_t);
@@ -950,7 +1385,7 @@ void HAL::setVolume(int8_t volume)
         ESP_LOGE("HAL", "音量设置错误: %d", volume);
     }
 
-    if (!audio_ready || es_handle == NULL)
+    if (!audio_ready.load() || es_handle == NULL)
     {
         audio_unlock();
         return;
@@ -961,14 +1396,20 @@ void HAL::setVolume(int8_t volume)
     {
         ESP_LOGE("HAL", "Volume write failed: %s (0x%x); muting amplifier",
                  esp_err_to_name(err), (unsigned)err);
-        audio_ready = false;
-        digitalWrite(AUDIO_AMP_CTRL, LOW);
+        audio_ready.store(false);
+        if (_audio_amp_idle_timer != NULL)
+            xTimerStop(_audio_amp_idle_timer, 0);
+        audio_amp_force_off();
         audio_unlock();
         return;
     }
 
     if (codec_volume == 0)
-        digitalWrite(AUDIO_AMP_CTRL, LOW);
+    {
+        if (_audio_amp_idle_timer != NULL)
+            xTimerStop(_audio_amp_idle_timer, 0);
+        audio_amp_force_off();
+    }
     audio_unlock();
 }
 
@@ -991,6 +1432,18 @@ void HAL::goSleep()
     rtc_gpio_hold_en((gpio_num_t)PIN_SERIAL1_RX);
     delay(2);
     esp_deep_sleep_start();
+}
+
+void HAL::request_keytone()
+{
+    if (_queue_keytone == NULL || _keytone_request_mutex == NULL)
+        return;
+    if (xSemaphoreTake(_keytone_request_mutex, portMAX_DELAY) != pdTRUE)
+        return;
+    const uint32_t request = _keytone_request_generation.fetch_add(1) + 1;
+    audio_stop_keytone(request);
+    xQueueOverwrite(_queue_keytone, &request);
+    xSemaphoreGive(_keytone_request_mutex);
 }
 
 void HAL::send_sysctl(system_event_type_t type, uint8_t data)

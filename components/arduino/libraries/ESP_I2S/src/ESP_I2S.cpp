@@ -8,6 +8,7 @@
 #include "esp32-hal-periman.h"
 #include "wav_header.h"
 #include "mp3dec.h"
+#include <limits.h>
 
 #define I2S_READ_CHUNK_SIZE 1920
 
@@ -186,6 +187,9 @@ I2SClass::I2SClass() {
   tx_sample_rate = 0;
   tx_data_bit_width = I2S_DATA_BIT_WIDTH_16BIT;
   tx_slot_mode = I2S_SLOT_MODE_STEREO;
+  _tx_chan_enabled = false;
+  tx_configure_callback = NULL;
+  tx_configure_context = NULL;
 
   rx_fn = i2s_channel_read_default;
   rx_transform = I2S_RX_TRANSFORM_NONE;
@@ -228,8 +232,8 @@ I2SClass::~I2SClass() {
 
 bool I2SClass::i2sDetachBus(void *bus_pointer) {
   I2SClass *bus = (I2SClass *)bus_pointer;
-  if (bus->tx_chan != NULL || bus->tx_chan != NULL) {
-    bus->end();
+  if (bus->tx_chan != NULL || bus->rx_chan != NULL) {
+    return bus->end();
   }
   return true;
 }
@@ -344,11 +348,13 @@ bool I2SClass::initSTD(uint32_t rate, i2s_data_bit_width_t bits_cfg, i2s_slot_mo
     i2s_config.slot_cfg.slot_mask = (i2s_std_slot_mask_t)slot_mask;
   }
   if (tx_chan != NULL) {
+    _tx_chan_enabled = false;
     tx_sample_rate = rate;
     tx_data_bit_width = bits_cfg;
     tx_slot_mode = ch;
     I2S_ERROR_CHECK_RETURN_FALSE(i2s_channel_init_std_mode(tx_chan, &i2s_config));
     I2S_ERROR_CHECK_RETURN_FALSE(i2s_channel_enable(tx_chan));
+    _tx_chan_enabled = true;
   }
   if (rx_chan != NULL) {
     rx_sample_rate = rate;
@@ -450,11 +456,13 @@ bool I2SClass::initTDM(uint32_t rate, i2s_data_bit_width_t bits_cfg, i2s_slot_mo
 
   i2s_tdm_config_t i2s_tdm_config = I2S_TDM_CHAN_CFG(rate, bits_cfg, ch, (i2s_tdm_slot_mask_t)slot_mask);
   if (tx_chan != NULL) {
+    _tx_chan_enabled = false;
     tx_sample_rate = rate;
     tx_data_bit_width = bits_cfg;
     tx_slot_mode = ch;
     I2S_ERROR_CHECK_RETURN_FALSE(i2s_channel_init_tdm_mode(tx_chan, &i2s_tdm_config));
     I2S_ERROR_CHECK_RETURN_FALSE(i2s_channel_enable(tx_chan));
+    _tx_chan_enabled = true;
   }
   if (rx_chan != NULL) {
     rx_sample_rate = rate;
@@ -535,11 +543,13 @@ bool I2SClass::initPDMtx(uint32_t rate, i2s_data_bit_width_t bits_cfg, i2s_slot_
 
   i2s_pdm_tx_config_t i2s_pdm_tx_config = I2S_PDM_TX_CHAN_CFG(rate, bits_cfg, ch);
   if (tx_chan != NULL) {
+    _tx_chan_enabled = false;
     tx_sample_rate = rate;
     tx_data_bit_width = bits_cfg;
     tx_slot_mode = ch;
     I2S_ERROR_CHECK_RETURN_FALSE(i2s_channel_init_pdm_tx_mode(tx_chan, &i2s_pdm_tx_config));
     I2S_ERROR_CHECK_RETURN_FALSE(i2s_channel_enable(tx_chan));
+    _tx_chan_enabled = true;
   }
 
   // Peripheral manager set bus type to I2S
@@ -692,15 +702,43 @@ bool I2SClass::begin(i2s_mode_t mode, uint32_t rate, i2s_data_bit_width_t bits_c
 }
 
 bool I2SClass::end() {
+  bool success = true;
   if (tx_chan != NULL) {
-    I2S_ERROR_CHECK_RETURN_FALSE(i2s_channel_disable(tx_chan));
-    I2S_ERROR_CHECK_RETURN_FALSE(i2s_del_channel(tx_chan));
-    tx_chan = NULL;
+    last_error = i2s_channel_disable(tx_chan);
+    if (last_error != ESP_OK && last_error != ESP_ERR_INVALID_STATE) {
+      log_e("ERROR: %s", esp_err_to_name(last_error));
+      success = false;
+    } else {
+      _tx_chan_enabled = false;
+    }
+
+    last_error = i2s_del_channel(tx_chan);
+    if (last_error != ESP_OK) {
+      log_e("ERROR: %s", esp_err_to_name(last_error));
+      success = false;
+    } else {
+      tx_chan = NULL;
+      _tx_chan_enabled = false;
+      tx_sample_rate = 0;
+    }
   }
   if (rx_chan != NULL) {
-    I2S_ERROR_CHECK_RETURN_FALSE(i2s_channel_disable(rx_chan));
-    I2S_ERROR_CHECK_RETURN_FALSE(i2s_del_channel(rx_chan));
-    rx_chan = NULL;
+    last_error = i2s_channel_disable(rx_chan);
+    if (last_error != ESP_OK && last_error != ESP_ERR_INVALID_STATE) {
+      log_e("ERROR: %s", esp_err_to_name(last_error));
+      success = false;
+    }
+
+    last_error = i2s_del_channel(rx_chan);
+    if (last_error != ESP_OK) {
+      log_e("ERROR: %s", esp_err_to_name(last_error));
+      success = false;
+    } else {
+      rx_chan = NULL;
+    }
+  }
+  if (tx_chan != NULL || rx_chan != NULL) {
+    return false;
   }
   if (rx_transform_buf != NULL) {
     free(rx_transform_buf);
@@ -754,29 +792,46 @@ bool I2SClass::end() {
 #endif
     default: break;
   }
-  return true;
+  return success;
 }
 
 bool I2SClass::configureTX(uint32_t rate, i2s_data_bit_width_t bits_cfg, i2s_slot_mode_t ch, int8_t slot_mask) {
   /* Setup I2S channels */
   if (tx_chan != NULL) {
-    if (tx_sample_rate == rate && tx_data_bit_width == bits_cfg && tx_slot_mode == ch) {
+    if (_tx_chan_enabled && tx_sample_rate == rate && tx_data_bit_width == bits_cfg && tx_slot_mode == ch) {
       return true;
     }
     i2s_std_config_t i2s_config = I2S_STD_CHAN_CFG(rate, bits_cfg, ch);
     if (slot_mask >= 0 && (i2s_std_slot_mask_t)slot_mask <= I2S_STD_SLOT_BOTH) {
       i2s_config.slot_cfg.slot_mask = (i2s_std_slot_mask_t)slot_mask;
     }
-    I2S_ERROR_CHECK_RETURN_FALSE(i2s_channel_disable(tx_chan));
+
+    if (_tx_chan_enabled) {
+      I2S_ERROR_CHECK_RETURN_FALSE(i2s_channel_disable(tx_chan));
+      _tx_chan_enabled = false;
+    }
     I2S_ERROR_CHECK_RETURN_FALSE(i2s_channel_reconfig_std_clock(tx_chan, &i2s_config.clk_cfg));
-    tx_sample_rate = rate;
     I2S_ERROR_CHECK_RETURN_FALSE(i2s_channel_reconfig_std_slot(tx_chan, &i2s_config.slot_cfg));
+    I2S_ERROR_CHECK_RETURN_FALSE(i2s_channel_enable(tx_chan));
+    _tx_chan_enabled = true;
+    tx_sample_rate = rate;
     tx_data_bit_width = bits_cfg;
     tx_slot_mode = ch;
-    I2S_ERROR_CHECK_RETURN_FALSE(i2s_channel_enable(tx_chan));
     return true;
   }
   return false;
+}
+
+void I2SClass::setTxConfigureCallback(i2s_tx_configure_callback_t callback, void *context) {
+  tx_configure_callback = callback;
+  tx_configure_context = context;
+}
+
+bool I2SClass::configureTXForPlayback(uint32_t rate, i2s_data_bit_width_t bits_cfg, i2s_slot_mode_t ch) {
+  if (tx_configure_callback != NULL) {
+    return tx_configure_callback(rate, bits_cfg, ch, tx_configure_context);
+  }
+  return configureTX(rate, bits_cfg, ch);
 }
 
 bool I2SClass::configureRX(uint32_t rate, i2s_data_bit_width_t bits_cfg, i2s_slot_mode_t ch, i2s_rx_transform_t transform) {
@@ -827,7 +882,7 @@ size_t I2SClass::write(uint8_t *buffer, size_t size) {
     return written;
   }
   while (written < size) {
-    if (_stop) {
+    if (_stop.load()) {
       break;
     }
     bytes_sent = size - written;
@@ -963,6 +1018,14 @@ bool I2SClass::allocTranformRX(size_t buf_len) {
 
 const int WAVE_HEADER_SIZE = PCM_WAV_HEADER_SIZE;
 
+static uint16_t readWavLE16(const uint8_t *data) {
+  return (uint16_t)data[0] | ((uint16_t)data[1] << 8);
+}
+
+static uint32_t readWavLE32(const uint8_t *data) {
+  return (uint32_t)data[0] | ((uint32_t)data[1] << 8) | ((uint32_t)data[2] << 16) | ((uint32_t)data[3] << 24);
+}
+
 //Record PCM WAV with current RX settings
 uint8_t *I2SClass::recordWAV(size_t rec_seconds, size_t *out_size) {
   uint32_t sample_rate = rxSampleRate();
@@ -993,28 +1056,101 @@ uint8_t *I2SClass::recordWAV(size_t rec_seconds, size_t *out_size) {
   return NULL;
 }
 
-void I2SClass::playWAV(const uint8_t *data, size_t len) {
-  const pcm_wav_header_t *header = (const pcm_wav_header_t *)data;
-  if (header->fmt_chunk.audio_format != 1) {
+bool I2SClass::playWAV(const uint8_t *data, size_t len) {
+  static const size_t descriptor_size = 12;
+  static const size_t chunk_header_size = 8;
+  static const size_t pcm_fmt_size = 16;
+
+  if (data == NULL || len < descriptor_size) {
+    log_e("Invalid WAV buffer");
+    return false;
+  }
+  if (memcmp(data, "RIFF", 4) != 0 || memcmp(data + 8, "WAVE", 4) != 0) {
+    log_e("Invalid WAV descriptor");
+    return false;
+  }
+
+  uint32_t riff_size = readWavLE32(data + 4);
+  if (riff_size < 4 || riff_size > len - 8) {
+    log_e("Invalid WAV RIFF size");
+    return false;
+  }
+
+  size_t riff_end = (size_t)riff_size + 8;
+  size_t chunk_offset = descriptor_size;
+  bool fmt_found = false;
+  bool data_found = false;
+  uint16_t audio_format = 0;
+  uint16_t num_channels = 0;
+  uint16_t bits_per_sample = 0;
+  uint32_t sample_rate = 0;
+  const uint8_t *audio_data = NULL;
+  size_t audio_size = 0;
+
+  while (chunk_offset < riff_end) {
+    if (riff_end - chunk_offset < chunk_header_size) {
+      log_e("Truncated WAV chunk header");
+      return false;
+    }
+
+    const uint8_t *chunk = data + chunk_offset;
+    uint32_t chunk_size = readWavLE32(chunk + 4);
+    size_t payload_offset = chunk_offset + chunk_header_size;
+    if (chunk_size > riff_end - payload_offset) {
+      log_e("Truncated WAV chunk");
+      return false;
+    }
+
+    if (memcmp(chunk, "fmt ", 4) == 0 && !fmt_found) {
+      if (chunk_size < pcm_fmt_size) {
+        log_e("Invalid WAV fmt chunk");
+        return false;
+      }
+      const uint8_t *fmt = data + payload_offset;
+      audio_format = readWavLE16(fmt);
+      num_channels = readWavLE16(fmt + 2);
+      sample_rate = readWavLE32(fmt + 4);
+      bits_per_sample = readWavLE16(fmt + 14);
+      fmt_found = true;
+    } else if (memcmp(chunk, "data", 4) == 0 && !data_found) {
+      audio_data = data + payload_offset;
+      audio_size = chunk_size;
+      data_found = true;
+    } else {
+      log_d("Skip chunk: %c%c%c%c, len: %lu", chunk[0], chunk[1], chunk[2], chunk[3], (unsigned long)chunk_size + chunk_header_size);
+    }
+
+    size_t next_offset = payload_offset + chunk_size;
+    if ((chunk_size & 1U) != 0) {
+      if (next_offset >= riff_end) {
+        log_e("Missing WAV chunk padding");
+        return false;
+      }
+      ++next_offset;
+    }
+    chunk_offset = next_offset;
+  }
+
+  if (!fmt_found || !data_found) {
+    log_e("WAV fmt or data chunk is missing");
+    return false;
+  }
+  if (audio_format != WAVE_FORMAT_PCM) {
     log_e("Audio format is not PCM!");
-    return;
+    return false;
   }
-  const wav_data_chunk_t *data_chunk = &header->data_chunk;
-  size_t data_offset = 0;
-  while (memcmp(data_chunk->subchunk_id, "data", 4) != 0) {
-    log_d(
-      "Skip chunk: %c%c%c%c, len: %lu", data_chunk->subchunk_id[0], data_chunk->subchunk_id[1], data_chunk->subchunk_id[2], data_chunk->subchunk_id[3],
-      data_chunk->subchunk_size + 8
-    );
-    data_offset += data_chunk->subchunk_size + 8;
-    data_chunk = (const wav_data_chunk_t *)(data + WAVE_HEADER_SIZE + data_offset - 8);
+  if (sample_rate == 0 || (num_channels != 1 && num_channels != 2) ||
+      (bits_per_sample != 8 && bits_per_sample != 16 && bits_per_sample != 24 && bits_per_sample != 32)) {
+    log_e("Unsupported WAV format");
+    return false;
   }
-  log_d(
-    "Play WAV: rate:%lu, bits:%d, channels:%d, size:%lu", header->fmt_chunk.sample_rate, header->fmt_chunk.bits_per_sample, header->fmt_chunk.num_of_channels,
-    data_chunk->subchunk_size
-  );
-  configureTX(header->fmt_chunk.sample_rate, (i2s_data_bit_width_t)header->fmt_chunk.bits_per_sample, (i2s_slot_mode_t)header->fmt_chunk.num_of_channels);
-  write(data + WAVE_HEADER_SIZE + data_offset, data_chunk->subchunk_size);
+
+  log_d("Play WAV: rate:%lu, bits:%u, channels:%u, size:%lu", sample_rate, bits_per_sample, num_channels, (unsigned long)audio_size);
+  if (!configureTXForPlayback(sample_rate, (i2s_data_bit_width_t)bits_per_sample, (i2s_slot_mode_t)num_channels)) {
+    log_e("Failed to configure I2S for WAV playback");
+    return false;
+  }
+  return write(audio_data, audio_size) == audio_size;
 }
 
 bool I2SClass::playMP3(uint8_t *src, size_t src_len) {
@@ -1024,7 +1160,12 @@ bool I2SClass::playMP3(uint8_t *src, size_t src_len) {
   MP3FrameInfo frameInfo;
   HMP3Decoder decoder = NULL;
 
-  bytesAvailable = src_len;
+  if (src == NULL || src_len == 0 || src_len > INT_MAX) {
+    log_e("Invalid MP3 buffer");
+    return false;
+  }
+
+  bytesAvailable = (int)src_len;
   readPtr = src;
 
   decoder = MP3InitDecoder();
@@ -1033,7 +1174,7 @@ bool I2SClass::playMP3(uint8_t *src, size_t src_len) {
     return false;
   }
   do {
-    if (_stop) {
+    if (_stop.load()) {
       break;
     }
 
@@ -1051,8 +1192,16 @@ bool I2SClass::playMP3(uint8_t *src, size_t src_len) {
       return false;
     } else {
       MP3GetLastFrameInfo(decoder, &frameInfo);
-      configureTX(frameInfo.samprate, (i2s_data_bit_width_t)frameInfo.bitsPerSample, (i2s_slot_mode_t)frameInfo.nChans);
-      write((uint8_t *)outBuf, (size_t)((frameInfo.bitsPerSample / 8) * frameInfo.outputSamps));
+      if (!configureTXForPlayback(frameInfo.samprate, (i2s_data_bit_width_t)frameInfo.bitsPerSample, (i2s_slot_mode_t)frameInfo.nChans)) {
+        log_e("Failed to configure I2S for MP3 playback");
+        MP3FreeDecoder(decoder);
+        return false;
+      }
+      size_t output_size = (size_t)((frameInfo.bitsPerSample / 8) * frameInfo.outputSamps);
+      if (write((uint8_t *)outBuf, output_size) != output_size) {
+        MP3FreeDecoder(decoder);
+        return false;
+      }
     }
   } while (true);
 
@@ -1061,11 +1210,11 @@ bool I2SClass::playMP3(uint8_t *src, size_t src_len) {
 }
 
 void I2SClass::stop() {
-  _stop = true;
+  _stop.store(true);
 }
 
 void I2SClass::clearStop() {
-  _stop = false;
+  _stop.store(false);
 }
 
 #endif /* SOC_I2S_SUPPORTED */
